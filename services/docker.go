@@ -125,6 +125,15 @@ func (ds *DockerService) createMainUnit(currentScaleGroup uint8) units.Unit {
 		FleetOptions: units.NewFleetOptions(),
 	}
 	main.FleetOptions.IsGlobal = ds.global
+	main.ExecOptions.ExecStartPre = []string{
+		"/usr/bin/docker pull $IMAGE",
+		fmt.Sprintf("-/usr/bin/docker stop -t %v $NAME", main.ExecOptions.ContainerTimeoutStopSec),
+		"-/usr/bin/docker rm -f $NAME",
+	}
+	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v $NAME", main.ExecOptions.ContainerTimeoutStopSec)
+	main.ExecOptions.ExecStopPost = []string{
+		"-/usr/bin/docker rm -f $NAME",
+	}
 	main.ExecOptions.Environment = map[string]string{
 		"NAME":  main.ContainerName(),
 		"IMAGE": fmt.Sprintf("%s/%s:%v", ds.registry, ds.image, ds.version),

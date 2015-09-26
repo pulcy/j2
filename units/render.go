@@ -77,6 +77,7 @@ func (u *Unit) Render() string {
 	for _, x := range u.FleetOptions.Metadata {
 		lines = append(lines, "MachineMetadata="+x)
 	}
+	lines = append(lines, "")
 
 	return strings.Join(lines, "\n")
 }
