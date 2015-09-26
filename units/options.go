@@ -70,7 +70,7 @@ type fleetOptions struct {
 	Metadata      []string
 }
 
-func FleetOptions() *fleetOptions {
+func NewFleetOptions() *fleetOptions {
 	return &fleetOptions{
 		IsGlobal:      false,
 		HasConflicts:  false,

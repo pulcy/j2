@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -11,7 +12,6 @@ import (
 var (
 	projectVersion = "dev"
 	projectBuild   = "dev"
-	domain         = "pulcy.com"
 )
 
 var (
@@ -20,13 +20,25 @@ var (
 		Run:              showUsage,
 		PersistentPreRun: loadDefaults,
 	}
+	globalFlags struct {
+		debug   bool
+		verbose bool
+		sleep   time.Duration
+	}
 )
 
 func init() {
-	//cmdMain.PersistentFlags().StringVarP(&digitalOceanToken, "digitalocean-token", "t", "", "Digital Ocean token")
+	cmdMain.PersistentFlags().BoolVarP(&globalFlags.debug, "debug", "d", false, "Print debug output")
+	cmdMain.PersistentFlags().BoolVarP(&globalFlags.verbose, "verbose", "v", false, "Print verbose output")
+	cmdMain.PersistentFlags().DurationVar(&globalFlags.sleep, "sleep", 60*time.Second, "time to sleep between updates")
 }
 
 func main() {
+	cmdMain.AddCommand(createCmd)
+	cmdMain.AddCommand(destroyCmd)
+	cmdMain.AddCommand(updateCmd)
+	createDeploymentCommands()
+
 	cmdMain.Execute()
 }
 
@@ -55,5 +67,12 @@ func confirm(question string) error {
 
 func Exitf(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
+	fmt.Println()
 	os.Exit(1)
+}
+
+func assert(err error) {
+	if err != nil {
+		panic(err.Error())
+	}
 }
