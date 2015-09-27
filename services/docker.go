@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strconv"
 
 	"arvika.pulcy.com/iggi/deployit/units"
 )
@@ -16,12 +17,19 @@ type DockerService struct {
 	global      bool
 	args        []string
 	ports       []*DockerPort
+	volumes     []*DockerVolume
+	environment map[string]string
 }
 
 type DockerPort struct {
 	hostIP        string
 	hostPort      string
 	containerPort string
+}
+
+type DockerVolume struct {
+	hostPath      string
+	containerPath string
 }
 
 func NewPort(containerPort string) *DockerPort {
@@ -50,6 +58,7 @@ func NewDockerService(name, description string) *DockerService {
 	return &DockerService{
 		name:        name,
 		description: description,
+		environment: make(map[string]string),
 	}
 }
 
@@ -70,6 +79,18 @@ func (ds *DockerService) Args(args ...string) *DockerService {
 // Append exposed ports
 func (ds *DockerService) Ports(ports ...*DockerPort) *DockerService {
 	ds.ports = append(ds.ports, ports...)
+	return ds
+}
+
+// Append mapped volume
+func (ds *DockerService) Volume(hostPath, containerPath string) *DockerService {
+	ds.volumes = append(ds.volumes, &DockerVolume{hostPath: hostPath, containerPath: containerPath})
+	return ds
+}
+
+// Append environment variable
+func (ds *DockerService) Environment(key, value string) *DockerService {
+	ds.environment[key] = value
 	return ds
 }
 
@@ -103,6 +124,17 @@ func (ds *DockerService) Units(currentScaleGroup uint8) ([]units.Unit, error) {
 	return list, nil
 }
 
+func (ds *DockerService) fullImageName() string {
+	result := ds.image
+	if ds.version != "" {
+		result = result + ":" + ds.version
+	}
+	if ds.registry != "" {
+		result = ds.registry + "/" + result
+	}
+	return result
+}
+
 func (ds *DockerService) createMainUnit(currentScaleGroup uint8) units.Unit {
 	execStart := []string{
 		"/usr/bin/docker",
@@ -113,6 +145,13 @@ func (ds *DockerService) createMainUnit(currentScaleGroup uint8) units.Unit {
 	for _, p := range ds.ports {
 		execStart = append(execStart, "-p "+p.String())
 	}
+	for _, v := range ds.volumes {
+		execStart = append(execStart, fmt.Sprintf("-v %s:%s", v.hostPath, v.containerPath))
+	}
+	for k, v := range ds.environment {
+		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
+	}
+	execStart = append(execStart, "-e SERVICE_NAME=$NAME") // Support registrator
 	execStart = append(execStart, "$IMAGE")
 	execStart = append(execStart, ds.args...)
 	main := units.Unit{
@@ -136,7 +175,7 @@ func (ds *DockerService) createMainUnit(currentScaleGroup uint8) units.Unit {
 	}
 	main.ExecOptions.Environment = map[string]string{
 		"NAME":  main.ContainerName(),
-		"IMAGE": fmt.Sprintf("%s/%s:%v", ds.registry, ds.image, ds.version),
+		"IMAGE": ds.fullImageName(),
 	}
 
 	return main

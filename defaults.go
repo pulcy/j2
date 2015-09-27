@@ -16,4 +16,5 @@ const (
 // deployment
 const (
 	defaultLoadBalancerVersion = "0.0.1"
+	defaultRegistratorVersion  = "v6"
 )

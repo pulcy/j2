@@ -19,6 +19,7 @@ func init() {
 		Flags: func(fs *pflag.FlagSet, f *fg.Flags) {
 			// Image versions
 			fs.StringVar(&f.LoadBalancerVersion, "load-balancer-version", defaultLoadBalancerVersion, "Version of load-balancer")
+			fs.StringVar(&f.RegistratorVersion, "registrator-version", defaultRegistratorVersion, "Version of registrator")
 		},
 
 		Defaults: func(f *fg.Flags) {

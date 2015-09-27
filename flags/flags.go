@@ -14,4 +14,5 @@ type Flags struct {
 
 	// Image versions
 	LoadBalancerVersion string
+	RegistratorVersion  string
 }
