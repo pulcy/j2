@@ -55,7 +55,7 @@ func (t *Task) Validate() error {
 }
 
 // createUnits creates all units needed to run this task.
-func (t *Task) createUnits(scalingGroup uint8) ([]*units.Unit, error) {
+func (t *Task) createUnits(scalingGroup uint) ([]*units.Unit, error) {
 	units := []*units.Unit{}
 	main, err := t.createMainUnit(scalingGroup)
 	if err != nil {
@@ -67,7 +67,7 @@ func (t *Task) createUnits(scalingGroup uint8) ([]*units.Unit, error) {
 }
 
 // createMainUnit
-func (t *Task) createMainUnit(scalingGroup uint8) (*units.Unit, error) {
+func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	execStart := []string{
 		"/usr/bin/docker",
 		"run",
@@ -96,7 +96,7 @@ func (t *Task) createMainUnit(scalingGroup uint8) (*units.Unit, error) {
 	main := &units.Unit{
 		Name:         t.unitName(scalingGroup),
 		FullName:     t.unitName(scalingGroup) + ".service",
-		Description:  fmt.Sprintf("Main unit for %s", t.fullName()),
+		Description:  fmt.Sprintf("Main unit for %s slice %v", t.fullName(), scalingGroup),
 		Type:         "service",
 		Scalable:     t.Group.Count > 1,
 		ScalingGroup: scalingGroup,
@@ -127,7 +127,7 @@ func (t *Task) fullName() string {
 }
 
 // unitName returns the name of the systemd unit for this task.
-func (t *Task) unitName(scalingGroup uint8) string {
+func (t *Task) unitName(scalingGroup uint) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
 	if t.Group.Count <= 1 {
 		return base
@@ -136,7 +136,7 @@ func (t *Task) unitName(scalingGroup uint8) string {
 }
 
 // containerName returns the name of the docker contained used for this task.
-func (t *Task) containerName(scalingGroup uint8) string {
+func (t *Task) containerName(scalingGroup uint) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
 	return fmt.Sprintf("%s-%v", base, scalingGroup)
 }

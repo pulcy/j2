@@ -17,7 +17,7 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.StringSliceVarP(&f.Groups, "groups", "g", defaultGroups, "target task groups to deploy")
 	fs.BoolVarP(&f.Force, "force", "f", defaultForce, "wheather to confirm destroy or not")
 	fs.BoolVarP(&f.DryRun, "dry-run", "d", defaultDryRun, "wheather to schedule units or not")
-	fs.Uint8Var(&f.ScalingGroup, "scaling-group", defaultScalingGroup, "scaling group to deploy")
+	fs.UintVar(&f.ScalingGroup, "scaling-group", defaultScalingGroup, "scaling group to deploy")
 	fs.StringVar(&f.PrivateRegistry, "private-registry", defaultPrivateRegistry, "private registry for the docker images")
 	fs.StringVar(&f.LogLevel, "log-level", defaultLogLevel, "log-level for our services")
 }

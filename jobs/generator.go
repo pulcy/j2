@@ -12,10 +12,10 @@ type Generator struct {
 	files               []string
 	unitNames           []string
 	tmpDir              string
-	currentScalingGroup uint8
+	currentScalingGroup uint
 }
 
-func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint8) *Generator {
+func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint) *Generator {
 	tmpDir, err := ioutil.TempDir("", "deployit")
 	if err != nil {
 		panic(err.Error())
@@ -31,25 +31,31 @@ func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint8) *
 func (g *Generator) WriteTmpFiles() error {
 	files := []string{}
 	unitNames := []string{}
-	for _, tg := range g.job.Groups {
-		if !g.include(tg.Name) {
-			// We do not want this task group now
+	maxCount := g.job.MaxCount()
+	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
+		if g.currentScalingGroup != 0 && g.currentScalingGroup != scalingGroup {
 			continue
 		}
-		units, err := tg.createUnits(g.currentScalingGroup)
-		if err != nil {
-			return maskAny(err)
-		}
-		for _, unit := range units {
-			content := unit.Render()
-			unitName := unit.FullName
-			path := filepath.Join(g.tmpDir, unitName)
-			err := ioutil.WriteFile(path, []byte(content), 0666)
+		for _, tg := range g.job.Groups {
+			if !g.include(tg.Name) {
+				// We do not want this task group now
+				continue
+			}
+			units, err := tg.createUnits(scalingGroup)
 			if err != nil {
 				return maskAny(err)
 			}
-			files = append(files, path)
-			unitNames = append(unitNames, unitName)
+			for _, unit := range units {
+				content := unit.Render()
+				unitName := unit.FullName
+				path := filepath.Join(g.tmpDir, unitName)
+				err := ioutil.WriteFile(path, []byte(content), 0666)
+				if err != nil {
+					return maskAny(err)
+				}
+				files = append(files, path)
+				unitNames = append(unitNames, unitName)
+			}
 		}
 	}
 	g.files = files

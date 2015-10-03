@@ -6,7 +6,7 @@ type Unit struct {
 	Type         string "service|socket|timer"
 	Description  string
 	Scalable     bool
-	ScalingGroup uint8
+	ScalingGroup uint
 	ExecOptions  *execOptions
 	FleetOptions *fleetOptions
 }

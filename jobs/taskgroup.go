@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultCount = 1
+	defaultCount = uint(1)
 )
 
 var (
@@ -37,7 +37,7 @@ type TaskGroup struct {
 	Name TaskGroupName `json:"-"`
 	Job  *Job          `json:"-"`
 
-	Count int                `json:"count"` // Number of instances of this group
+	Count uint               `json:"count"` // Number of instances of this group
 	Tasks map[TaskName]*Task `json:"tasks"`
 }
 
@@ -76,7 +76,7 @@ func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
 }
 
 // createUnits creates all units needed to run this taskgroup.
-func (tg *TaskGroup) createUnits(scalingGroup uint8) ([]*units.Unit, error) {
+func (tg *TaskGroup) createUnits(scalingGroup uint) ([]*units.Unit, error) {
 	// Create all units for my tasks
 	units := []*units.Unit{}
 	for _, t := range tg.Tasks {

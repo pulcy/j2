@@ -76,6 +76,16 @@ func (j *Job) Validate() error {
 	return nil
 }
 
-func (j *Job) Generate(groups []TaskGroupName, currentScalingGroup uint8) *Generator {
+func (j *Job) Generate(groups []TaskGroupName, currentScalingGroup uint) *Generator {
 	return newGenerator(j, groups, currentScalingGroup)
+}
+
+func (j *Job) MaxCount() uint {
+	count := uint(0)
+	for _, tg := range j.Groups {
+		if tg.Count > count {
+			count = tg.Count
+		}
+	}
+	return count
 }

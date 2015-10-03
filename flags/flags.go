@@ -6,7 +6,7 @@ type Flags struct {
 	Groups          []string
 	Stack           string
 	Tunnel          string
-	ScalingGroup    uint8
+	ScalingGroup    uint
 	DryRun          bool
 	Force           bool
 	PrivateRegistry string
