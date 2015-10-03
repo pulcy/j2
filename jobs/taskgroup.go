@@ -34,11 +34,11 @@ func (tgn TaskGroupName) Validate() error {
 // TaskGroups can have multiple instances, specified by `Count`.
 // Multiple instances are scheduled on different machines when possible.
 type TaskGroup struct {
-	Name TaskGroupName `json:"-"`
-	Job  *Job          `json:"-"`
+	Name TaskGroupName
+	job  *Job
 
-	Count uint               `json:"count"` // Number of instances of this group
-	Tasks map[TaskName]*Task `json:"tasks"`
+	Count uint // Number of instances of this group
+	Tasks []*Task
 }
 
 // Link objects just after parsing
@@ -46,8 +46,7 @@ func (tg *TaskGroup) link() {
 	if tg.Count == 0 {
 		tg.Count = defaultCount
 	}
-	for k, v := range tg.Tasks {
-		v.Name = k
+	for _, v := range tg.Tasks {
 		v.Group = tg
 	}
 }
@@ -56,6 +55,9 @@ func (tg *TaskGroup) link() {
 func (tg *TaskGroup) Validate() error {
 	if err := tg.Name.Validate(); err != nil {
 		return maskAny(err)
+	}
+	if len(tg.Tasks) == 0 {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "group %s has no tasks", tg.Name))
 	}
 	for _, t := range tg.Tasks {
 		err := t.Validate()
@@ -68,11 +70,12 @@ func (tg *TaskGroup) Validate() error {
 
 // Task gets a task by the given name
 func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
-	if t, ok := tg.Tasks[name]; ok {
-		return t, nil
-	} else {
-		return nil, maskAny(errgo.WithCausef(nil, TaskNotFoundError, name.String()))
+	for _, t := range tg.Tasks {
+		if t.Name == name {
+			return t, nil
+		}
 	}
+	return nil, maskAny(errgo.WithCausef(nil, TaskNotFoundError, name.String()))
 }
 
 // createUnits creates all units needed to run this taskgroup.
@@ -95,5 +98,5 @@ func (tg *TaskGroup) createUnits(scalingGroup uint) ([]*units.Unit, error) {
 
 // Gets the full name of this taskgroup: job/taskgroup
 func (tg *TaskGroup) fullName() string {
-	return fmt.Sprintf("%s/%s", tg.Job.Name, tg.Name)
+	return fmt.Sprintf("%s/%s", tg.job.Name, tg.Name)
 }

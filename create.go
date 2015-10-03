@@ -27,14 +27,19 @@ func init() {
 }
 
 func createRun(cmd *cobra.Command, args []string) {
+	fmt.Println("noo")
 	deploymentDefaults(&createFlags.Flags, args)
 	createValidators(&createFlags.Flags)
 	deploymentValidators(&createFlags.Flags)
 
+	fmt.Println("before loadJob")
 	job, err := loadJob(&createFlags.Flags)
 	if err != nil {
+		fmt.Printf("cannot load job %#v\n", err)
 		Exitf("Cannot load job: %v\n", err)
+		return
 	}
+	fmt.Printf("job=%#v\n", job)
 	groups := groups(&createFlags.Flags)
 	generator := job.Generate(groups, createFlags.ScalingGroup)
 	assert(generator.WriteTmpFiles())

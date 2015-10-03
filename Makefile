@@ -42,6 +42,8 @@ $(GOBUILDDIR):
 	@cd $(GOPATH) && pulcy go get github.com/spf13/pflag
 	@cd $(GOPATH) && pulcy go get github.com/spf13/cobra
 	@cd $(GOPATH) && pulcy go get github.com/juju/errgo
+	@cd $(GOPATH) && pulcy go get github.com/mitchellh/mapstructure
+	@cd $(GOPATH) && pulcy go get github.com/hashicorp/hcl
 	
 $(BIN): $(GOBUILDDIR) $(SOURCES) 
 	docker run \

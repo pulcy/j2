@@ -1,8 +1,6 @@
 package jobs
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"regexp"
 
 	"github.com/juju/errgo"
@@ -26,39 +24,15 @@ func (jn JobName) Validate() error {
 }
 
 type Job struct {
-	Name   JobName                      `json:"name"`
-	Groups map[TaskGroupName]*TaskGroup `json:"groups"`
-}
-
-// ParseJob takes input from a given reader and parses it into a Job.
-func ParseJob(input []byte) (*Job, error) {
-	job := &Job{}
-	if err := json.Unmarshal(input, job); err != nil {
-		return nil, maskAny(err)
-	}
-	job.link()
-	return job, nil
-}
-
-// ParseJobFromFile reads a job from file
-func ParseJobFromFile(path string) (*Job, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, maskAny(err)
-	}
-	job, err := ParseJob(data)
-	if err != nil {
-		return nil, maskAny(err)
-	}
-	return job, nil
+	Name   JobName
+	Groups []*TaskGroup
 }
 
 // Link objects just after parsing
 func (j *Job) link() {
-	for k, v := range j.Groups {
-		v.Name = k
-		v.Job = j
-		v.link()
+	for _, tg := range j.Groups {
+		tg.job = j
+		tg.link()
 	}
 }
 
@@ -66,6 +40,9 @@ func (j *Job) link() {
 func (j *Job) Validate() error {
 	if err := j.Name.Validate(); err != nil {
 		return maskAny(err)
+	}
+	if len(j.Groups) == 0 {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "job has no groups"))
 	}
 	for _, tg := range j.Groups {
 		err := tg.Validate()
