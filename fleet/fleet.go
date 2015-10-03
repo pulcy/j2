@@ -9,17 +9,17 @@ import (
 	"github.com/juju/errgo"
 )
 
-type fleetTunnel struct {
+type FleetTunnel struct {
 	tunnel string
 }
 
-func NewTunnel(tunnel string) *fleetTunnel {
-	return &fleetTunnel{
+func NewTunnel(tunnel string) *FleetTunnel {
+	return &FleetTunnel{
 		tunnel: tunnel,
 	}
 }
 
-func (f *fleetTunnel) Start(units ...string) (string, error) {
+func (f *FleetTunnel) Start(units ...string) (string, error) {
 	stdOut, err := f.exec("start", append([]string{"--no-block"}, units...)...)
 	if err != nil {
 		return "", err
@@ -28,7 +28,7 @@ func (f *fleetTunnel) Start(units ...string) (string, error) {
 	return stdOut, nil
 }
 
-func (f *fleetTunnel) Stop(units ...string) (string, error) {
+func (f *FleetTunnel) Stop(units ...string) (string, error) {
 	stdOut, err := f.exec("stop", units...)
 	if err != nil {
 		return "", err
@@ -37,7 +37,7 @@ func (f *fleetTunnel) Stop(units ...string) (string, error) {
 	return stdOut, nil
 }
 
-func (f *fleetTunnel) Destroy(units ...string) (string, error) {
+func (f *FleetTunnel) Destroy(units ...string) (string, error) {
 	stdOut, err := f.exec("destroy", units...)
 	if err != nil {
 		return "", err
@@ -46,7 +46,7 @@ func (f *fleetTunnel) Destroy(units ...string) (string, error) {
 	return stdOut, nil
 }
 
-func (f *fleetTunnel) List() ([]string, error) {
+func (f *FleetTunnel) List() ([]string, error) {
 	stdOut, err := f.exec("list-unit-files", "-fields=unit", "-full", "-no-legend")
 	if err != nil {
 		return []string{}, err
@@ -55,7 +55,7 @@ func (f *fleetTunnel) List() ([]string, error) {
 	return strings.Split(stdOut, "\n"), nil
 }
 
-func (f *fleetTunnel) exec(subcmd string, args ...string) (string, error) {
+func (f *FleetTunnel) exec(subcmd string, args ...string) (string, error) {
 	params := []string{
 		"--request-timeout=10",
 		"--strict-host-key-checking=false",

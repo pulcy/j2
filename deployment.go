@@ -2,86 +2,27 @@ package main
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/juju/errgo"
+	"github.com/spf13/pflag"
 
 	fg "arvika.pulcy.com/pulcy/deployit/flags"
 	"arvika.pulcy.com/pulcy/deployit/jobs"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
-type DeploymentCommand struct {
-	Short        string
-	Long         []string
-	Flags        func(fs *pflag.FlagSet, f *fg.Flags)
-	Defaults     func(f *fg.Flags)
-	Validate     func(f *fg.Flags)
-	ServiceGroup func(f *fg.Flags) *jobs.ServiceGroup
-}
-
-var (
-	deploymentCommands = map[string]DeploymentCommand{}
-	deploymentFlags    = &fg.Flags{}
-)
-
-func initGlobalFlags(fs *pflag.FlagSet, f *fg.Flags) {
-	fs.StringVar(&f.Stack, "stack", defaultStack, "stack name of the cluster")
-	fs.StringVar(&f.Tunnel, "tunnel", defaultTunnel, "SSH endpoint to tunnel through with fleet")
-	fs.StringVar(&f.Service, "service", defaultService, "target service to deploy")
-	fs.BoolVar(&f.Force, "force", defaultForce, "wheather to confirm destroy or not")
-	fs.BoolVar(&f.DryRun, "dry-run", defaultDryRun, "wheather to schedule units or not")
+func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
+	fs.StringVarP(&f.JobPath, "job", "j", defaultJobPath, "filename of the job description")
+	fs.StringVarP(&f.Stack, "stack", "s", defaultStack, "stack name of the cluster")
+	fs.StringVarP(&f.Tunnel, "tunnel", "t", defaultTunnel, "SSH endpoint to tunnel through with fleet")
+	fs.StringSliceVarP(&f.Groups, "groups", "g", defaultGroups, "target task groups to deploy")
+	fs.BoolVarP(&f.Force, "force", "f", defaultForce, "wheather to confirm destroy or not")
+	fs.BoolVarP(&f.DryRun, "dry-run", "d", defaultDryRun, "wheather to schedule units or not")
 	fs.Uint8Var(&f.ScalingGroup, "scaling-group", defaultScalingGroup, "scaling group to deploy")
-	fs.Uint8Var(&f.DefaultScale, "default-scale", defaultDefaultScale, "total number of services")
 	fs.StringVar(&f.PrivateRegistry, "private-registry", defaultPrivateRegistry, "private registry for the docker images")
 	fs.StringVar(&f.LogLevel, "log-level", defaultLogLevel, "log-level for our services")
 }
 
-func createDeploymentCommands() {
-	// register all create deployment commands
-	for cmdName, dc := range deploymentCommands {
-		// create
-		subCreateCmd := &cobra.Command{
-			Use:   cmdName,
-			Short: dc.Short,
-			Long:  strings.Join(dc.Long, " "),
-			Run:   deploymentCommandCreateRun,
-		}
-
-		initGlobalFlags(subCreateCmd.Flags(), deploymentFlags)
-		dc.Flags(subCreateCmd.Flags(), deploymentFlags)
-
-		createCmd.AddCommand(subCreateCmd)
-
-		// destroy
-		subDestroyCmd := &cobra.Command{
-			Use:   cmdName,
-			Short: dc.Short,
-			Long:  strings.Join(dc.Long, " "),
-			Run:   deploymentCommandDestroyRun,
-		}
-
-		initGlobalFlags(subDestroyCmd.Flags(), deploymentFlags)
-		dc.Flags(subDestroyCmd.Flags(), deploymentFlags)
-
-		destroyCmd.AddCommand(subDestroyCmd)
-
-		// update
-		subUpdateCmd := &cobra.Command{
-			Use:   cmdName,
-			Short: dc.Short,
-			Long:  strings.Join(dc.Long, " "),
-			Run:   deploymentCommandUpdateRun,
-		}
-
-		initGlobalFlags(subUpdateCmd.Flags(), deploymentFlags)
-		dc.Flags(subUpdateCmd.Flags(), deploymentFlags)
-
-		updateCmd.AddCommand(subUpdateCmd)
-	}
-}
-
-func globalDefaults(f *fg.Flags) {
+func deploymentDefaults(f *fg.Flags) {
 	if f.Tunnel == "" {
 		f.Tunnel = fmt.Sprintf("%s.iggi.xyz", f.Stack)
 	}
@@ -91,8 +32,29 @@ func globalDefaults(f *fg.Flags) {
 	}
 }
 
-func globalValidators(f *fg.Flags) {
+func deploymentValidators(f *fg.Flags) {
 	if f.Stack == "" || f.Tunnel == "" {
 		Exitf("--stack or --tunnel missing")
 	}
+}
+
+// Gets the list of group names to operate on based on the deployment flags.
+func groups(f *fg.Flags) []jobs.TaskGroupName {
+	names := []jobs.TaskGroupName{}
+	for _, n := range f.Groups {
+		names = append(names, jobs.TaskGroupName(n))
+	}
+	return names
+}
+
+// loadJob loads the a job from the given flags.
+func loadJob(f *fg.Flags) (*jobs.Job, error) {
+	if f.JobPath == "" {
+		return nil, maskAny(errgo.New("--job missing"))
+	}
+	job, err := jobs.ParseJobFromFile(f.JobPath)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return job, nil
 }

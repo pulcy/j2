@@ -5,6 +5,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	fg "arvika.pulcy.com/pulcy/deployit/flags"
+	"arvika.pulcy.com/pulcy/deployit/fleet"
+	"arvika.pulcy.com/pulcy/deployit/jobs"
 )
 
 var (
@@ -14,14 +18,54 @@ var (
 		Long:  "Update services on a stack.",
 		Run:   updateRun,
 	}
+	updateFlags struct {
+		fg.Flags
+	}
 )
+
+func init() {
+	initDeploymentFlags(updateCmd.Flags(), &updateFlags.Flags)
+}
+
+func updateRun(cmd *cobra.Command, args []string) {
+	deploymentDefaults(&updateFlags.Flags)
+	createValidators(&updateFlags.Flags)
+	deploymentValidators(&updateFlags.Flags)
+
+	job, err := loadJob(&updateFlags.Flags)
+	if err != nil {
+		Exitf("Cannot load job: %v\n", err)
+	}
+	groups := groups(&updateFlags.Flags)
+	generator := job.Generate(groups, updateFlags.ScalingGroup)
+	assert(generator.WriteTmpFiles())
+
+	if updateFlags.DryRun {
+		confirm(fmt.Sprintf("remove tmp files from %s ?", generator.TmpDir()))
+	} else {
+		location := updateFlags.Stack
+		count := maxCount(job)
+		updateScalingGroups(&updateFlags.ScalingGroup, uint8(count), location, func(runUpdate runUpdateCallback) {
+			generator := job.Generate(groups, updateFlags.ScalingGroup)
+
+			assert(generator.WriteTmpFiles())
+
+			unitNames := generator.UnitNames()
+			fileNames := generator.FileNames()
+
+			runUpdate(updateFlags.Stack, updateFlags.Tunnel, unitNames, fileNames)
+			assert(generator.RemoveTmpFiles())
+		})
+	}
+}
 
 func doRunUpdate(stack, tunnel string, unitNames, files []string) {
 	if len(unitNames) != len(files) {
 		panic("Internal update error")
 	}
 
-	assert(destroyUnits(stack, tunnel, unitNames))
+	f := fleet.NewTunnel(tunnel)
+	assert(destroyUnits(stack, f, unitNames))
 
 	fmt.Println("Waiting for 15 seconds ...")
 	time.Sleep(15 * time.Second)
@@ -94,37 +138,12 @@ func detectLargestScalingGroup(scalingGroup *uint8, defaultScale uint8, updateCu
 	return defaultScale
 }
 
-// deploymentCommandUpdateRun is dynamically used for each command in
-// deploymentCommands, to deploy our sets. E.g. `update base`.
-func deploymentCommandUpdateRun(cmd *cobra.Command, args []string) {
-	dc, ok := deploymentCommands[cmd.Name()]
-	if !ok {
-		Exitf("unknown command: " + cmd.Name())
+func maxCount(j *jobs.Job) int {
+	count := 0
+	for _, tg := range j.Groups {
+		if tg.Count > count {
+			count = tg.Count
+		}
 	}
-
-	dc.Defaults(deploymentFlags)
-	globalDefaults(deploymentFlags)
-
-	dc.Validate(deploymentFlags)
-	createValidators(deploymentFlags)
-	globalValidators(deploymentFlags)
-
-	scale := uint8(deploymentFlags.DefaultScale)
-
-	location := deploymentFlags.Stack
-	updateScalingGroups(&deploymentFlags.ScalingGroup, scale, location, func(runUpdate runUpdateCallback) {
-		generator := dc.ServiceGroup(deploymentFlags).Generate(deploymentFlags.Service, deploymentFlags.ScalingGroup)
-
-		assert(generator.WriteTmpFiles())
-
-		unitNames := generator.UnitNames()
-		fileNames := generator.FileNames()
-
-		runUpdate(deploymentFlags.Stack, deploymentFlags.Tunnel, unitNames, fileNames)
-		assert(generator.RemoveTmpFiles())
-	})
-}
-
-func updateRun(cmd *cobra.Command, args []string) {
-	cmd.Help()
+	return count
 }

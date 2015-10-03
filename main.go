@@ -37,7 +37,6 @@ func main() {
 	cmdMain.AddCommand(createCmd)
 	cmdMain.AddCommand(destroyCmd)
 	cmdMain.AddCommand(updateCmd)
-	createDeploymentCommands()
 
 	cmdMain.Execute()
 }

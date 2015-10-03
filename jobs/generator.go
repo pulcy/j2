@@ -7,22 +7,22 @@ import (
 )
 
 type Generator struct {
-	serviceGroup        *ServiceGroup
-	service             string
+	job                 *Job
+	groups              []TaskGroupName
 	files               []string
 	unitNames           []string
 	tmpDir              string
 	currentScalingGroup uint8
 }
 
-func newGenerator(serviceGroup *ServiceGroup, service string, currentScalingGroup uint8) *Generator {
+func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint8) *Generator {
 	tmpDir, err := ioutil.TempDir("", "deployit")
 	if err != nil {
 		panic(err.Error())
 	}
 	return &Generator{
-		serviceGroup:        serviceGroup,
-		service:             service,
+		job:                 job,
+		groups:              groups,
 		currentScalingGroup: currentScalingGroup,
 		tmpDir:              tmpDir,
 	}
@@ -31,12 +31,12 @@ func newGenerator(serviceGroup *ServiceGroup, service string, currentScalingGrou
 func (g *Generator) WriteTmpFiles() error {
 	files := []string{}
 	unitNames := []string{}
-	for _, s := range g.serviceGroup.Services {
-		if g.service != "" && g.service != s.Name() {
-			// We do not want this service
+	for _, tg := range g.job.Groups {
+		if !g.include(tg.Name) {
+			// We do not want this task group now
 			continue
 		}
-		units, err := s.Units(g.currentScalingGroup)
+		units, err := tg.createUnits(g.currentScalingGroup)
 		if err != nil {
 			return maskAny(err)
 		}
@@ -78,4 +78,18 @@ func (g *Generator) UnitNames() []string {
 
 func (g *Generator) TmpDir() string {
 	return g.tmpDir
+}
+
+// Should the group with given name be generated?
+func (g *Generator) include(groupName TaskGroupName) bool {
+	if len(g.groups) == 0 {
+		// include all
+		return true
+	}
+	for _, n := range g.groups {
+		if n == groupName {
+			return true
+		}
+	}
+	return false
 }

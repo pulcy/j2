@@ -31,23 +31,24 @@ type Job struct {
 }
 
 // ParseJob takes input from a given reader and parses it into a Job.
-func ParseJob(input []byte) (Job, error) {
-	job := Job{}
-	if err := json.Unmarshal(input, &job); err != nil {
-		return Job{}, maskAny(err)
+func ParseJob(input []byte) (*Job, error) {
+	job := &Job{}
+	if err := json.Unmarshal(input, job); err != nil {
+		return nil, maskAny(err)
 	}
+	job.link()
 	return job, nil
 }
 
 // ParseJobFromFile reads a job from file
-func ParseJobFromFile(path string) (Job, error) {
+func ParseJobFromFile(path string) (*Job, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return Job{}, maskAny(err)
+		return nil, maskAny(err)
 	}
 	job, err := ParseJob(data)
 	if err != nil {
-		return Job{}, maskAny(err)
+		return nil, maskAny(err)
 	}
 	return job, nil
 }
@@ -73,4 +74,8 @@ func (j *Job) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (j *Job) Generate(groups []TaskGroupName, currentScalingGroup uint8) *Generator {
+	return newGenerator(j, groups, currentScalingGroup)
 }
