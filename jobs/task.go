@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/juju/errgo"
 
@@ -53,9 +54,9 @@ func (t *Task) Validate() error {
 	return nil
 }
 
-// createUnits
-func (t *Task) createUnits(scalingGroup uint8) ([]units.Unit, error) {
-	units := []units.Unit{}
+// createUnits creates all units needed to run this task.
+func (t *Task) createUnits(scalingGroup uint8) ([]*units.Unit, error) {
+	units := []*units.Unit{}
 	main, err := t.createMainUnit(scalingGroup)
 	if err != nil {
 		return nil, maskAny(err)
@@ -66,7 +67,7 @@ func (t *Task) createUnits(scalingGroup uint8) ([]units.Unit, error) {
 }
 
 // createMainUnit
-func (t *Task) createMainUnit(scalingGroup uint8) (units.Unit, error) {
+func (t *Task) createMainUnit(scalingGroup uint8) (*units.Unit, error) {
 	execStart := []string{
 		"/usr/bin/docker",
 		"run",
@@ -82,7 +83,7 @@ func (t *Task) createMainUnit(scalingGroup uint8) (units.Unit, error) {
 	for _, name := range t.VolumesFrom {
 		other, err := t.Group.Task(name)
 		if err != nil {
-			return units.Unit{}, maskAny(err)
+			return nil, maskAny(err)
 		}
 		execStart = append(execStart, fmt.Sprintf("--volumes-from %s", other.containerName(scalingGroup)))
 	}
@@ -92,8 +93,9 @@ func (t *Task) createMainUnit(scalingGroup uint8) (units.Unit, error) {
 	execStart = append(execStart, "-e SERVICE_NAME=$NAME") // Support registrator
 	execStart = append(execStart, "$IMAGE")
 	execStart = append(execStart, t.Args...)
-	main := units.Unit{
+	main := &units.Unit{
 		Name:         t.unitName(scalingGroup),
+		FullName:     t.unitName(scalingGroup) + ".service",
 		Description:  fmt.Sprintf("Main unit for %s/%s/%s", t.fullName()),
 		Type:         "service",
 		Scalable:     t.Group.Count > 1,
@@ -126,7 +128,11 @@ func (t *Task) fullName() string {
 
 // unitName returns the name of the systemd unit for this task.
 func (t *Task) unitName(scalingGroup uint8) string {
-	return fmt.Sprintf("%s@%v.service", t.Name.String(), scalingGroup)
+	base := strings.Replace(t.fullName(), "/", "_", -1)
+	if t.Group.Count <= 1 {
+		return base
+	}
+	return fmt.Sprintf("%s@%v", base, scalingGroup)
 }
 
 // containerName returns the name of the docker contained used for this task.

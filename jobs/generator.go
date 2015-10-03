@@ -42,7 +42,7 @@ func (g *Generator) WriteTmpFiles() error {
 		}
 		for _, unit := range units {
 			content := unit.Render()
-			unitName := unit.FullName()
+			unitName := unit.FullName
 			path := filepath.Join(g.tmpDir, unitName)
 			err := ioutil.WriteFile(path, []byte(content), 0666)
 			if err != nil {

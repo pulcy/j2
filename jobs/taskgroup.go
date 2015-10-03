@@ -5,6 +5,12 @@ import (
 	"regexp"
 
 	"github.com/juju/errgo"
+
+	"arvika.pulcy.com/pulcy/deployit/units"
+)
+
+const (
+	defaultCount = 1
 )
 
 var (
@@ -37,6 +43,9 @@ type TaskGroup struct {
 
 // Link objects just after parsing
 func (tg *TaskGroup) link() {
+	if tg.Count == 0 {
+		tg.Count = defaultCount
+	}
 	for k, v := range tg.Tasks {
 		v.Name = k
 		v.Group = tg
@@ -64,6 +73,24 @@ func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
 	} else {
 		return nil, maskAny(errgo.WithCausef(nil, TaskNotFoundError, name.String()))
 	}
+}
+
+// createUnits creates all units needed to run this taskgroup.
+func (tg *TaskGroup) createUnits(scalingGroup uint8) ([]*units.Unit, error) {
+	// Create all units for my tasks
+	units := []*units.Unit{}
+	for _, t := range tg.Tasks {
+		taskUnits, err := t.createUnits(scalingGroup)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		units = append(units, taskUnits...)
+	}
+
+	// Force units to be on the same machine
+	groupUnitsOnMachine(units)
+
+	return units, nil
 }
 
 // Gets the full name of this taskgroup: job/taskgroup
