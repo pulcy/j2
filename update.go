@@ -14,8 +14,8 @@ import (
 var (
 	updateCmd = &cobra.Command{
 		Use:   "update",
-		Short: "Update services on a stack.",
-		Long:  "Update services on a stack.",
+		Short: "Update a job on a stack.",
+		Long:  "Update a job on a stack.",
 		Run:   updateRun,
 	}
 	updateFlags struct {
@@ -28,7 +28,7 @@ func init() {
 }
 
 func updateRun(cmd *cobra.Command, args []string) {
-	deploymentDefaults(&updateFlags.Flags)
+	deploymentDefaults(&updateFlags.Flags, args)
 	createValidators(&updateFlags.Flags)
 	deploymentValidators(&updateFlags.Flags)
 

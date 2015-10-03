@@ -16,8 +16,8 @@ import (
 var (
 	destroyCmd = &cobra.Command{
 		Use:   "destroy",
-		Short: "Destroy services on a stack.",
-		Long:  "Destroy services on a stack.",
+		Short: "Destroy a job on a stack.",
+		Long:  "Destroy a job on a stack.",
 		Run:   destroyRun,
 	}
 	destroyFlags struct {
@@ -30,7 +30,7 @@ func init() {
 }
 
 func destroyRun(cmd *cobra.Command, args []string) {
-	deploymentDefaults(&destroyFlags.Flags)
+	deploymentDefaults(&destroyFlags.Flags, args)
 	destroyValidators(&destroyFlags.Flags)
 	deploymentValidators(&destroyFlags.Flags)
 

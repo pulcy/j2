@@ -96,7 +96,7 @@ func (t *Task) createMainUnit(scalingGroup uint8) (*units.Unit, error) {
 	main := &units.Unit{
 		Name:         t.unitName(scalingGroup),
 		FullName:     t.unitName(scalingGroup) + ".service",
-		Description:  fmt.Sprintf("Main unit for %s/%s/%s", t.fullName()),
+		Description:  fmt.Sprintf("Main unit for %s", t.fullName()),
 		Type:         "service",
 		Scalable:     t.Group.Count > 1,
 		ScalingGroup: scalingGroup,
@@ -128,7 +128,7 @@ func (t *Task) fullName() string {
 
 // unitName returns the name of the systemd unit for this task.
 func (t *Task) unitName(scalingGroup uint8) string {
-	base := strings.Replace(t.fullName(), "/", "_", -1)
+	base := strings.Replace(t.fullName(), "/", "-", -1)
 	if t.Group.Count <= 1 {
 		return base
 	}
@@ -137,5 +137,6 @@ func (t *Task) unitName(scalingGroup uint8) string {
 
 // containerName returns the name of the docker contained used for this task.
 func (t *Task) containerName(scalingGroup uint8) string {
-	return fmt.Sprintf("%s@%v", t.Name.String(), scalingGroup)
+	base := strings.Replace(t.fullName(), "/", "-", -1)
+	return fmt.Sprintf("%s-%v", base, scalingGroup)
 }

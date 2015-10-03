@@ -28,7 +28,7 @@ var (
 )
 
 func init() {
-	cmdMain.PersistentFlags().BoolVarP(&globalFlags.debug, "debug", "d", false, "Print debug output")
+	cmdMain.PersistentFlags().BoolVarP(&globalFlags.debug, "debug", "D", false, "Print debug output")
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.verbose, "verbose", "v", false, "Print verbose output")
 	cmdMain.PersistentFlags().DurationVar(&globalFlags.sleep, "sleep", 60*time.Second, "time to sleep between updates")
 }
@@ -57,7 +57,7 @@ func confirm(question string) error {
 			return err
 		}
 
-		if string(line) == "yes" {
+		if string(line) == "yes" || string(line) == "y" {
 			return nil
 		}
 		fmt.Println("Please enter 'yes' to confirm.")

@@ -22,13 +22,17 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.StringVar(&f.LogLevel, "log-level", defaultLogLevel, "log-level for our services")
 }
 
-func deploymentDefaults(f *fg.Flags) {
+func deploymentDefaults(f *fg.Flags, args []string) {
 	if f.Tunnel == "" {
 		f.Tunnel = fmt.Sprintf("%s.iggi.xyz", f.Stack)
 	}
 
 	if f.LogLevel == "" {
 		f.LogLevel = "debug"
+	}
+
+	if f.JobPath == "" && len(args) == 1 {
+		f.JobPath = args[0]
 	}
 }
 

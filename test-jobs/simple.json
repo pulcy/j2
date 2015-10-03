@@ -1,0 +1,14 @@
+{
+	"name": "test",
+	"groups": {
+		"web": {
+			"count": 2,
+			"tasks": {
+				"bb": {
+					"image": "alpine:3.2",
+					"args": ["ls", "-al"]
+				}
+			}
+		}
+	}
+}

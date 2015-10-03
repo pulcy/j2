@@ -27,7 +27,7 @@ func init() {
 }
 
 func createRun(cmd *cobra.Command, args []string) {
-	deploymentDefaults(&createFlags.Flags)
+	deploymentDefaults(&createFlags.Flags, args)
 	createValidators(&createFlags.Flags)
 	deploymentValidators(&createFlags.Flags)
 
