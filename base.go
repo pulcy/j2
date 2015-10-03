@@ -1,8 +1,8 @@
 package main
 
 import (
-	"arvika.pulcy.com/iggi/deployit/base"
-	fg "arvika.pulcy.com/iggi/deployit/flags"
+	"arvika.pulcy.com/pulcy/deployit/base"
+	fg "arvika.pulcy.com/pulcy/deployit/flags"
 
 	"github.com/spf13/pflag"
 )

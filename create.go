@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	fg "arvika.pulcy.com/iggi/deployit/flags"
-	"arvika.pulcy.com/iggi/deployit/fleet"
+	fg "arvika.pulcy.com/pulcy/deployit/flags"
+	"arvika.pulcy.com/pulcy/deployit/fleet"
 
 	"github.com/juju/errgo"
 	"github.com/spf13/cobra"

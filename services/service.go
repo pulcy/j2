@@ -1,7 +1,7 @@
 package services
 
 import (
-	"arvika.pulcy.com/iggi/deployit/units"
+	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
 type Service interface {

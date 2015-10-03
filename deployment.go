@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	fg "arvika.pulcy.com/iggi/deployit/flags"
-	"arvika.pulcy.com/iggi/deployit/services"
+	fg "arvika.pulcy.com/pulcy/deployit/flags"
+	"arvika.pulcy.com/pulcy/deployit/services"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"arvika.pulcy.com/iggi/deployit/fleet"
+	"arvika.pulcy.com/pulcy/deployit/fleet"
 
 	"github.com/juju/errgo"
 	"github.com/spf13/cobra"

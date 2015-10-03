@@ -1,8 +1,8 @@
 package base
 
 import (
-	"arvika.pulcy.com/iggi/deployit/flags"
-	"arvika.pulcy.com/iggi/deployit/services"
+	"arvika.pulcy.com/pulcy/deployit/flags"
+	"arvika.pulcy.com/pulcy/deployit/services"
 )
 
 func NewBase(flags *flags.Flags) *services.ServiceGroup {
