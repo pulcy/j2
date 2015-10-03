@@ -13,6 +13,9 @@ type Flags struct {
 	DefaultScale    uint8
 
 	// Image versions
-	LoadBalancerVersion string
-	RegistratorVersion  string
+	LoadBalancerVersion          string
+	RegistratorVersion           string
+	StunnelPemVersion            string
+	StunnelRegistryClientVersion string
+	StunnelPemPassphrase         string
 }

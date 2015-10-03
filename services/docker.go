@@ -18,6 +18,7 @@ type DockerService struct {
 	args        []string
 	ports       []*DockerPort
 	volumes     []*DockerVolume
+	volumesFrom []string
 	environment map[string]string
 }
 
@@ -88,6 +89,12 @@ func (ds *DockerService) Volume(hostPath, containerPath string) *DockerService {
 	return ds
 }
 
+// Append volumes-from another container
+func (ds *DockerService) VolumesFrom(container string) *DockerService {
+	ds.volumesFrom = append(ds.volumesFrom, container)
+	return ds
+}
+
 // Append environment variable
 func (ds *DockerService) Environment(key, value string) *DockerService {
 	ds.environment[key] = value
@@ -147,6 +154,9 @@ func (ds *DockerService) createMainUnit(currentScaleGroup uint8) units.Unit {
 	}
 	for _, v := range ds.volumes {
 		execStart = append(execStart, fmt.Sprintf("-v %s:%s", v.hostPath, v.containerPath))
+	}
+	for _, c := range ds.volumesFrom {
+		execStart = append(execStart, fmt.Sprintf("--volumes-from %s", c))
 	}
 	for k, v := range ds.environment {
 		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
