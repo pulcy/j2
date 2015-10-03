@@ -1,4 +1,4 @@
-package services
+package jobs
 
 import (
 	"github.com/juju/errgo"

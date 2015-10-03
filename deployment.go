@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	fg "arvika.pulcy.com/pulcy/deployit/flags"
-	"arvika.pulcy.com/pulcy/deployit/services"
+	"arvika.pulcy.com/pulcy/deployit/jobs"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -17,7 +17,7 @@ type DeploymentCommand struct {
 	Flags        func(fs *pflag.FlagSet, f *fg.Flags)
 	Defaults     func(f *fg.Flags)
 	Validate     func(f *fg.Flags)
-	ServiceGroup func(f *fg.Flags) *services.ServiceGroup
+	ServiceGroup func(f *fg.Flags) *jobs.ServiceGroup
 }
 
 var (

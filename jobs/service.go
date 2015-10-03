@@ -1,4 +1,4 @@
-package services
+package jobs
 
 import (
 	"arvika.pulcy.com/pulcy/deployit/units"

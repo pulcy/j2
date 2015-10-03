@@ -1,4 +1,4 @@
-package services
+package jobs
 
 type ServiceGroup struct {
 	Name     string
