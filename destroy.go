@@ -38,11 +38,13 @@ func destroyRun(cmd *cobra.Command, args []string) {
 	list, err := f.List()
 	assert(err)
 
-	groups := groups(&destroyFlags.Flags)
-	unitNames := selectUnits(list, groups)
-
-	assert(confirmDestroy(destroyFlags.Force, destroyFlags.Stack, unitNames))
-	assert(destroyUnits(destroyFlags.Stack, f, unitNames))
+	unitNames := selectUnits(list, &destroyFlags.Flags)
+	if len(unitNames) == 0 {
+		fmt.Printf("No units on the cluster match the given arguments\n")
+	} else {
+		assert(confirmDestroy(destroyFlags.Force, destroyFlags.Stack, unitNames))
+		assert(destroyUnits(destroyFlags.Stack, f, unitNames))
+	}
 }
 
 func destroyValidators(f *fg.Flags) {
@@ -56,8 +58,33 @@ func destroyValidators(f *fg.Flags) {
 	}
 }
 
-func selectUnits(allUnitNames []string, groups []jobs.TaskGroupName) []string {
-	return allUnitNames //TODO
+func selectUnits(allUnitNames []string, f *fg.Flags) []string {
+	groups := groups(f)
+	var filter func(string) bool
+	jobName := jobs.JobName(f.JobPath)
+	if len(groups) == 0 {
+		// Select everything in the job
+		filter = func(unitName string) bool {
+			return jobs.IsUnitForJob(unitName, jobName)
+		}
+	} else {
+		// Select everything in one of the groups
+		filter = func(unitName string) bool {
+			for _, g := range groups {
+				if jobs.IsUnitForTaskGroup(unitName, jobName, g) {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	list := []string{}
+	for _, unitName := range allUnitNames {
+		if filter(unitName) {
+			list = append(list, unitName)
+		}
+	}
+	return list
 }
 
 func confirmDestroy(force bool, stack string, units []string) error {
