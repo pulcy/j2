@@ -52,7 +52,7 @@ func (f *FleetTunnel) List() ([]string, error) {
 		return []string{}, err
 	}
 
-	return strings.Split(stdOut, "\n"), nil
+	return strings.Split(strings.TrimSpace(stdOut), "\n"), nil
 }
 
 func (f *FleetTunnel) exec(subcmd string, args ...string) (string, error) {
