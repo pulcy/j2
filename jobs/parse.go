@@ -1,12 +1,12 @@
 package jobs
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
 	"github.com/hashicorp/hcl"
 	hclobj "github.com/hashicorp/hcl/hcl"
+	"github.com/juju/errgo"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -24,11 +24,6 @@ func ParseJob(input []byte) (*Job, error) {
 	if err := job.parse(obj); err != nil {
 		return nil, maskAny(err)
 	}
-
-	json, _ := json.MarshalIndent(job, "", "  ")
-	fmt.Printf("job:\n%s\n", json)
-
-	fmt.Printf("jobObj:\n%#v\n", obj)
 
 	// Validate the job
 	if err := job.Validate(); err != nil {
@@ -60,6 +55,8 @@ func (j *Job) parse(obj *hclobj.Object) error {
 	if err := hcl.DecodeObject(&m, obj); err != nil {
 		return maskAny(err)
 	}
+	delete(m, "group")
+	delete(m, "task")
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, j); err != nil {
@@ -67,7 +64,7 @@ func (j *Job) parse(obj *hclobj.Object) error {
 	}
 
 	// If we have tasks outside, do those
-	if o := obj.Get("tasks", false); o != nil {
+	if o := obj.Get("task", false); o != nil {
 		tmp := &TaskGroup{}
 		if err := tmp.parseTasks(o); err != nil {
 			return err
@@ -76,7 +73,7 @@ func (j *Job) parse(obj *hclobj.Object) error {
 		for _, t := range tmp.Tasks {
 			tg := &TaskGroup{
 				Name:  TaskGroupName(t.Name),
-				Count: 1,
+				Count: t.Count,
 				Tasks: []*Task{t},
 			}
 			j.Groups = append(j.Groups, tg)
@@ -84,7 +81,7 @@ func (j *Job) parse(obj *hclobj.Object) error {
 	}
 
 	// Parse the task groups
-	if o := obj.Get("groups", false); o != nil {
+	if o := obj.Get("group", false); o != nil {
 		if err := j.parseGroups(o); err != nil {
 			return fmt.Errorf("error parsing 'group': %s", err)
 		}
@@ -113,39 +110,49 @@ func (j *Job) parseGroups(obj *hclobj.Object) error {
 	}
 
 	// Go through each object and turn it into an actual result.
-	collection := []*TaskGroup{}
-	for n, o := range objects {
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, o); err != nil {
-			return maskAny(err)
-		}
-
-		// Default count to 1 if not specified
-		if _, ok := m["count"]; !ok {
-			m["count"] = defaultCount
-		}
-
+	for _, o := range objects {
 		// Build the group with the basic decode
 		tg := &TaskGroup{}
-		tg.Name = TaskGroupName(n)
-		if err := mapstructure.WeakDecode(m, tg); err != nil {
+		tg.Name = TaskGroupName(o.Key)
+		if err := tg.parse(o); err != nil {
 			return maskAny(err)
 		}
 
-		// Parse tasks
-		if o := o.Get("tasks", false); o != nil {
-			if err := tg.parseTasks(o); err != nil {
-				return maskAny(err)
-			}
-		}
-
-		collection = append(collection, tg)
+		j.Groups = append(j.Groups, tg)
 	}
 
-	j.Groups = append(j.Groups, collection...)
 	return nil
 }
 
+// parse a task group
+func (tg *TaskGroup) parse(obj *hclobj.Object) error {
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj); err != nil {
+		return maskAny(err)
+	}
+	delete(m, "task")
+
+	// Default count to 1 if not specified
+	if _, ok := m["count"]; !ok {
+		m["count"] = defaultCount
+	}
+
+	// Build the group with the basic decode
+	if err := mapstructure.WeakDecode(m, tg); err != nil {
+		return maskAny(err)
+	}
+
+	// Parse tasks
+	if o := obj.Get("task", false); o != nil {
+		if err := tg.parseTasks(o); err != nil {
+			return maskAny(err)
+		}
+	}
+
+	return nil
+}
+
+// parse a list of tasks
 func (tg *TaskGroup) parseTasks(obj *hclobj.Object) error {
 	// Get all the maps of keys to the actual object
 	objects := make([]*hclobj.Object, 0, 5)
@@ -154,7 +161,7 @@ func (tg *TaskGroup) parseTasks(obj *hclobj.Object) error {
 		for _, o2 := range o1.Elem(true) {
 			if _, ok := set[o2.Key]; ok {
 				return fmt.Errorf(
-					"group '%s' defined more than once",
+					"task '%s' defined more than once",
 					o2.Key)
 			}
 
@@ -168,33 +175,60 @@ func (tg *TaskGroup) parseTasks(obj *hclobj.Object) error {
 	}
 
 	for _, o := range objects {
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, o); err != nil {
-			return err
-		}
-		delete(m, "env")
-
-		// Build the task
 		t := &Task{}
 		t.Name = TaskName(o.Key)
-		if err := mapstructure.WeakDecode(m, t); err != nil {
+		if err := t.parse(o); err != nil {
 			return maskAny(err)
 		}
 
-		// If we have env, then parse them
-		if o := o.Get("env", false); o != nil {
-			for _, o := range o.Elem(false) {
-				var m map[string]interface{}
-				if err := hcl.DecodeObject(&m, o); err != nil {
-					return maskAny(err)
-				}
-				if err := mapstructure.WeakDecode(m, &t.Environment); err != nil {
-					return maskAny(err)
-				}
+		tg.Tasks = append(tg.Tasks, t)
+	}
+
+	return nil
+}
+
+// parse a task
+func (t *Task) parse(obj *hclobj.Object) error {
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj); err != nil {
+		return err
+	}
+	delete(m, "env")
+	delete(m, "image")
+
+	// Default count to 1 if not specified
+	if _, ok := m["count"]; !ok {
+		m["count"] = defaultCount
+	}
+
+	// Build the task
+	if err := mapstructure.WeakDecode(m, t); err != nil {
+		return maskAny(err)
+	}
+
+	if o := obj.Get("image", false); o != nil && o.Type == hclobj.ValueTypeString {
+		img, err := ParseDockerImage(o.Value.(string))
+		if err != nil {
+			return maskAny(err)
+		}
+		t.Image = img
+	} else if o != nil {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "image of task %s is not a string", t.Name))
+	} else {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "image missing for task %s", t.Name))
+	}
+
+	// If we have env, then parse them
+	if o := obj.Get("env", false); o != nil {
+		for _, o := range o.Elem(false) {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o); err != nil {
+				return maskAny(err)
+			}
+			if err := mapstructure.WeakDecode(m, &t.Environment); err != nil {
+				return maskAny(err)
 			}
 		}
-
-		tg.Tasks = append(tg.Tasks, t)
 	}
 
 	return nil

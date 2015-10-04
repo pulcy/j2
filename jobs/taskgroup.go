@@ -43,11 +43,8 @@ type TaskGroup struct {
 
 // Link objects just after parsing
 func (tg *TaskGroup) link() {
-	if tg.Count == 0 {
-		tg.Count = defaultCount
-	}
 	for _, v := range tg.Tasks {
-		v.Group = tg
+		v.group = tg
 	}
 }
 
@@ -56,13 +53,21 @@ func (tg *TaskGroup) Validate() error {
 	if err := tg.Name.Validate(); err != nil {
 		return maskAny(err)
 	}
+	if tg.Count == 0 {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "group %s count 0", tg.Name))
+	}
 	if len(tg.Tasks) == 0 {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "group %s has no tasks", tg.Name))
 	}
-	for _, t := range tg.Tasks {
+	for i, t := range tg.Tasks {
 		err := t.Validate()
 		if err != nil {
 			return maskAny(err)
+		}
+		for j := i + 1; j < len(tg.Tasks); j++ {
+			if tg.Tasks[j].Name == t.Name {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "group %s has duplicate task %s", tg.Name, t.Name))
+			}
 		}
 	}
 	return nil
@@ -76,6 +81,12 @@ func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
 		}
 	}
 	return nil, maskAny(errgo.WithCausef(nil, TaskNotFoundError, name.String()))
+}
+
+// Is this group scalable?
+// That is count > 1
+func (tg *TaskGroup) IsScalable() bool {
+	return tg.Count > 1
 }
 
 // createUnits creates all units needed to run this taskgroup.

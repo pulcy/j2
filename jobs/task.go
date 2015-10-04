@@ -29,14 +29,15 @@ func (tn TaskName) Validate() error {
 }
 
 type Task struct {
-	Name  TaskName   `json:"-"`
-	Group *TaskGroup `json:"-"`
+	Name  TaskName   `maspstructure:"-"`
+	group *TaskGroup `json:"-", mapstructure:"-"`
+	Count uint       `json:"-"` // This value is used during parsing only
 
 	Image       DockerImage       `json:"image"`
-	VolumesFrom []TaskName        `json:"volumes-from"`
-	Ports       []Port            `json:"ports"`
-	Args        []string          `json:"args"`
-	Environment map[string]string `json:"environment"`
+	VolumesFrom []TaskName        `json:"volumes-from,omitempty"`
+	Ports       []Port            `json:"ports,omitempty"`
+	Args        []string          `json:"args,omitempty"`
+	Environment map[string]string `json:"environment,omitempty"`
 }
 
 // Check for errors
@@ -45,7 +46,7 @@ func (t *Task) Validate() error {
 		return maskAny(err)
 	}
 	for _, name := range t.VolumesFrom {
-		_, err := t.Group.Task(name)
+		_, err := t.group.Task(name)
 		if err != nil {
 			return maskAny(err)
 		}
@@ -81,7 +82,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		execStart = append(execStart, fmt.Sprintf("-v %s:%s", v.hostPath, v.containerPath))
 	}*/
 	for _, name := range t.VolumesFrom {
-		other, err := t.Group.Task(name)
+		other, err := t.group.Task(name)
 		if err != nil {
 			return nil, maskAny(err)
 		}
@@ -98,7 +99,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		FullName:     t.unitName(scalingGroup) + ".service",
 		Description:  fmt.Sprintf("Main unit for %s slice %v", t.fullName(), scalingGroup),
 		Type:         "service",
-		Scalable:     t.Group.Count > 1,
+		Scalable:     t.group.IsScalable(),
 		ScalingGroup: scalingGroup,
 		ExecOptions:  units.NewExecOptions(execStart...),
 		FleetOptions: units.NewFleetOptions(),
@@ -123,13 +124,13 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 
 // Gets the full name of this task: job/taskgroup/task
 func (t *Task) fullName() string {
-	return fmt.Sprintf("%s/%s", t.Group.fullName(), t.Name)
+	return fmt.Sprintf("%s/%s", t.group.fullName(), t.Name)
 }
 
 // unitName returns the name of the systemd unit for this task.
 func (t *Task) unitName(scalingGroup uint) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
-	if t.Group.Count <= 1 {
+	if !t.group.IsScalable() {
 		return base
 	}
 	return fmt.Sprintf("%s@%v", base, scalingGroup)

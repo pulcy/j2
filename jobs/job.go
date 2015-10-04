@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"encoding/json"
 	"regexp"
 
 	"github.com/juju/errgo"
@@ -44,10 +45,15 @@ func (j *Job) Validate() error {
 	if len(j.Groups) == 0 {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "job has no groups"))
 	}
-	for _, tg := range j.Groups {
+	for i, tg := range j.Groups {
 		err := tg.Validate()
 		if err != nil {
 			return maskAny(err)
+		}
+		for k := i + 1; k < len(j.Groups); k++ {
+			if j.Groups[k].Name == tg.Name {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "job has duplicate taskgroup %s", tg.Name))
+			}
 		}
 	}
 	return nil
@@ -65,4 +71,13 @@ func (j *Job) MaxCount() uint {
 		}
 	}
 	return count
+}
+
+// Json returns formatted json representation of this job.
+func (j *Job) Json() ([]byte, error) {
+	json, err := json.MarshalIndent(j, "", "  ")
+	if err != nil {
+		return []byte(""), maskAny(err)
+	}
+	return json, nil
 }

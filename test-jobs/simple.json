@@ -1,9 +1,9 @@
 {
 	"name": "test",
-	"groups": {
+	"group": {
 		"web": {
 			"count": 2,
-			"tasks": {
+			"task": {
 				"bb": {
 					"image": "alpine:3.2",
 					"args": ["ls", "-al"]
