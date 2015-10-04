@@ -46,6 +46,10 @@ func destroyRun(cmd *cobra.Command, args []string) {
 }
 
 func destroyValidators(f *fg.Flags) {
+	j, err := loadJob(f)
+	if err == nil {
+		f.JobPath = j.Name.String()
+	}
 	jn := jobs.JobName(f.JobPath)
 	if err := jn.Validate(); err != nil {
 		Exitf("--job invalid: %v\n", err)
@@ -63,7 +67,7 @@ func confirmDestroy(force bool, stack string, units []string) error {
 	fmt.Println()
 
 	if !force {
-		if err := confirm(fmt.Sprintf("You are about to destroy:%s\n\nAre you sure you want to destroy %d units on '%s'? Enter yes:", strings.Join(units, "\n"), len(units), stack)); err != nil {
+		if err := confirm(fmt.Sprintf("You are about to destroy:\n%s\n\nAre you sure you want to destroy %d units on '%s'? Enter yes:", strings.Join(units, "\n"), len(units), stack)); err != nil {
 			return errgo.Mask(err)
 		}
 	}
