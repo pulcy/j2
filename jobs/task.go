@@ -40,6 +40,7 @@ type Task struct {
 	Volumes     []string          `json:"volumes,omitempty"`
 	Args        []string          `json:"args,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
+	Ports       []string          `json:"ports,omitempty"`
 }
 
 type TaskList []*Task
@@ -78,7 +79,13 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		"run",
 		"--rm",
 		"--name $NAME",
-		"-P",
+	}
+	if len(t.Ports) > 0 {
+		for _, p := range t.Ports {
+			execStart = append(execStart, fmt.Sprintf("-p %s", p))
+		}
+	} else {
+		execStart = append(execStart, "-P")
 	}
 	for _, v := range t.Volumes {
 		execStart = append(execStart, fmt.Sprintf("-v %s", v))
