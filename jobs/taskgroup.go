@@ -1,8 +1,10 @@
 package jobs
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
+	"sort"
 
 	"github.com/juju/errgo"
 
@@ -14,7 +16,7 @@ const (
 )
 
 var (
-	taskGroupNamePattern = regexp.MustCompile(`^([a-z0-9_]{3,30})$`)
+	taskGroupNamePattern = regexp.MustCompile(`^([a-z0-9_]{2,30})$`)
 )
 
 type TaskGroupName string
@@ -34,18 +36,21 @@ func (tgn TaskGroupName) Validate() error {
 // TaskGroups can have multiple instances, specified by `Count`.
 // Multiple instances are scheduled on different machines when possible.
 type TaskGroup struct {
-	Name TaskGroupName
+	Name TaskGroupName `json:"name", mapstructure:"-"`
 	job  *Job
 
-	Count uint // Number of instances of this group
-	Tasks []*Task
+	Count uint     `json:"count"` // Number of instances of this group
+	Tasks TaskList `json:"tasks"`
 }
+
+type TaskGroupList []*TaskGroup
 
 // Link objects just after parsing
 func (tg *TaskGroup) link() {
 	for _, v := range tg.Tasks {
 		v.group = tg
 	}
+	sort.Sort(tg.Tasks)
 }
 
 // Check for configuration errors
@@ -110,4 +115,18 @@ func (tg *TaskGroup) createUnits(scalingGroup uint) ([]*units.Unit, error) {
 // Gets the full name of this taskgroup: job/taskgroup
 func (tg *TaskGroup) fullName() string {
 	return fmt.Sprintf("%s/%s", tg.job.Name, tg.Name)
+}
+
+func (l TaskGroupList) Len() int {
+	return len(l)
+}
+
+func (l TaskGroupList) Less(i, j int) bool {
+	return bytes.Compare([]byte(l[i].Name.String()), []byte(l[j].Name.String())) < 0
+}
+
+func (l TaskGroupList) Swap(i, j int) {
+	tmp := l[i]
+	l[i] = l[j]
+	l[j] = tmp
 }

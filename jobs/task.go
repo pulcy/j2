@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 )
 
 var (
-	taskNamePattern = regexp.MustCompile(`^([a-z0-9_]{3,30})$`)
+	taskNamePattern = regexp.MustCompile(`^([a-z0-9_]{2,30})$`)
 )
 
 type TaskName string
@@ -29,16 +30,17 @@ func (tn TaskName) Validate() error {
 }
 
 type Task struct {
-	Name  TaskName   `maspstructure:"-"`
+	Name  TaskName   `json:"name", maspstructure:"-"`
 	group *TaskGroup `json:"-", mapstructure:"-"`
 	Count uint       `json:"-"` // This value is used during parsing only
 
 	Image       DockerImage       `json:"image"`
 	VolumesFrom []TaskName        `json:"volumes-from,omitempty"`
-	Ports       []Port            `json:"ports,omitempty"`
 	Args        []string          `json:"args,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
 }
+
+type TaskList []*Task
 
 // Check for errors
 func (t *Task) Validate() error {
@@ -74,9 +76,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		"run",
 		"--rm",
 		"--name $NAME",
-	}
-	for _, p := range t.Ports {
-		execStart = append(execStart, fmt.Sprintf("-p ${COREOS_PRIVATE_IPV4}::%s", p.String()))
+		"-P",
 	}
 	/*for _, v := range ds.volumes {
 		execStart = append(execStart, fmt.Sprintf("-v %s:%s", v.hostPath, v.containerPath))
@@ -140,4 +140,18 @@ func (t *Task) unitName(scalingGroup uint) string {
 func (t *Task) containerName(scalingGroup uint) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
 	return fmt.Sprintf("%s-%v", base, scalingGroup)
+}
+
+func (l TaskList) Len() int {
+	return len(l)
+}
+
+func (l TaskList) Less(i, j int) bool {
+	return bytes.Compare([]byte(l[i].Name.String()), []byte(l[j].Name.String())) < 0
+}
+
+func (l TaskList) Swap(i, j int) {
+	tmp := l[i]
+	l[i] = l[j]
+	l[j] = tmp
 }

@@ -1,17 +1,24 @@
 {
-	"Name": "test",
-	"Groups": [{
-		"Name": "dummy",
-		"Count": 3,
-		"Tasks": [{
-			"Name": "dummy",
+	"name": "test",
+	"groups": [{
+		"name": "db",
+		"count": 1,
+		"tasks": [{
+			"name": "db",
+			"image": "redis:latest"
+		}]
+	}, {
+		"name": "dummy",
+		"count": 3,
+		"tasks": [{
+			"name": "dummy",
 			"image": "alpine:latest"
 		}]
 	}, {
-		"Name": "web",
-		"Count": 2,
-		"Tasks": [{
-			"Name": "bb2",
+		"name": "web",
+		"count": 2,
+		"tasks": [{
+			"name": "nginx",
 			"image": "alpine:3.2",
 			"args": [
 				"ls",
@@ -21,6 +28,9 @@
 				"key": "123",
 				"name": "ewout"
 			}
+		}, {
+			"name": "storage",
+			"image": "mystorage:latest"
 		}]
 	}]
 }

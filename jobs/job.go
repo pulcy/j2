@@ -3,6 +3,7 @@ package jobs
 import (
 	"encoding/json"
 	"regexp"
+	"sort"
 
 	"github.com/juju/errgo"
 )
@@ -25,8 +26,8 @@ func (jn JobName) Validate() error {
 }
 
 type Job struct {
-	Name   JobName
-	Groups []*TaskGroup
+	Name   JobName       `json:"name", mapstructure:"-"`
+	Groups TaskGroupList `json:"groups"`
 }
 
 // Link objects just after parsing
@@ -35,6 +36,7 @@ func (j *Job) link() {
 		tg.job = j
 		tg.link()
 	}
+	sort.Sort(j.Groups)
 }
 
 // Check for errors
