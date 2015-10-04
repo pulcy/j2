@@ -2,20 +2,13 @@ package flags
 
 type Flags struct {
 	// Global flags
-	Service         string
+	JobPath         string
+	Groups          []string
 	Stack           string
 	Tunnel          string
-	ScalingGroup    uint8
+	ScalingGroup    uint
 	DryRun          bool
 	Force           bool
 	PrivateRegistry string
 	LogLevel        string
-	DefaultScale    uint8
-
-	// Image versions
-	LoadBalancerVersion          string
-	RegistratorVersion           string
-	StunnelPemVersion            string
-	StunnelRegistryClientVersion string
-	StunnelPemPassphrase         string
 }
