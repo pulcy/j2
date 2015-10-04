@@ -1,0 +1,26 @@
+{
+	"Name": "test",
+	"Groups": [{
+		"Name": "dummy",
+		"Count": 3,
+		"Tasks": [{
+			"Name": "dummy",
+			"image": "alpine:latest"
+		}]
+	}, {
+		"Name": "web",
+		"Count": 2,
+		"Tasks": [{
+			"Name": "bb2",
+			"image": "alpine:3.2",
+			"args": [
+				"ls",
+				"-al"
+			],
+			"environment": {
+				"key": "123",
+				"name": "ewout"
+			}
+		}]
+	}]
+}

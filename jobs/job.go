@@ -75,7 +75,7 @@ func (j *Job) MaxCount() uint {
 
 // Json returns formatted json representation of this job.
 func (j *Job) Json() ([]byte, error) {
-	json, err := json.MarshalIndent(j, "", "  ")
+	json, err := json.MarshalIndent(j, "", "\t")
 	if err != nil {
 		return []byte(""), maskAny(err)
 	}
