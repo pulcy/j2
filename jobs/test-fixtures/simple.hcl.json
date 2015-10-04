@@ -5,7 +5,8 @@
 		"count": 1,
 		"tasks": [{
 			"name": "db",
-			"image": "redis:latest"
+			"image": "redis:latest",
+			"volumes": ["/var/run/docker.sock:/tmp/docker.sock"]
 		}]
 	}, {
 		"name": "dummy",
@@ -13,6 +14,16 @@
 		"tasks": [{
 			"name": "dummy",
 			"image": "alpine:latest"
+		}]
+	}, {
+		"name": "registrator",
+		"count": 1,
+		"global": true,
+		"tasks": [{
+			"name": "registrator",
+			"image": "gliderlabs/registrator:latest",
+			"volumes": ["/var/run/docker.sock:/tmp/docker.sock"],
+			"args": ["etcd://${COREOS_PRIVATE_IPV4}:4001/pulcy"]
 		}]
 	}, {
 		"name": "web",
@@ -27,7 +38,8 @@
 			"environment": {
 				"key": "123",
 				"name": "ewout"
-			}
+			},
+			"volumes-from": ["storage"]
 		}, {
 			"name": "storage",
 			"image": "mystorage:latest"

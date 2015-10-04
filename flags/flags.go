@@ -5,6 +5,7 @@ type Flags struct {
 	JobPath         string
 	Groups          []string
 	Stack           string
+	Domain          string
 	Tunnel          string
 	ScalingGroup    uint
 	DryRun          bool

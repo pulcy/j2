@@ -30,12 +30,14 @@ func (tn TaskName) Validate() error {
 }
 
 type Task struct {
-	Name  TaskName   `json:"name", maspstructure:"-"`
-	group *TaskGroup `json:"-", mapstructure:"-"`
-	Count uint       `json:"-"` // This value is used during parsing only
+	Name   TaskName   `json:"name", maspstructure:"-"`
+	group  *TaskGroup `json:"-", mapstructure:"-"`
+	Count  uint       `json:"-"` // This value is used during parsing only
+	Global bool       `json:"-"` // This value is used during parsing only
 
 	Image       DockerImage       `json:"image"`
 	VolumesFrom []TaskName        `json:"volumes-from,omitempty"`
+	Volumes     []string          `json:"volumes,omitempty"`
 	Args        []string          `json:"args,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
 }
@@ -78,9 +80,9 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		"--name $NAME",
 		"-P",
 	}
-	/*for _, v := range ds.volumes {
-		execStart = append(execStart, fmt.Sprintf("-v %s:%s", v.hostPath, v.containerPath))
-	}*/
+	for _, v := range t.Volumes {
+		execStart = append(execStart, fmt.Sprintf("-v %s", v))
+	}
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
 		if err != nil {
@@ -118,6 +120,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		"NAME":  t.containerName(scalingGroup),
 		"IMAGE": t.Image.String(),
 	}
+	main.FleetOptions.IsGlobal = t.group.Global
 
 	return main, nil
 }

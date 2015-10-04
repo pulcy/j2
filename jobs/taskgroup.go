@@ -39,8 +39,9 @@ type TaskGroup struct {
 	Name TaskGroupName `json:"name", mapstructure:"-"`
 	job  *Job
 
-	Count uint     `json:"count"` // Number of instances of this group
-	Tasks TaskList `json:"tasks"`
+	Count  uint     `json:"count"`            // Number of instances of this group
+	Global bool     `json:"global,omitempty"` // Scheduled on all machines
+	Tasks  TaskList `json:"tasks"`
 }
 
 type TaskGroupList []*TaskGroup
@@ -89,9 +90,9 @@ func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
 }
 
 // Is this group scalable?
-// That is count > 1
+// That is count > 1 and not global
 func (tg *TaskGroup) IsScalable() bool {
-	return tg.Count > 1
+	return tg.Count > 1 && !tg.Global
 }
 
 // createUnits creates all units needed to run this taskgroup.

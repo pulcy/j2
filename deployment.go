@@ -13,6 +13,7 @@ import (
 func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.StringVarP(&f.JobPath, "job", "j", defaultJobPath, "filename of the job description")
 	fs.StringVarP(&f.Stack, "stack", "s", defaultStack, "stack name of the cluster")
+	fs.StringVar(&f.Domain, "domain", defaultDomain, "domain name of the cluster")
 	fs.StringVarP(&f.Tunnel, "tunnel", "t", defaultTunnel, "SSH endpoint to tunnel through with fleet")
 	fs.StringSliceVarP(&f.Groups, "groups", "g", defaultGroups, "target task groups to deploy")
 	fs.BoolVarP(&f.Force, "force", "f", defaultForce, "wheather to confirm destroy or not")
@@ -24,7 +25,7 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 
 func deploymentDefaults(f *fg.Flags, args []string) {
 	if f.Tunnel == "" {
-		f.Tunnel = fmt.Sprintf("%s.iggi.xyz", f.Stack)
+		f.Tunnel = fmt.Sprintf("%s.%s", f.Stack, f.Domain)
 	}
 
 	if f.LogLevel == "" {

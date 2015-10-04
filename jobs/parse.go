@@ -25,13 +25,13 @@ func ParseJob(input []byte) (*Job, error) {
 		return nil, maskAny(err)
 	}
 
+	// Link internal structures
+	job.link()
+
 	// Validate the job
 	if err := job.Validate(); err != nil {
 		return nil, maskAny(err)
 	}
-
-	// Link internal structures
-	job.link()
 
 	return job, nil
 }
@@ -72,9 +72,10 @@ func (j *Job) parse(obj *hclobj.Object) error {
 
 		for _, t := range tmp.Tasks {
 			tg := &TaskGroup{
-				Name:  TaskGroupName(t.Name),
-				Count: t.Count,
-				Tasks: []*Task{t},
+				Name:   TaskGroupName(t.Name),
+				Count:  t.Count,
+				Global: t.Global,
+				Tasks:  []*Task{t},
 			}
 			j.Groups = append(j.Groups, tg)
 		}
@@ -195,6 +196,8 @@ func (t *Task) parse(obj *hclobj.Object) error {
 	}
 	delete(m, "env")
 	delete(m, "image")
+	delete(m, "volumes")
+	delete(m, "volumes-from")
 
 	// Default count to 1 if not specified
 	if _, ok := m["count"]; !ok {
@@ -228,6 +231,40 @@ func (t *Task) parse(obj *hclobj.Object) error {
 			if err := mapstructure.WeakDecode(m, &t.Environment); err != nil {
 				return maskAny(err)
 			}
+		}
+	}
+
+	// Parse volumes
+	if o := obj.Get("volumes", false); o != nil {
+		if o.Type == hclobj.ValueTypeString {
+			t.Volumes = []string{o.Value.(string)}
+		} else if o.Type == hclobj.ValueTypeList {
+			for _, o := range o.Elem(false) {
+				if o.Type == hclobj.ValueTypeString {
+					t.Volumes = append(t.Volumes, o.Value.(string))
+				} else {
+					return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes array of task %s is not a string", t.Name))
+				}
+			}
+		} else {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "volumes of task %s is not a string or array", t.Name))
+		}
+	}
+
+	// Parse volumes-from
+	if o := obj.Get("volumes-from", false); o != nil {
+		if o.Type == hclobj.ValueTypeString {
+			t.VolumesFrom = []TaskName{TaskName(o.Value.(string))}
+		} else if o.Type == hclobj.ValueTypeList {
+			for _, o := range o.Elem(false) {
+				if o.Type == hclobj.ValueTypeString {
+					t.VolumesFrom = append(t.VolumesFrom, TaskName(o.Value.(string)))
+				} else {
+					return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes-from array of task %s is not a string", t.Name))
+				}
+			}
+		} else {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "volumes-from of task %s is not a string or array", t.Name))
 		}
 	}
 
