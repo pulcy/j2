@@ -69,6 +69,6 @@ func Exitf(format string, args ...interface{}) {
 
 func assert(err error) {
 	if err != nil {
-		panic(err.Error())
+		Exitf("Assertion failed: %#v", err)
 	}
 }
