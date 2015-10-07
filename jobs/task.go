@@ -37,13 +37,14 @@ type Task struct {
 	Count  uint       `json:"-"` // This value is used during parsing only
 	Global bool       `json:"-"` // This value is used during parsing only
 
-	Image       DockerImage       `json:"image"`
-	VolumesFrom []TaskName        `json:"volumes-from,omitempty"`
-	Volumes     []string          `json:"volumes,omitempty"`
-	Args        []string          `json:"args,omitempty"`
-	Environment map[string]string `json:"environment,omitempty"`
-	Ports       []string          `json:"ports,omitempty"`
-	FrontEnds   []FrontEnd        `json:"frontends,omitempty"`
+	Image         DockerImage       `json:"image"`
+	VolumesFrom   []TaskName        `json:"volumes-from,omitempty"`
+	Volumes       []string          `json:"volumes,omitempty"`
+	Args          []string          `json:"args,omitempty"`
+	Environment   map[string]string `json:"environment,omitempty"`
+	Ports         []string          `json:"ports,omitempty"`
+	FrontEnds     []FrontEnd        `json:"frontends,omitempty"`
+	HttpCheckPath string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
 }
 
 type TaskList []*Task
@@ -172,8 +173,9 @@ func (t *Task) serviceName() string {
 }
 
 type frontendRecord struct {
-	Selectors []frontendSelectorRecord `json:"selectors"`
-	Service   string                   `json:"service,omitempty"`
+	Selectors     []frontendSelectorRecord `json:"selectors"`
+	Service       string                   `json:"service,omitempty"`
+	HttpCheckPath string                   `json:"http-check-path,omitempty"`
 }
 
 type frontendSelectorRecord struct {
@@ -188,7 +190,8 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 	}
 	key := "/pulcy/frontend/" + t.serviceName()
 	record := frontendRecord{
-		Service: t.serviceName(),
+		Service:       t.serviceName(),
+		HttpCheckPath: t.HttpCheckPath,
 	}
 	for _, fr := range t.FrontEnds {
 		record.Selectors = append(record.Selectors, frontendSelectorRecord{

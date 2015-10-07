@@ -10,6 +10,7 @@ group "web" {
 			name = "ewout"
 			key = "123"
 		}
+		http-check-path = "/"
 		frontend {
 			path-prefix = "/"
 		}
