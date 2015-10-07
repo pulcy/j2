@@ -74,11 +74,14 @@ func (t *Task) createUnits(scalingGroup uint) ([]*units.Unit, error) {
 
 // createMainUnit
 func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
+	name := t.containerName(scalingGroup)
+	serviceName := t.serviceName(scalingGroup)
+	image := t.Image.String()
 	execStart := []string{
 		"/usr/bin/docker",
 		"run",
 		"--rm",
-		"--name $NAME",
+		fmt.Sprintf("--name %s", name),
 	}
 	if len(t.Ports) > 0 {
 		for _, p := range t.Ports {
@@ -100,8 +103,8 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	for k, v := range t.Environment {
 		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
 	}
-	execStart = append(execStart, "-e SERVICE_NAME=$NAME") // Support registrator
-	execStart = append(execStart, "$IMAGE")
+	execStart = append(execStart, fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
+	execStart = append(execStart, image)
 	execStart = append(execStart, t.Args...)
 	main := &units.Unit{
 		Name:         t.unitName(scalingGroup),
@@ -115,17 +118,13 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	}
 	//main.FleetOptions.IsGlobal = ds.global
 	main.ExecOptions.ExecStartPre = []string{
-		"/usr/bin/docker pull $IMAGE",
-		fmt.Sprintf("-/usr/bin/docker stop -t %v $NAME", main.ExecOptions.ContainerTimeoutStopSec),
-		"-/usr/bin/docker rm -f $NAME",
+		fmt.Sprintf("/usr/bin/docker pull %s", image),
+		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
+		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
 	}
-	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v $NAME", main.ExecOptions.ContainerTimeoutStopSec)
+	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name)
 	main.ExecOptions.ExecStopPost = []string{
-		"-/usr/bin/docker rm -f $NAME",
-	}
-	main.ExecOptions.Environment = map[string]string{
-		"NAME":  t.containerName(scalingGroup),
-		"IMAGE": t.Image.String(),
+		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
 	}
 	main.FleetOptions.IsGlobal = t.group.Global
 
@@ -150,6 +149,11 @@ func (t *Task) unitName(scalingGroup uint) string {
 func (t *Task) containerName(scalingGroup uint) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
 	return fmt.Sprintf("%s-%v", base, scalingGroup)
+}
+
+// serviceName returns the name used to register this service.
+func (t *Task) serviceName(scalingGroup uint) string {
+	return strings.Replace(t.fullName(), "/", "-", -1)
 }
 
 func (l TaskList) Len() int {
