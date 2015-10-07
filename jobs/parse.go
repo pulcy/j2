@@ -270,27 +270,18 @@ func (t *Task) parse(obj *hclobj.Object) error {
 	}
 
 	// Parse frontends
-	if o := obj.Get("frontend", false); o != nil {
-		if o.Type == hclobj.ValueTypeObject {
-			f := FrontEnd{}
-			if err := f.parse(o); err != nil {
-				return maskAny(err)
-			}
-			t.FrontEnds = append(t.FrontEnds, f)
-		} else if o.Type == hclobj.ValueTypeList {
-			for _, o := range o.Elem(false) {
-				if o.Type == hclobj.ValueTypeObject {
-					f := FrontEnd{}
-					if err := f.parse(o); err != nil {
-						return maskAny(err)
-					}
-					t.FrontEnds = append(t.FrontEnds, f)
-				} else {
-					return maskAny(errgo.WithCausef(nil, ValidationError, "element of frontend array of task %s is not an object", t.Name))
+
+	if first := obj.Get("frontend", false); first != nil {
+		for _, o := range first.Elem(false) {
+			if o.Type == hclobj.ValueTypeObject {
+				f := FrontEnd{}
+				if err := f.parse(o); err != nil {
+					return maskAny(err)
 				}
+				t.FrontEnds = append(t.FrontEnds, f)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "frontend of task %s is not an object or array", t.Name))
 			}
-		} else {
-			return maskAny(errgo.WithCausef(nil, ValidationError, "frontend of task %s is not an object or array", t.Name))
 		}
 	}
 

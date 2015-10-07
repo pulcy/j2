@@ -41,7 +41,9 @@
 			},
 			"volumes-from": ["storage"],
 			"frontends": [
-				{ "path-prefix": "/"}
+				{ "path-prefix": "/"},
+				{ "domain": "foo.com"},
+				{"domain":"foo2.com", "path-prefix": "/foo2"}
 			]
 		}, {
 			"name": "storage",

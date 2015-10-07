@@ -13,6 +13,13 @@ group "web" {
 		frontend {
 			path-prefix = "/"
 		}
+		frontend {
+			domain = "foo.com"
+		}
+		frontend {
+			domain = "foo2.com"
+			path-prefix = "/foo2"
+		}
 	}	
 	task "storage" {
 		image = "mystorage:latest"
