@@ -14,6 +14,9 @@ func (u *Unit) Render() string {
 	if u.ExecOptions.Wants != "" {
 		lines = append(lines, "Wants="+u.ExecOptions.Wants)
 	}
+	for _, x := range u.ExecOptions.Requires {
+		lines = append(lines, "Requires="+x)
+	}
 	for _, x := range u.ExecOptions.BindsTos {
 		lines = append(lines, "BindsTo="+x)
 	}

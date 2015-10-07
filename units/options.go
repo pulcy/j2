@@ -27,6 +27,7 @@ type execOptions struct {
 	Wants                   string
 	After                   string
 	MachineOf               string
+	Requires                []string
 }
 
 func NewExecOptions(start ...string) *execOptions {
@@ -59,6 +60,10 @@ func (e *execOptions) RemainAfterExit() {
 
 func (e *execOptions) SetRestartSec(seconds uint8) {
 	e.RestartSec = seconds
+}
+
+func (e *execOptions) Require(require string) {
+	e.Requires = append(e.Requires, require)
 }
 
 type fleetOptions struct {
