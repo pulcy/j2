@@ -54,7 +54,7 @@ func updateRun(cmd *cobra.Command, args []string) {
 
 			runUpdate(updateFlags.Stack, updateFlags.Tunnel, unitNames, fileNames, updateFlags.StopDelay, updateFlags.DestroyDelay)
 			assert(generator.RemoveTmpFiles())
-		}, updateFlags.SliceDelay)
+		}, updateFlags.SliceDelay, updateFlags.Force)
 	}
 }
 
@@ -76,7 +76,7 @@ type runUpdateCallback func(stack, tunnel string, unitNames, files []string, sto
 
 // updateScalingGroups calls a given update function for each scaling group, such that they all update in succession.
 // confirmation is asked before updating more than 1 scaling group
-func updateScalingGroups(scalingGroup *uint, scale uint, stack string, updateCurrentGroup func(runUpdate runUpdateCallback), sliceDelay time.Duration) {
+func updateScalingGroups(scalingGroup *uint, scale uint, stack string, updateCurrentGroup func(runUpdate runUpdateCallback), sliceDelay time.Duration, force bool) {
 	if *scalingGroup != 0 {
 		// Only one group to update
 		updateCurrentGroup(doRunUpdate)
@@ -85,14 +85,16 @@ func updateScalingGroups(scalingGroup *uint, scale uint, stack string, updateCur
 		maxScale := detectLargestScalingGroup(scalingGroup, scale, updateCurrentGroup)
 
 		// Ask for confirmation
-		var confirmMsg string
-		if maxScale == 1 {
-			confirmMsg = fmt.Sprintf("Are you sure you want to update '%s'? Enter yes:", stack)
-		} else {
-			confirmMsg = fmt.Sprintf("Are you sure you want to update all %v scaling groups one after another on '%s'? Enter yes:", maxScale, stack)
-		}
-		if err := confirm(confirmMsg); err != nil {
-			panic(err)
+		if !force {
+			var confirmMsg string
+			if maxScale == 1 {
+				confirmMsg = fmt.Sprintf("Are you sure you want to update '%s'? Enter yes:", stack)
+			} else {
+				confirmMsg = fmt.Sprintf("Are you sure you want to update all %v scaling groups one after another on '%s'? Enter yes:", maxScale, stack)
+			}
+			if err := confirm(confirmMsg); err != nil {
+				panic(err)
+			}
 		}
 
 		// Update all scaling groups in successions
@@ -112,8 +114,10 @@ func updateScalingGroups(scalingGroup *uint, scale uint, stack string, updateCur
 				time.Sleep(sliceDelay)
 
 				// Ask for confirmation to continue
-				if err := confirm(fmt.Sprintf("Are you sure to continue with scaling group %v  on '%s'? Enter yes:", sg+1, stack)); err != nil {
-					panic(err)
+				if !force {
+					if err := confirm(fmt.Sprintf("Are you sure to continue with scaling group %v  on '%s'? Enter yes:", sg+1, stack)); err != nil {
+						panic(err)
+					}
 				}
 			}
 		}
