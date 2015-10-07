@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -76,7 +77,7 @@ func (t *Task) createUnits(scalingGroup uint) ([]*units.Unit, error) {
 // createMainUnit
 func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	name := t.containerName(scalingGroup)
-	serviceName := t.serviceName(scalingGroup)
+	serviceName := t.serviceName()
 	image := t.Image.String()
 	execStart := []string{
 		"/usr/bin/docker",
@@ -129,6 +130,10 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	}
 	main.FleetOptions.IsGlobal = t.group.Global
 
+	if err := t.addFrontEndRegistration(main); err != nil {
+		return nil, maskAny(err)
+	}
+
 	return main, nil
 }
 
@@ -153,8 +158,43 @@ func (t *Task) containerName(scalingGroup uint) string {
 }
 
 // serviceName returns the name used to register this service.
-func (t *Task) serviceName(scalingGroup uint) string {
+func (t *Task) serviceName() string {
 	return strings.Replace(t.fullName(), "/", "-", -1)
+}
+
+type frontendRecord struct {
+	Selectors []frontendSelectorRecord `json:"selectors"`
+	Service   string                   `json:"service,omitempty"`
+}
+
+type frontendSelectorRecord struct {
+	Domain     string `json:"domain,omitempty"`
+	PathPrefix string `json:"path-prefix,omitempty"`
+}
+
+// addFrontEndRegistration adds registration code for frontends to the given units
+func (t *Task) addFrontEndRegistration(main *units.Unit) error {
+	if len(t.FrontEnds) == 0 {
+		return nil
+	}
+	key := "/pulcy/frontend/" + t.serviceName()
+	record := frontendRecord{
+		Service: t.serviceName(),
+	}
+	for _, fr := range t.FrontEnds {
+		record.Selectors = append(record.Selectors, frontendSelectorRecord{
+			Domain:     fr.Domain,
+			PathPrefix: fr.PathPrefix,
+		})
+	}
+	json, err := json.Marshal(&record)
+	if err != nil {
+		return maskAny(err)
+	}
+	main.ExecOptions.ExecStartPost = append(main.ExecOptions.ExecStartPost,
+		fmt.Sprintf("/bin/sh -c '/usr/bin/etcdctl set %s %s'", key, strconv.Quote(string(json))),
+	)
+	return nil
 }
 
 func (l TaskList) Len() int {
