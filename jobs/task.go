@@ -192,7 +192,7 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 		return maskAny(err)
 	}
 	main.ExecOptions.ExecStartPost = append(main.ExecOptions.ExecStartPost,
-		fmt.Sprintf("/bin/sh -c '/usr/bin/etcdctl set %s %s'", key, strconv.Quote(string(json))),
+		fmt.Sprintf("/bin/sh -c '/usr/bin/etcdctl set %s %s'", key, strconv.Quote(strconv.Quote(string(json)))),
 	)
 	return nil
 }

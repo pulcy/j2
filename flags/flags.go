@@ -1,5 +1,9 @@
 package flags
 
+import (
+	"time"
+)
+
 type Flags struct {
 	// Global flags
 	Local           bool // Use local vagrant test cluster
@@ -13,4 +17,7 @@ type Flags struct {
 	Force           bool
 	PrivateRegistry string
 	LogLevel        string
+	StopDelay       time.Duration
+	DestroyDelay    time.Duration
+	SliceDelay      time.Duration
 }

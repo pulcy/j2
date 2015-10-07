@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/juju/errgo"
 	"github.com/spf13/pflag"
@@ -22,12 +23,18 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.StringVar(&f.PrivateRegistry, "private-registry", defaultPrivateRegistry, "private registry for the docker images")
 	fs.StringVar(&f.LogLevel, "log-level", defaultLogLevel, "log-level for our services")
 	fs.BoolVarP(&f.Local, "local", "l", defaultLocal, "User local vagrant test cluster")
+	fs.DurationVar(&f.StopDelay, "stop-delay", defaultStopDelay, "Time between stop and destroy")
+	fs.DurationVar(&f.DestroyDelay, "destroy-delay", defaultDestroyDelay, "Time between destroy and re-create")
+	fs.DurationVar(&f.SliceDelay, "slice-delay", defaultSliceDelay, "Time between update of scaling slices")
 }
 
 func deploymentDefaults(f *fg.Flags, args []string) {
 	if f.Local {
 		f.Tunnel = "core-01"
 		f.Stack = "core-01"
+		f.StopDelay = 5 * time.Second
+		f.DestroyDelay = 3 * time.Second
+		f.SliceDelay = 5 * time.Second
 	}
 	if f.Tunnel == "" {
 		f.Tunnel = fmt.Sprintf("%s.%s", f.Stack, f.Domain)
