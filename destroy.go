@@ -43,7 +43,7 @@ func destroyRun(cmd *cobra.Command, args []string) {
 		fmt.Printf("No units on the cluster match the given arguments\n")
 	} else {
 		assert(confirmDestroy(destroyFlags.Force, destroyFlags.Stack, unitNames))
-		assert(destroyUnits(destroyFlags.Stack, f, unitNames))
+		assert(destroyUnits(destroyFlags.Stack, f, unitNames, destroyFlags.StopDelay))
 	}
 }
 
@@ -103,7 +103,7 @@ func confirmDestroy(force bool, stack string, units []string) error {
 	return nil
 }
 
-func destroyUnits(stack string, f *fleet.FleetTunnel, units []string) error {
+func destroyUnits(stack string, f *fleet.FleetTunnel, units []string, stopDelay time.Duration) error {
 	if len(units) == 0 {
 		return errgo.Newf("No units on cluster: %s", stack)
 	}
@@ -116,8 +116,8 @@ func destroyUnits(stack string, f *fleet.FleetTunnel, units []string) error {
 
 	fmt.Println(out)
 
-	fmt.Println("Waiting for 15 seconds...")
-	time.Sleep(15 * time.Second)
+	fmt.Printf("Waiting for %s seconds...\n", stopDelay)
+	time.Sleep(stopDelay)
 
 	out, err = f.Destroy(units...)
 	if err != nil {

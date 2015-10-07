@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -23,14 +22,12 @@ var (
 	globalFlags struct {
 		debug   bool
 		verbose bool
-		sleep   time.Duration
 	}
 )
 
 func init() {
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.debug, "debug", "D", false, "Print debug output")
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.verbose, "verbose", "v", false, "Print verbose output")
-	cmdMain.PersistentFlags().DurationVar(&globalFlags.sleep, "sleep", 60*time.Second, "time to sleep between updates")
 }
 
 func main() {

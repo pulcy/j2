@@ -9,7 +9,7 @@ task "registrator" {
 
 task "load_balancer" {
 	global = true
-	image = "arvika-ssh:5000/load-balancer:0.4.0"
-	ports = ["${COREOS_PUBLIC_IPV4}:80:80", "${COREOS_PUBLIC_IPV4}:443:443"]
+	image = "pulcy/lb:0.4.3"
+	ports = ["0.0.0.0:80:80", "0.0.0.0:443:443"]
 	args = ["--etcd-addr", "http://${COREOS_PRIVATE_IPV4}:4001/pulcy"]
 }

@@ -1,5 +1,9 @@
 package main
 
+import (
+	"time"
+)
+
 // globals
 const (
 	defaultJobPath         = ""
@@ -15,5 +19,8 @@ const (
 )
 
 var (
-	defaultGroups = []string{}
+	defaultGroups       = []string{}
+	defaultStopDelay    = 15 * time.Second // sec
+	defaultDestroyDelay = 15 * time.Second // sec
+	defaultSliceDelay   = 30 * time.Second // sec
 )

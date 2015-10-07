@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -41,6 +43,7 @@ type Task struct {
 	Args        []string          `json:"args,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
 	Ports       []string          `json:"ports,omitempty"`
+	FrontEnds   []FrontEnd        `json:"frontends,omitempty"`
 }
 
 type TaskList []*Task
@@ -74,11 +77,14 @@ func (t *Task) createUnits(scalingGroup uint) ([]*units.Unit, error) {
 
 // createMainUnit
 func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
+	name := t.containerName(scalingGroup)
+	serviceName := t.serviceName()
+	image := t.Image.String()
 	execStart := []string{
 		"/usr/bin/docker",
 		"run",
 		"--rm",
-		"--name $NAME",
+		fmt.Sprintf("--name %s", name),
 	}
 	if len(t.Ports) > 0 {
 		for _, p := range t.Ports {
@@ -100,8 +106,8 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	for k, v := range t.Environment {
 		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
 	}
-	execStart = append(execStart, "-e SERVICE_NAME=$NAME") // Support registrator
-	execStart = append(execStart, "$IMAGE")
+	execStart = append(execStart, fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
+	execStart = append(execStart, image)
 	execStart = append(execStart, t.Args...)
 	main := &units.Unit{
 		Name:         t.unitName(scalingGroup),
@@ -115,19 +121,19 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	}
 	//main.FleetOptions.IsGlobal = ds.global
 	main.ExecOptions.ExecStartPre = []string{
-		"/usr/bin/docker pull $IMAGE",
-		fmt.Sprintf("-/usr/bin/docker stop -t %v $NAME", main.ExecOptions.ContainerTimeoutStopSec),
-		"-/usr/bin/docker rm -f $NAME",
+		fmt.Sprintf("/usr/bin/docker pull %s", image),
+		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
+		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
 	}
-	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v $NAME", main.ExecOptions.ContainerTimeoutStopSec)
+	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name)
 	main.ExecOptions.ExecStopPost = []string{
-		"-/usr/bin/docker rm -f $NAME",
-	}
-	main.ExecOptions.Environment = map[string]string{
-		"NAME":  t.containerName(scalingGroup),
-		"IMAGE": t.Image.String(),
+		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
 	}
 	main.FleetOptions.IsGlobal = t.group.Global
+
+	if err := t.addFrontEndRegistration(main); err != nil {
+		return nil, maskAny(err)
+	}
 
 	return main, nil
 }
@@ -150,6 +156,46 @@ func (t *Task) unitName(scalingGroup uint) string {
 func (t *Task) containerName(scalingGroup uint) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
 	return fmt.Sprintf("%s-%v", base, scalingGroup)
+}
+
+// serviceName returns the name used to register this service.
+func (t *Task) serviceName() string {
+	return strings.Replace(t.fullName(), "/", "-", -1)
+}
+
+type frontendRecord struct {
+	Selectors []frontendSelectorRecord `json:"selectors"`
+	Service   string                   `json:"service,omitempty"`
+}
+
+type frontendSelectorRecord struct {
+	Domain     string `json:"domain,omitempty"`
+	PathPrefix string `json:"path-prefix,omitempty"`
+}
+
+// addFrontEndRegistration adds registration code for frontends to the given units
+func (t *Task) addFrontEndRegistration(main *units.Unit) error {
+	if len(t.FrontEnds) == 0 {
+		return nil
+	}
+	key := "/pulcy/frontend/" + t.serviceName()
+	record := frontendRecord{
+		Service: t.serviceName(),
+	}
+	for _, fr := range t.FrontEnds {
+		record.Selectors = append(record.Selectors, frontendSelectorRecord{
+			Domain:     fr.Domain,
+			PathPrefix: fr.PathPrefix,
+		})
+	}
+	json, err := json.Marshal(&record)
+	if err != nil {
+		return maskAny(err)
+	}
+	main.ExecOptions.ExecStartPost = append(main.ExecOptions.ExecStartPost,
+		fmt.Sprintf("/bin/sh -c 'echo %s | base64 -d | /usr/bin/etcdctl set %s'", base64.StdEncoding.EncodeToString(json), key),
+	)
+	return nil
 }
 
 func (l TaskList) Len() int {
