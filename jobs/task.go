@@ -110,8 +110,8 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	execStart = append(execStart, image)
 	execStart = append(execStart, t.Args...)
 	main := &units.Unit{
-		Name:         t.unitName(scalingGroup),
-		FullName:     t.unitName(scalingGroup) + ".service",
+		Name:         t.unitName(strconv.Itoa(int(scalingGroup))),
+		FullName:     t.unitName(strconv.Itoa(int(scalingGroup))) + ".service",
 		Description:  fmt.Sprintf("Main unit for %s slice %v", t.fullName(), scalingGroup),
 		Type:         "service",
 		Scalable:     t.group.IsScalable(),
@@ -130,6 +130,9 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
 	}
 	main.FleetOptions.IsGlobal = t.group.Global
+	if t.group.IsScalable() {
+		main.FleetOptions.Conflicts(t.unitName("*") + ".service")
+	}
 
 	if err := t.addFrontEndRegistration(main); err != nil {
 		return nil, maskAny(err)
@@ -144,17 +147,20 @@ func (t *Task) fullName() string {
 }
 
 // unitName returns the name of the systemd unit for this task.
-func (t *Task) unitName(scalingGroup uint) string {
+func (t *Task) unitName(scalingGroup string) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
 	if !t.group.IsScalable() {
 		return base
 	}
-	return fmt.Sprintf("%s@%v", base, scalingGroup)
+	return fmt.Sprintf("%s@%s", base, scalingGroup)
 }
 
 // containerName returns the name of the docker contained used for this task.
 func (t *Task) containerName(scalingGroup uint) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
+	if !t.group.IsScalable() {
+		return base
+	}
 	return fmt.Sprintf("%s-%v", base, scalingGroup)
 }
 
