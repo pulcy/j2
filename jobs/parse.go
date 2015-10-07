@@ -198,6 +198,7 @@ func (t *Task) parse(obj *hclobj.Object) error {
 	delete(m, "image")
 	delete(m, "volumes")
 	delete(m, "volumes-from")
+	delete(m, "frontend")
 
 	// Default count to 1 if not specified
 	if _, ok := m["count"]; !ok {
@@ -266,6 +267,46 @@ func (t *Task) parse(obj *hclobj.Object) error {
 		} else {
 			return maskAny(errgo.WithCausef(nil, ValidationError, "volumes-from of task %s is not a string or array", t.Name))
 		}
+	}
+
+	// Parse frontends
+	if o := obj.Get("frontend", false); o != nil {
+		if o.Type == hclobj.ValueTypeObject {
+			f := FrontEnd{}
+			if err := f.parse(o); err != nil {
+				return maskAny(err)
+			}
+			t.FrontEnds = append(t.FrontEnds, f)
+		} else if o.Type == hclobj.ValueTypeList {
+			for _, o := range o.Elem(false) {
+				if o.Type == hclobj.ValueTypeObject {
+					f := FrontEnd{}
+					if err := f.parse(o); err != nil {
+						return maskAny(err)
+					}
+					t.FrontEnds = append(t.FrontEnds, f)
+				} else {
+					return maskAny(errgo.WithCausef(nil, ValidationError, "element of frontend array of task %s is not an object", t.Name))
+				}
+			}
+		} else {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "frontend of task %s is not an object or array", t.Name))
+		}
+	}
+
+	return nil
+}
+
+// parse a frontend
+func (f *FrontEnd) parse(obj *hclobj.Object) error {
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj); err != nil {
+		return err
+	}
+
+	// Build the frontend
+	if err := mapstructure.WeakDecode(m, f); err != nil {
+		return maskAny(err)
 	}
 
 	return nil

@@ -39,7 +39,10 @@
 				"key": "123",
 				"name": "ewout"
 			},
-			"volumes-from": ["storage"]
+			"volumes-from": ["storage"],
+			"frontends": [
+				{ "path-prefix": "/"}
+			]
 		}, {
 			"name": "storage",
 			"image": "mystorage:latest"

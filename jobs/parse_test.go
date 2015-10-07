@@ -48,7 +48,7 @@ func TestParse(t *testing.T) {
 			if diffs, err := compareJson(json, expectedJson); err != nil {
 				t.Fatalf("Cannot comparse json: %#v", err)
 			} else if len(diffs) > 0 {
-				t.Fatalf("JSON diffs in %s\n%s", tc.Name, strings.Join(diffs, "\n"))
+				t.Fatalf("JSON diffs in %s\n%s\nGot: %s", tc.Name, strings.Join(diffs, "\n"), json)
 			}
 		}
 	}

@@ -41,6 +41,7 @@ type Task struct {
 	Args        []string          `json:"args,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
 	Ports       []string          `json:"ports,omitempty"`
+	FrontEnds   []FrontEnd        `json:"frontends,omitempty"`
 }
 
 type TaskList []*Task

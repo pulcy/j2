@@ -10,6 +10,9 @@ group "web" {
 			name = "ewout"
 			key = "123"
 		}
+		frontend {
+			path-prefix = "/"
+		}
 	}	
 	task "storage" {
 		image = "mystorage:latest"
