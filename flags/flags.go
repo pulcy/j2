@@ -2,6 +2,7 @@ package flags
 
 type Flags struct {
 	// Global flags
+	Local           bool // Use local vagrant test cluster
 	JobPath         string
 	Groups          []string
 	Stack           string

@@ -11,6 +11,7 @@ const (
 	defaultPrivateRegistry = "arvika.pulcy.com:5000"
 	defaultLogLevel        = "debug"
 	defaultDomain          = "iggi.xyz" // TODO
+	defaultLocal           = false
 )
 
 var (
