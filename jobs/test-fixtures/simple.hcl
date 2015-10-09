@@ -4,11 +4,12 @@ group "web" {
 	count = 2
 	task "nginx" {
 		image = "alpine:3.2"
-		args = ["ls", "-al"]	
+		args = ["ls", "-al"]
 		volumes-from = "storage"
 		env {
 			name = "ewout"
 			key = "123"
+			envkey = "{{env "TESTENV"}}"
 		}
 		http-check-path = "/"
 		frontend {
@@ -21,7 +22,7 @@ group "web" {
 			domain = "foo2.com"
 			path-prefix = "/foo2"
 		}
-	}	
+	}
 	task "storage" {
 		image = "mystorage:latest"
 	}

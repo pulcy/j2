@@ -37,7 +37,8 @@
 			],
 			"environment": {
 				"key": "123",
-				"name": "ewout"
+				"name": "ewout",
+				"envkey": "test-env"
 			},
 			"volumes-from": ["storage"],
 			"http-check-path": "/",

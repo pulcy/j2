@@ -1,8 +1,10 @@
 package jobs
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
+	"text/template"
 
 	"github.com/hashicorp/hcl"
 	hclobj "github.com/hashicorp/hcl/hcl"
@@ -12,9 +14,21 @@ import (
 
 // ParseJob takes input from a given reader and parses it into a Job.
 func ParseJob(input []byte) (*Job, error) {
+	// Create a template, add the function map, and parse the text.
+	tmpl, err := template.New("job").Funcs(funcMap).Parse(string(input))
+	if err != nil {
+		return nil, maskAny(err)
+	}
+
+	// Run the template to verify the output.
+	buffer := &bytes.Buffer{}
+	err = tmpl.Execute(buffer, nil)
+	if err != nil {
+		return nil, maskAny(err)
+	}
 
 	// Parse the input
-	obj, err := hcl.Parse(string(input))
+	obj, err := hcl.Parse(buffer.String())
 	if err != nil {
 		return nil, maskAny(err)
 	}
