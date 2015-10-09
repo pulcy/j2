@@ -16,27 +16,28 @@ REPOPATH := $(ORGPATH)/$(REPONAME)
 BIN := $(BINDIR)/$(PROJECT)
 
 GOPATH := $(GOBUILDDIR)
+GOVERSION := 1.4.2-cross
 
 ifndef GOOS
 	GOOS := $(shell go env GOOS)
 endif
 ifndef GOARCH
 	GOARCH := $(shell go env GOARCH)
-endif	
+endif
 
 SOURCES := $(shell find $(SRCDIR) -name '*.go')
 
-.PHONY: all clean deps 
+.PHONY: all clean deps
 
 all: $(BIN)
 
 clean:
 	rm -Rf $(BIN) $(GOBUILDDIR)
 
-deps: 
+deps:
 	@${MAKE} -B -s $(GOBUILDDIR)
 
-$(GOBUILDDIR): 
+$(GOBUILDDIR):
 	@mkdir -p $(ORGDIR)
 	@rm -f $(REPODIR) && ln -s ../../../.. $(REPODIR)
 	@cd $(GOPATH) && pulcy go get github.com/spf13/pflag
@@ -45,8 +46,8 @@ $(GOBUILDDIR):
 	@cd $(GOPATH) && pulcy go get github.com/mitchellh/mapstructure
 	@cd $(GOPATH) && pulcy go get github.com/hashicorp/hcl
 	@cd $(GOPATH) && pulcy go get github.com/kr/pretty
-	
-$(BIN): $(GOBUILDDIR) $(SOURCES) 
+
+$(BIN): $(GOBUILDDIR) $(SOURCES)
 	docker run \
 	    --rm \
 	    -v $(ROOTDIR):/usr/code \
@@ -54,13 +55,13 @@ $(BIN): $(GOBUILDDIR) $(SOURCES)
 	    -e GOOS=$(GOOS) \
 	    -e GOARCH=$(GOARCH) \
 	    -w /usr/code/ \
-	    golang:1.4.2-cross \
+	    golang:$(GOVERSION) \
 	    go build -a -ldflags "-X main.projectVersion $(VERSION) -X main.projectBuild $(COMMIT)" -o /usr/code/$(PROJECT)
 
-run-tests: 
+run-tests:
 	@make run-test test=./...
 
-run-test: 
+run-test:
 	@if test "$(test)" = "" ; then \
 		echo "missing test parameter, that is, path to test folder e.g. './middleware/'."; \
 		exit 1; \
@@ -70,5 +71,5 @@ run-test:
 	    -v $(shell pwd):/usr/code \
 	    -e GOPATH=/usr/code/.gobuild \
 	    -w /usr/code \
-	    golang:1.4.2-cross \
+		golang:$(GOVERSION) \
 	    go test $(test)
