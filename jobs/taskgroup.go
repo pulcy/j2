@@ -108,7 +108,9 @@ func (tg *TaskGroup) createUnits(scalingGroup uint) ([]*units.Unit, error) {
 	}
 
 	// Force units to be on the same machine
-	groupUnitsOnMachine(units)
+	if !tg.Global {
+		groupUnitsOnMachine(units)
+	}
 
 	return units, nil
 }

@@ -25,7 +25,7 @@ type execOptions struct {
 	ExecStopPost            []string
 	BindsTos                []string
 	Wants                   string
-	After                   string
+	after                   []string
 	MachineOf               string
 	Requires                []string
 }
@@ -60,6 +60,10 @@ func (e *execOptions) RemainAfterExit() {
 
 func (e *execOptions) SetRestartSec(seconds uint8) {
 	e.RestartSec = seconds
+}
+
+func (e *execOptions) After(after ...string) {
+	e.after = append(e.after, after...)
 }
 
 func (e *execOptions) Require(require string) {

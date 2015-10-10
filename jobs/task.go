@@ -94,6 +94,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	} else {
 		execStart = append(execStart, "-P")
 	}
+	after := []string{}
 	for _, v := range t.Volumes {
 		execStart = append(execStart, fmt.Sprintf("-v %s", v))
 	}
@@ -103,6 +104,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 			return nil, maskAny(err)
 		}
 		execStart = append(execStart, fmt.Sprintf("--volumes-from %s", other.containerName(scalingGroup)))
+		after = append(after, other.unitName(strconv.Itoa(int(scalingGroup)))+".service")
 	}
 	for k, v := range t.Environment {
 		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
@@ -136,6 +138,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	}
 	main.ExecOptions.Require("flanneld.service")
 	main.ExecOptions.Require("docker.service")
+	main.ExecOptions.After(after...)
 
 	if err := t.addFrontEndRegistration(main); err != nil {
 		return nil, maskAny(err)

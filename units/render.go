@@ -20,8 +20,8 @@ func (u *Unit) Render() string {
 	for _, x := range u.ExecOptions.BindsTos {
 		lines = append(lines, "BindsTo="+x)
 	}
-	if u.ExecOptions.After != "" {
-		lines = append(lines, "After="+u.ExecOptions.After)
+	for _, x := range u.ExecOptions.after {
+		lines = append(lines, "After="+x)
 	}
 	lines = append(lines, "")
 
