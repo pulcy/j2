@@ -24,7 +24,7 @@ group "load_balancer" {
 		args = ["--etcd-addr", "http://${COREOS_PRIVATE_IPV4}:4001/pulcy",
 			"--stats-port", "7088",
 			"--stats-user", "admin",
-			"--stats-ssl-cert", "pulcy",
+			"--stats-ssl-cert", "pulcy.pem",
 			"--force-ssl", "{{env "FORCE_SSL"}}",
 			"--stats-password", "{{env "STATS_PASSWORD"}}"
 		]
