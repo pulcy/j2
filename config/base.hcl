@@ -25,7 +25,7 @@ group "load_balancer" {
 			"--stats-port", "7088",
 			"--stats-user", "admin",
 			"--stats-ssl-cert", "pulcy.pem",
-			"--force-ssl", "{{env "FORCE_SSL"}}",
+			"--force-ssl={{env "FORCE_SSL"}}",
 			"--stats-password", "{{env "STATS_PASSWORD"}}"
 		]
 	}
