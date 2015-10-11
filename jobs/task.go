@@ -184,6 +184,7 @@ type frontendRecord struct {
 type frontendSelectorRecord struct {
 	Domain     string `json:"domain,omitempty"`
 	PathPrefix string `json:"path-prefix,omitempty"`
+	SslCert    string `json:"ssl-cert,omitempty"`
 }
 
 // addFrontEndRegistration adds registration code for frontends to the given units
@@ -200,6 +201,7 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 		record.Selectors = append(record.Selectors, frontendSelectorRecord{
 			Domain:     fr.Domain,
 			PathPrefix: fr.PathPrefix,
+			SslCert:    fr.SslCert,
 		})
 	}
 	json, err := json.Marshal(&record)

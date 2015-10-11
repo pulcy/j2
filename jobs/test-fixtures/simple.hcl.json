@@ -48,7 +48,8 @@
 				"domain": "foo.com"
 			}, {
 				"domain": "foo2.com",
-				"path-prefix": "/foo2"
+				"path-prefix": "/foo2",
+				"ssl-cert": "pulcy.pem"
 			}]
 		}, {
 			"name": "storage",

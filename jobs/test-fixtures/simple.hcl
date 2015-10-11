@@ -21,6 +21,7 @@ group "web" {
 		frontend {
 			domain = "foo2.com"
 			path-prefix = "/foo2"
+			ssl-cert = "pulcy.pem"
 		}
 	}
 	task "storage" {
