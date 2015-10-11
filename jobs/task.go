@@ -128,6 +128,11 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
 	}
+	for _, v := range t.Volumes {
+		dir := strings.Split(v, ":")
+		mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s", dir[0], dir[0])
+		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
+	}
 	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name)
 	main.ExecOptions.ExecStopPost = []string{
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
