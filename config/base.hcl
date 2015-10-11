@@ -22,6 +22,9 @@ group "load_balancer" {
 		ports = ["0.0.0.0:80:80", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
 		volumes-from = "certificates"
 		args = ["--etcd-addr", "http://${COREOS_PRIVATE_IPV4}:4001/pulcy",
-			"--stats-port", "7088", "--stats-user", "admin", "--stats-password", "{{env "STATS_PASSWORD"}}"]
+			"--stats-port", "7088", "--stats-user", "admin",
+			"--force-ssl", "{{env "FORCE_SSL"}}",
+			"--stats-password", "{{env "STATS_PASSWORD"}}"
+		]
 	}
 }
