@@ -31,9 +31,8 @@ func init() {
 }
 
 func main() {
-	cmdMain.AddCommand(createCmd)
+	cmdMain.AddCommand(runCmd)
 	cmdMain.AddCommand(destroyCmd)
-	cmdMain.AddCommand(updateCmd)
 
 	cmdMain.Execute()
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/juju/errgo"
 	"github.com/spf13/cobra"
 
 	fg "arvika.pulcy.com/pulcy/deployit/flags"
@@ -11,51 +12,54 @@ import (
 )
 
 var (
-	updateCmd = &cobra.Command{
-		Use:   "update",
-		Short: "Update a job on a stack.",
-		Long:  "Update a job on a stack.",
-		Run:   updateRun,
+	runCmd = &cobra.Command{
+		Use:   "run",
+		Short: "Create or update a job on a stack.",
+		Long:  "Create or update a job on a stack.",
+		Run:   runRun,
 	}
-	updateFlags struct {
+	runFlags struct {
 		fg.Flags
 	}
 )
 
 func init() {
-	initDeploymentFlags(updateCmd.Flags(), &updateFlags.Flags)
+	initDeploymentFlags(runCmd.Flags(), &runFlags.Flags)
 }
 
-func updateRun(cmd *cobra.Command, args []string) {
-	deploymentDefaults(&updateFlags.Flags, args)
-	createValidators(&updateFlags.Flags)
-	deploymentValidators(&updateFlags.Flags)
+func runRun(cmd *cobra.Command, args []string) {
+	deploymentDefaults(&runFlags.Flags, args)
+	runValidators(&runFlags.Flags)
+	deploymentValidators(&runFlags.Flags)
 
-	job, err := loadJob(&updateFlags.Flags)
+	job, err := loadJob(&runFlags.Flags)
 	if err != nil {
 		Exitf("Cannot load job: %v\n", err)
 	}
-	groups := groups(&updateFlags.Flags)
-	generator := job.Generate(groups, updateFlags.ScalingGroup)
+	groups := groups(&runFlags.Flags)
+	generator := job.Generate(groups, runFlags.ScalingGroup)
 	assert(generator.WriteTmpFiles())
 
-	if updateFlags.DryRun {
+	if runFlags.DryRun {
 		confirm(fmt.Sprintf("remove tmp files from %s ?", generator.TmpDir()))
 	} else {
-		location := updateFlags.Stack
+		location := runFlags.Stack
 		count := job.MaxCount()
-		updateScalingGroups(&updateFlags.ScalingGroup, count, location, func(runUpdate runUpdateCallback) {
-			generator := job.Generate(groups, updateFlags.ScalingGroup)
+		updateScalingGroups(&runFlags.ScalingGroup, count, location, func(runUpdate runUpdateCallback) {
+			generator := job.Generate(groups, runFlags.ScalingGroup)
 
 			assert(generator.WriteTmpFiles())
 
 			unitNames := generator.UnitNames()
 			fileNames := generator.FileNames()
 
-			runUpdate(updateFlags.Stack, updateFlags.Tunnel, unitNames, fileNames, updateFlags.StopDelay, updateFlags.DestroyDelay)
+			runUpdate(runFlags.Stack, runFlags.Tunnel, unitNames, fileNames, runFlags.StopDelay, runFlags.DestroyDelay)
 			assert(generator.RemoveTmpFiles())
-		}, updateFlags.SliceDelay, updateFlags.Force)
+		}, runFlags.SliceDelay, runFlags.Force)
 	}
+}
+
+func runValidators(f *fg.Flags) {
 }
 
 func doRunUpdate(stack, tunnel string, unitNames, files []string, stopDelay, destroyDelay time.Duration) {
@@ -139,4 +143,16 @@ func detectLargestScalingGroup(scalingGroup *uint, defaultScale uint, updateCurr
 		}
 	}
 	return defaultScale
+}
+
+func createUnits(tunnel string, files []string) error {
+	f := fleet.NewTunnel(tunnel)
+
+	out, err := f.Start(files...)
+	if err != nil {
+		return errgo.Mask(err)
+	}
+
+	fmt.Println(out)
+	return nil
 }
