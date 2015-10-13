@@ -141,7 +141,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	if t.group.IsScalable() {
 		main.FleetOptions.Conflicts(t.unitName("*") + ".service")
 	}
-	main.ExecOptions.Require("flanneld.service")
+	//main.ExecOptions.Require("flanneld.service")
 	main.ExecOptions.Require("docker.service")
 	main.ExecOptions.After(after...)
 
