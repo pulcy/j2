@@ -18,7 +18,7 @@ group "load_balancer" {
 	}
 
 	task "lb" {
-		image = "pulcy/lb:0.5.2"
+		image = "pulcy/lb:0.5.3"
 		ports = ["0.0.0.0:80:80", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
 		volumes-from = "certificates"
 		args = ["--etcd-addr", "http://${COREOS_PRIVATE_IPV4}:4001/pulcy",
