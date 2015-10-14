@@ -26,6 +26,7 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.DurationVar(&f.StopDelay, "stop-delay", defaultStopDelay, "Time between stop and destroy")
 	fs.DurationVar(&f.DestroyDelay, "destroy-delay", defaultDestroyDelay, "Time between destroy and re-create")
 	fs.DurationVar(&f.SliceDelay, "slice-delay", defaultSliceDelay, "Time between update of scaling slices")
+	fs.VarP(&f.Options, "option", "o", "Set an option (key=value)")
 }
 
 func deploymentDefaults(f *fg.Flags, args []string) {
@@ -69,7 +70,7 @@ func loadJob(f *fg.Flags) (*jobs.Job, error) {
 	if f.JobPath == "" {
 		return nil, maskAny(errgo.New("--job missing"))
 	}
-	job, err := jobs.ParseJobFromFile(f.JobPath)
+	job, err := jobs.ParseJobFromFile(f.JobPath, f.Options)
 	if err != nil {
 		return nil, maskAny(err)
 	}

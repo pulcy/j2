@@ -13,6 +13,8 @@ group "web" {
 			cattest = "{{trim (cat "file.txt")}}"
 			quotetest = {{quote "hello"}}
 			replacetest = "{{replace "1.2.3+git" "+git" "" -1}}"
+			opttest1 = "{{opt "option1"}}"
+			opttest2 = "{{opt "option2"}}"
 		}
 		http-check-path = "/"
 		frontend {

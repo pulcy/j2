@@ -9,6 +9,7 @@ import (
 
 	"github.com/kr/pretty"
 
+	fg "arvika.pulcy.com/pulcy/deployit/flags"
 	"arvika.pulcy.com/pulcy/deployit/jobs"
 )
 
@@ -28,7 +29,10 @@ func TestParse(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		job, err := jobs.ParseJobFromFile(filepath.Join(fixtureDir, tc.Name))
+		options := fg.Options{}
+		options.Set("option1=value1")
+		options.Set("option2=value2")
+		job, err := jobs.ParseJobFromFile(filepath.Join(fixtureDir, tc.Name), options)
 		if tc.ErrorExpected {
 			if err == nil {
 				t.Fatalf("Expected error in %s", tc.Name)

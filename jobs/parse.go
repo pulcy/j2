@@ -10,6 +10,8 @@ import (
 	hclobj "github.com/hashicorp/hcl/hcl"
 	"github.com/juju/errgo"
 	"github.com/mitchellh/mapstructure"
+
+	fg "arvika.pulcy.com/pulcy/deployit/flags"
 )
 
 // ParseJob takes input from a given reader and parses it into a Job.
@@ -51,12 +53,12 @@ func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
 }
 
 // ParseJobFromFile reads a job from file
-func ParseJobFromFile(path string) (*Job, error) {
+func ParseJobFromFile(path string, options fg.Options) (*Job, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	jf := newJobFunctions(path)
+	jf := newJobFunctions(path, options)
 	job, err := parseJob(data, jf)
 	if err != nil {
 		return nil, maskAny(err)

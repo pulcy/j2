@@ -20,4 +20,5 @@ type Flags struct {
 	StopDelay       time.Duration
 	DestroyDelay    time.Duration
 	SliceDelay      time.Duration
+	Options         Options
 }

@@ -9,17 +9,21 @@ import (
 	"text/template"
 
 	"github.com/juju/errgo"
+
+	fg "arvika.pulcy.com/pulcy/deployit/flags"
 )
 
 type jobFunctions struct {
 	jobPath string
+	options fg.Options
 }
 
 // newJobFunctions creates a new instance of jobFunctions
-func newJobFunctions(jobPath string) *jobFunctions {
+func newJobFunctions(jobPath string, options fg.Options) *jobFunctions {
 	absJobPath, _ := filepath.Abs(jobPath)
 	return &jobFunctions{
 		jobPath: absJobPath,
+		options: options,
 	}
 }
 
@@ -28,6 +32,7 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 	return template.FuncMap{
 		"cat":     jf.cat,
 		"env":     jf.getEnv,
+		"opt":     jf.getOpt,
 		"quote":   strconv.Quote,
 		"replace": strings.Replace,
 		"trim":    strings.TrimSpace,
@@ -38,7 +43,16 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 func (jf *jobFunctions) getEnv(key string) (string, error) {
 	value := os.Getenv(key)
 	if value == "" {
-		return "", errgo.WithCausef(nil, ValidationError, "Missing environment variables %s", key)
+		return "", errgo.WithCausef(nil, ValidationError, "Missing environment variables '%s'", key)
+	}
+	return value, nil
+}
+
+// getOpt loads an option with given key and returns an error the option does not exist.
+func (jf *jobFunctions) getOpt(key string) (string, error) {
+	value, ok := jf.options.Get(key)
+	if !ok {
+		return "", errgo.WithCausef(nil, ValidationError, "Missing option '%s'", key)
 	}
 	return value, nil
 }
