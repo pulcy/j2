@@ -13,9 +13,9 @@ import (
 )
 
 // ParseJob takes input from a given reader and parses it into a Job.
-func ParseJob(input []byte) (*Job, error) {
+func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
 	// Create a template, add the function map, and parse the text.
-	tmpl, err := template.New("job").Funcs(funcMap).Parse(string(input))
+	tmpl, err := template.New("job").Funcs(jf.Functions()).Parse(string(input))
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -56,7 +56,8 @@ func ParseJobFromFile(path string) (*Job, error) {
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	job, err := ParseJob(data)
+	jf := newJobFunctions(path)
+	job, err := parseJob(data, jf)
 	if err != nil {
 		return nil, maskAny(err)
 	}

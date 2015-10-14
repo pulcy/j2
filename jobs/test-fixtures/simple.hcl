@@ -10,6 +10,7 @@ group "web" {
 			name = "ewout"
 			key = "123"
 			envkey = "{{env "TESTENV"}}"
+			cattest = "{{trim (cat "file.txt")}}"
 		}
 		http-check-path = "/"
 		frontend {
