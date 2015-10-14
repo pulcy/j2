@@ -29,7 +29,20 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.VarP(&f.Options, "option", "o", "Set an option (key=value)")
 }
 
-func deploymentDefaults(f *fg.Flags, args []string) {
+func deploymentDefaults(fs *pflag.FlagSet, f *fg.Flags, args []string) {
+	// Merge Options
+	fs.VisitAll(func(flag *pflag.Flag) {
+		if !flag.Changed {
+			value, ok := f.Options.Get(flag.Name)
+			if ok {
+				err := fs.Set(flag.Name, value)
+				if err != nil {
+					Exitf("Error in option '%s': %#v\n", flag.Name, err)
+				}
+			}
+		}
+	})
+
 	if f.Local {
 		f.Tunnel = "core-01"
 		f.Stack = "core-01"

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/hashicorp/hcl"
 	"github.com/juju/errgo"
 )
 
@@ -26,28 +27,58 @@ func (o *Options) Get(key string) (string, bool) {
 }
 
 func (o *Options) Set(raw string) error {
-	if o.options == nil {
-		o.options = make(map[string]string)
-	}
 	parts := strings.SplitN(raw, "=", 2)
 	if len(parts) == 2 {
 		// Normal key=value
-		o.options[parts[0]] = parts[1]
+		o.set(parts[0], parts[1])
 		return nil
 	}
 
 	// Try option file
-	_, err := ioutil.ReadFile(raw)
+	err := o.parseFile(raw)
 	if err != nil {
-		return maskAny(errgo.WithCausef(nil, InvalidOptionError, raw))
+		return maskAny(errgo.WithCausef(err, InvalidOptionError, raw))
 	}
 
-	// TODO PARSE
-	return maskAny(errgo.WithCausef(nil, InvalidOptionError, "option files not yet supported"))
+	return nil
+}
 
-	//	return nil
+func (o *Options) set(key, value string) {
+	if o.options == nil {
+		o.options = make(map[string]string)
+	}
+	// Normal key=value
+	o.options[key] = value
 }
 
 func (o *Options) Type() string {
 	return "options"
+}
+
+func (o *Options) parseFile(path string) error {
+	// Read the file
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return maskAny(err)
+	}
+
+	// Parse the input
+	obj, err := hcl.Parse(string(data))
+	if err != nil {
+		return maskAny(err)
+	}
+
+	// Parse hcl into options
+	// Decode the full thing into a map[string]interface for ease
+	var m map[string]string
+	if err := hcl.DecodeObject(&m, obj); err != nil {
+		return maskAny(err)
+	}
+
+	// Merge key/value pairs into myself
+	for k, v := range m {
+		o.set(k, v)
+	}
+
+	return nil
 }

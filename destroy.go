@@ -30,7 +30,7 @@ func init() {
 }
 
 func destroyRun(cmd *cobra.Command, args []string) {
-	deploymentDefaults(&destroyFlags.Flags, args)
+	deploymentDefaults(cmd.Flags(), &destroyFlags.Flags, args)
 	destroyValidators(&destroyFlags.Flags)
 	deploymentValidators(&destroyFlags.Flags)
 
