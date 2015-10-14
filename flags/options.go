@@ -3,6 +3,7 @@ package flags
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/hcl"
@@ -23,7 +24,15 @@ func (o *Options) String() string {
 
 func (o *Options) Get(key string) (string, bool) {
 	v, ok := o.options[key]
-	return v, ok
+	if ok {
+		return v, ok
+	}
+	envKey := strings.ToUpper(strings.Replace(key, "-", "_", -1))
+	value := os.Getenv(envKey)
+	if value != "" {
+		return value, true
+	}
+	return "", false
 }
 
 func (o *Options) Set(raw string) error {

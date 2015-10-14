@@ -43,7 +43,8 @@
 				"quotetest": "hello",
 				"replacetest": "1.2.3",
 				"opttest1": "value1",
-				"opttest2": "value2"
+				"opttest2": "value2",
+				"opttestenv": "test-env"
 			},
 			"volumes-from": ["storage"],
 			"http-check-path": "/",

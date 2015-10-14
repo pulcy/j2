@@ -13,7 +13,7 @@ group "load_balancer" {
 	task "certificates" {
 		image = "pulcy/pct:0.1.0"
 		env {
-			PASSPHRASE = "{{env "CERTIFICATES_PASSPHRASE"}}"
+			PASSPHRASE = "{{opt "certificates-passphrase"}}"
 		}
 	}
 
@@ -25,8 +25,8 @@ group "load_balancer" {
 			"--stats-port", "7088",
 			"--stats-user", "admin",
 			"--stats-ssl-cert", "pulcy.pem",
-			"--force-ssl={{env "FORCE_SSL"}}",
-			"--stats-password", "{{env "STATS_PASSWORD"}}"
+			"--force-ssl={{opt "force-ssl"}}",
+			"--stats-password", "{{opt "stats-password"}}"
 		]
 	}
 }

@@ -70,7 +70,7 @@ run-test:
 	    --rm \
 	    -v $(shell pwd):/usr/code \
 	    -e GOPATH=/usr/code/.gobuild \
-		-e TESTENV=test-env \
+		-e TEST_ENV=test-env \
 	    -w /usr/code \
 		golang:$(GOVERSION) \
 	    go test $(test)
