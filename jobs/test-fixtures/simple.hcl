@@ -11,6 +11,8 @@ group "web" {
 			key = "123"
 			envkey = "{{env "TESTENV"}}"
 			cattest = "{{trim (cat "file.txt")}}"
+			quotetest = {{quote "hello"}}
+			replacetest = "{{replace "1.2.3+git" "+git" "" -1}}"
 		}
 		http-check-path = "/"
 		frontend {

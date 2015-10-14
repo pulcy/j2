@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -25,9 +26,11 @@ func newJobFunctions(jobPath string) *jobFunctions {
 // Functions returns all supported template functions
 func (jf *jobFunctions) Functions() template.FuncMap {
 	return template.FuncMap{
-		"cat":  jf.cat,
-		"env":  jf.getEnv,
-		"trim": strings.TrimSpace,
+		"cat":     jf.cat,
+		"env":     jf.getEnv,
+		"quote":   strconv.Quote,
+		"replace": strings.Replace,
+		"trim":    strings.TrimSpace,
 	}
 }
 

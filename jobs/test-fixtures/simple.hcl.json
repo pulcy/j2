@@ -39,7 +39,9 @@
 				"key": "123",
 				"name": "ewout",
 				"envkey": "test-env",
-				"cattest": "This is the content of file.txt"
+				"cattest": "This is the content of file.txt",
+				"quotetest": "hello",
+				"replacetest": "1.2.3"
 			},
 			"volumes-from": ["storage"],
 			"http-check-path": "/",
