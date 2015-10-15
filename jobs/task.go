@@ -130,7 +130,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	}
 	for _, v := range t.Volumes {
 		dir := strings.Split(v, ":")
-		mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s", dir[0], dir[0])
+		mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s'", dir[0], dir[0])
 		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
 	}
 	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name)
