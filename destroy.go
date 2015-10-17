@@ -88,13 +88,8 @@ func selectUnits(allUnitNames []string, f *fg.Flags) []string {
 }
 
 func confirmDestroy(force bool, stack string, units []string) error {
-	for _, unit := range units {
-		fmt.Println(unit)
-	}
-	fmt.Println()
-
 	if !force {
-		if err := confirm(fmt.Sprintf("You are about to destroy:\n%s\n\nAre you sure you want to destroy %d units on '%s'? Enter yes:", strings.Join(units, "\n"), len(units), stack)); err != nil {
+		if err := confirm(fmt.Sprintf("You are about to destroy:\n- %s\n\nAre you sure you want to destroy %d units on stack '%s'?\nEnter yes:", strings.Join(units, "\n- "), len(units), stack)); err != nil {
 			return errgo.Mask(err)
 		}
 	}
@@ -116,7 +111,7 @@ func destroyUnits(stack string, f *fleet.FleetTunnel, units []string, stopDelay 
 
 	fmt.Println(out)
 
-	fmt.Printf("Waiting for %s seconds...\n", stopDelay)
+	fmt.Printf("Waiting for %s...\n", stopDelay)
 	time.Sleep(stopDelay)
 
 	out, err = f.Destroy(units...)

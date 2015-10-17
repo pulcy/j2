@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/juju/errgo"
@@ -68,12 +69,40 @@ func doRunUpdate(stack, tunnel string, unitNames, files []string, stopDelay, des
 	}
 
 	f := fleet.NewTunnel(tunnel)
-	assert(destroyUnits(stack, f, unitNames, stopDelay))
-
-	fmt.Printf("Waiting for %s seconds ...\n", destroyDelay)
-	time.Sleep(destroyDelay)
+	loadedUnitNames, err := selectLoadedUnits(unitNames, f)
+	assert(err)
+	if len(loadedUnitNames) > 0 {
+		assert(destroyUnits(stack, f, loadedUnitNames, stopDelay))
+		fmt.Printf("Waiting for %s...\n", destroyDelay)
+		time.Sleep(destroyDelay)
+	}
 
 	assert(createUnits(tunnel, files))
+}
+
+// selectLoadedUnits filters the given list of unit names, leaving in
+// only the units that are loaded on in fleet.
+func selectLoadedUnits(unitNames []string, tunnel *fleet.FleetTunnel) ([]string, error) {
+	list, err := tunnel.List()
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	result := []string{}
+	for _, name := range unitNames {
+		if contains(list, name) {
+			result = append(result, name)
+		}
+	}
+	return result, nil
+}
+
+func contains(list []string, value string) bool {
+	for _, x := range list {
+		if x == value {
+			return true
+		}
+	}
+	return false
 }
 
 type runUpdateCallback func(stack, tunnel string, unitNames, files []string, stopDelay, destroyDelay time.Duration)
@@ -86,25 +115,22 @@ func updateScalingGroups(scalingGroup *uint, scale uint, stack string, updateCur
 		updateCurrentGroup(doRunUpdate)
 	} else {
 		// Detect how many scaling groups there actually are (yield units names)
-		maxScale := detectLargestScalingGroup(scalingGroup, scale, updateCurrentGroup)
+		maxScale, unitNames := detectLargestScalingGroup(scalingGroup, scale, updateCurrentGroup)
 
 		// Ask for confirmation
 		if !force {
 			var confirmMsg string
-			if maxScale == 1 {
-				confirmMsg = fmt.Sprintf("Are you sure you want to update '%s'? Enter yes:", stack)
-			} else {
-				confirmMsg = fmt.Sprintf("Are you sure you want to update all %v scaling groups one after another on '%s'? Enter yes:", maxScale, stack)
-			}
+			confirmMsg = fmt.Sprintf("Are you sure you want to update stack '%s' scaling groups 1-%d?\nUnits:\n- %s\nEnter yes:", stack, maxScale, strings.Join(unitNames, "\n- "))
 			if err := confirm(confirmMsg); err != nil {
 				panic(err)
 			}
+			fmt.Println()
 		}
 
 		// Update all scaling groups in successions
 		for sg := uint(1); sg <= maxScale; sg++ {
 			// Tell what we're going to do
-			fmt.Printf("Updating scaling group %v ...\n", sg)
+			fmt.Printf("Updating scaling group %d of %d...\n", sg, maxScale)
 
 			// Set current scaling group
 			*scalingGroup = sg
@@ -114,12 +140,12 @@ func updateScalingGroups(scalingGroup *uint, scale uint, stack string, updateCur
 
 			// Wait a bit and ask for confirmation before continuing (only when more groups will follow)
 			if sg < maxScale {
-				fmt.Printf("Waiting %s before continuing with scaling group %v ...\n", sliceDelay.String(), sg+1)
+				fmt.Printf("Waiting %s before continuing with scaling group %d of %d...\n", sliceDelay, sg+1, maxScale)
 				time.Sleep(sliceDelay)
 
 				// Ask for confirmation to continue
 				if !force {
-					if err := confirm(fmt.Sprintf("Are you sure to continue with scaling group %v  on '%s'? Enter yes:", sg+1, stack)); err != nil {
+					if err := confirm(fmt.Sprintf("Are you sure to continue with scaling group %d of %d on '%s'?\nEnter yes:", sg+1, maxScale, stack)); err != nil {
 						panic(err)
 					}
 				}
@@ -129,8 +155,13 @@ func updateScalingGroups(scalingGroup *uint, scale uint, stack string, updateCur
 }
 
 // detectLargestScalingGroup tries to detect the largest scaling group that still yields units.
-func detectLargestScalingGroup(scalingGroup *uint, defaultScale uint, updateCurrentGroup func(runUpdate runUpdateCallback)) uint {
+func detectLargestScalingGroup(scalingGroup *uint, defaultScale uint, updateCurrentGroup func(runUpdate runUpdateCallback)) (uint, []string) {
 	// Start with 2 since we assume there is always at least 1 scaling group
+	var names []string
+	*scalingGroup = 1
+	updateCurrentGroup(func(stack, tunnel string, unitNames, files []string, stopDelay, destroyDelay time.Duration) {
+		names = unitNames
+	})
 	for sg := uint(2); sg <= defaultScale; sg++ {
 		// Set current scaling group
 		*scalingGroup = sg
@@ -139,10 +170,10 @@ func detectLargestScalingGroup(scalingGroup *uint, defaultScale uint, updateCurr
 			hasUnits = len(unitNames) > 0
 		})
 		if !hasUnits {
-			return sg - 1
+			return sg - 1, names
 		}
 	}
-	return defaultScale
+	return defaultScale, names
 }
 
 func createUnits(tunnel string, files []string) error {
