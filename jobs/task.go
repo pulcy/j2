@@ -150,6 +150,7 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	}
 	//main.ExecOptions.Require("flanneld.service")
 	main.ExecOptions.Require("docker.service")
+	main.ExecOptions.After("docker.service")
 	main.ExecOptions.After(after...)
 
 	if err := t.addFrontEndRegistration(main); err != nil {
