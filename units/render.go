@@ -6,7 +6,13 @@ import (
 	"strings"
 )
 
-func (u *Unit) Render() string {
+type RenderContext struct {
+	ProjectName    string
+	ProjectVersion string
+	ProjectBuild   string
+}
+
+func (u *Unit) Render(ctx RenderContext) string {
 	lines := []string{
 		"[Unit]",
 		"Description=" + u.Description,
@@ -81,6 +87,12 @@ func (u *Unit) Render() string {
 		lines = append(lines, "MachineMetadata="+x)
 	}
 	lines = append(lines, "")
+
+	lines = append(lines,
+		fmt.Sprintf("[X-%s]", ctx.ProjectName),
+		fmt.Sprintf("GeneratedBy=\"%s %s, build %s\"", ctx.ProjectName, ctx.ProjectVersion, ctx.ProjectBuild),
+		"",
+	)
 
 	return strings.Join(lines, "\n")
 }

@@ -10,6 +10,7 @@ import (
 
 	fg "arvika.pulcy.com/pulcy/deployit/flags"
 	"arvika.pulcy.com/pulcy/deployit/fleet"
+	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
 var (
@@ -29,6 +30,12 @@ func init() {
 }
 
 func runRun(cmd *cobra.Command, args []string) {
+	ctx := units.RenderContext{
+		ProjectName:    cmdMain.Use,
+		ProjectVersion: projectVersion,
+		ProjectBuild:   projectBuild,
+	}
+
 	deploymentDefaults(cmd.Flags(), &runFlags.Flags, args)
 	runValidators(&runFlags.Flags)
 	deploymentValidators(&runFlags.Flags)
@@ -39,7 +46,7 @@ func runRun(cmd *cobra.Command, args []string) {
 	}
 	groups := groups(&runFlags.Flags)
 	generator := job.Generate(groups, runFlags.ScalingGroup)
-	assert(generator.WriteTmpFiles())
+	assert(generator.WriteTmpFiles(ctx))
 
 	if runFlags.DryRun {
 		confirm(fmt.Sprintf("remove tmp files from %s ?", generator.TmpDir()))
@@ -49,7 +56,7 @@ func runRun(cmd *cobra.Command, args []string) {
 		updateScalingGroups(&runFlags.ScalingGroup, count, location, func(runUpdate runUpdateCallback) {
 			generator := job.Generate(groups, runFlags.ScalingGroup)
 
-			assert(generator.WriteTmpFiles())
+			assert(generator.WriteTmpFiles(ctx))
 
 			unitNames := generator.UnitNames()
 			fileNames := generator.FileNames()

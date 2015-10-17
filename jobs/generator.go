@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
 type Generator struct {
@@ -28,7 +30,7 @@ func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint) *G
 	}
 }
 
-func (g *Generator) WriteTmpFiles() error {
+func (g *Generator) WriteTmpFiles(ctx units.RenderContext) error {
 	files := []string{}
 	unitNames := []string{}
 	maxCount := g.job.MaxCount()
@@ -46,7 +48,7 @@ func (g *Generator) WriteTmpFiles() error {
 				return maskAny(err)
 			}
 			for _, unit := range units {
-				content := unit.Render()
+				content := unit.Render(ctx)
 				unitName := unit.FullName
 				path := filepath.Join(g.tmpDir, unitName)
 				err := ioutil.WriteFile(path, []byte(content), 0666)
