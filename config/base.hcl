@@ -11,7 +11,7 @@ group "load_balancer" {
 	global = true
 
 	task "certificates" {
-		image = "pulcy/pct:0.1.0"
+		image = "pulcy/pct:0.2.0"
 		env {
 			PASSPHRASE = "{{opt "certificates-passphrase"}}"
 		}
