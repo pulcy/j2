@@ -29,9 +29,16 @@ group "web" {
 			path-prefix = "/foo2"
 			ssl-cert = "pulcy.pem"
 		}
+		frontend {
+			private-port = 1234
+		}
 	}
 	task "storage" {
 		image = "mystorage:latest"
+	}
+	task "backup" {
+		type = "oneshot"
+		image = "mybackup:latest"
 	}
 }
 

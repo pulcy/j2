@@ -29,6 +29,10 @@
 		"name": "web",
 		"count": 2,
 		"tasks": [{
+				"name": "backup",
+				"type": "oneshot",
+				"image": "mybackup:latest"
+			}, {
 			"name": "nginx",
 			"image": "alpine:3.2",
 			"args": [
@@ -56,6 +60,8 @@
 				"domain": "foo2.com",
 				"path-prefix": "/foo2",
 				"ssl-cert": "pulcy.pem"
+			}, {
+				"private-port": 1234
 			}]
 		}, {
 			"name": "storage",

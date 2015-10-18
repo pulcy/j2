@@ -31,12 +31,28 @@ func (tn TaskName) Validate() error {
 	return nil
 }
 
+type TaskType string
+
+func (tt TaskType) String() string {
+	return string(tt)
+}
+
+func (tt TaskType) Validate() error {
+	switch tt {
+	case "", "oneshot":
+		return nil
+	default:
+		return maskAny(errgo.WithCausef(nil, ValidationError, "type has invalid value '%s'", tt))
+	}
+}
+
 type Task struct {
 	Name   TaskName   `json:"name", maspstructure:"-"`
 	group  *TaskGroup `json:"-", mapstructure:"-"`
 	Count  uint       `json:"-"` // This value is used during parsing only
 	Global bool       `json:"-"` // This value is used during parsing only
 
+	Type          TaskType          `json:"type,omitempty" mapstructure:"type,omitempty"`
 	Image         DockerImage       `json:"image"`
 	VolumesFrom   []TaskName        `json:"volumes-from,omitempty"`
 	Volumes       []string          `json:"volumes,omitempty"`
@@ -54,13 +70,20 @@ func (t *Task) Validate() error {
 	if err := t.Name.Validate(); err != nil {
 		return maskAny(err)
 	}
+	if err := t.Type.Validate(); err != nil {
+		return maskAny(err)
+	}
 	for _, name := range t.VolumesFrom {
 		_, err := t.group.Task(name)
 		if err != nil {
 			return maskAny(err)
 		}
 	}
-
+	for _, f := range t.FrontEnds {
+		if err := f.Validate(); err != nil {
+			return maskAny(err)
+		}
+	}
 	return nil
 }
 
@@ -121,6 +144,10 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		ScalingGroup: scalingGroup,
 		ExecOptions:  units.NewExecOptions(execStart...),
 		FleetOptions: units.NewFleetOptions(),
+	}
+	switch t.Type {
+	case "oneshot":
+		main.ExecOptions.IsOneshot = true
 	}
 	//main.FleetOptions.IsGlobal = ds.global
 	main.ExecOptions.ExecStartPre = []string{
@@ -196,9 +223,10 @@ type frontendRecord struct {
 }
 
 type frontendSelectorRecord struct {
-	Domain     string `json:"domain,omitempty"`
-	PathPrefix string `json:"path-prefix,omitempty"`
-	SslCert    string `json:"ssl-cert,omitempty"`
+	Domain      string `json:"domain,omitempty"`
+	PathPrefix  string `json:"path-prefix,omitempty"`
+	SslCert     string `json:"ssl-cert,omitempty"`
+	PrivatePort int    `json:"private-port,omitempty"`
 }
 
 // addFrontEndRegistration adds registration code for frontends to the given units
@@ -213,9 +241,10 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 	}
 	for _, fr := range t.FrontEnds {
 		record.Selectors = append(record.Selectors, frontendSelectorRecord{
-			Domain:     fr.Domain,
-			PathPrefix: fr.PathPrefix,
-			SslCert:    fr.SslCert,
+			Domain:      fr.Domain,
+			PathPrefix:  fr.PathPrefix,
+			SslCert:     fr.SslCert,
+			PrivatePort: fr.PrivatePort,
 		})
 	}
 	json, err := json.Marshal(&record)
