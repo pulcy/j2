@@ -16,6 +16,7 @@ const (
 	defaultLogLevel        = "debug"
 	defaultDomain          = "iggi.xyz" // TODO
 	defaultLocal           = false
+	defaultInstanceCount   = 3
 )
 
 var (

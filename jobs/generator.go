@@ -30,7 +30,12 @@ func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint) *G
 	}
 }
 
-func (g *Generator) WriteTmpFiles(ctx units.RenderContext) error {
+type generatorContext struct {
+	ScalingGroup  uint
+	InstanceCount int
+}
+
+func (g *Generator) WriteTmpFiles(ctx units.RenderContext, instanceCount int) error {
 	files := []string{}
 	unitNames := []string{}
 	maxCount := g.job.MaxCount()
@@ -43,7 +48,11 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext) error {
 				// We do not want this task group now
 				continue
 			}
-			units, err := tg.createUnits(scalingGroup)
+			genCtx := generatorContext{
+				ScalingGroup:  scalingGroup,
+				InstanceCount: instanceCount,
+			}
+			units, err := tg.createUnits(genCtx)
 			if err != nil {
 				return maskAny(err)
 			}

@@ -88,9 +88,9 @@ func (t *Task) Validate() error {
 }
 
 // createUnits creates all units needed to run this task.
-func (t *Task) createUnits(scalingGroup uint) ([]*units.Unit, error) {
+func (t *Task) createUnits(ctx generatorContext) ([]*units.Unit, error) {
 	units := []*units.Unit{}
-	main, err := t.createMainUnit(scalingGroup)
+	main, err := t.createMainUnit(ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -100,8 +100,8 @@ func (t *Task) createUnits(scalingGroup uint) ([]*units.Unit, error) {
 }
 
 // createMainUnit
-func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
-	name := t.containerName(scalingGroup)
+func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
+	name := t.containerName(ctx.ScalingGroup)
 	serviceName := t.serviceName()
 	image := t.Image.String()
 	execStart := []string{
@@ -126,8 +126,8 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		execStart = append(execStart, fmt.Sprintf("--volumes-from %s", other.containerName(scalingGroup)))
-		after = append(after, other.unitName(strconv.Itoa(int(scalingGroup)))+".service")
+		execStart = append(execStart, fmt.Sprintf("--volumes-from %s", other.containerName(ctx.ScalingGroup)))
+		after = append(after, other.unitName(strconv.Itoa(int(ctx.ScalingGroup)))+".service")
 	}
 	for k, v := range t.Environment {
 		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
@@ -136,12 +136,12 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 	execStart = append(execStart, image)
 	execStart = append(execStart, t.Args...)
 	main := &units.Unit{
-		Name:         t.unitName(strconv.Itoa(int(scalingGroup))),
-		FullName:     t.unitName(strconv.Itoa(int(scalingGroup))) + ".service",
-		Description:  fmt.Sprintf("Main unit for %s slice %v", t.fullName(), scalingGroup),
+		Name:         t.unitName(strconv.Itoa(int(ctx.ScalingGroup))),
+		FullName:     t.unitName(strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
+		Description:  fmt.Sprintf("Main unit for %s slice %v", t.fullName(), ctx.ScalingGroup),
 		Type:         "service",
 		Scalable:     t.group.IsScalable(),
-		ScalingGroup: scalingGroup,
+		ScalingGroup: ctx.ScalingGroup,
 		ExecOptions:  units.NewExecOptions(execStart...),
 		FleetOptions: units.NewFleetOptions(),
 	}
@@ -165,14 +165,14 @@ func (t *Task) createMainUnit(scalingGroup uint) (*units.Unit, error) {
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		main.ExecOptions.Require(other.containerName(scalingGroup))
+		main.ExecOptions.Require(other.containerName(ctx.ScalingGroup))
 	}
 	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name)
 	main.ExecOptions.ExecStopPost = []string{
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
 	}
 	main.FleetOptions.IsGlobal = t.group.Global
-	if t.group.IsScalable() {
+	if t.group.IsScalable() && ctx.InstanceCount > 1 {
 		main.FleetOptions.Conflicts(t.unitName("*") + ".service")
 	}
 	//main.ExecOptions.Require("flanneld.service")

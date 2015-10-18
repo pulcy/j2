@@ -27,6 +27,7 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.DurationVar(&f.DestroyDelay, "destroy-delay", defaultDestroyDelay, "Time between destroy and re-create")
 	fs.DurationVar(&f.SliceDelay, "slice-delay", defaultSliceDelay, "Time between update of scaling slices")
 	fs.VarP(&f.Options, "option", "o", "Set an option (key=value)")
+	fs.IntVar(&f.InstanceCount, "instance-count", defaultInstanceCount, "Number of machines in the cluster")
 }
 
 func deploymentDefaults(fs *pflag.FlagSet, f *fg.Flags, args []string) {

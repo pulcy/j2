@@ -46,7 +46,7 @@ func runRun(cmd *cobra.Command, args []string) {
 	}
 	groups := groups(&runFlags.Flags)
 	generator := job.Generate(groups, runFlags.ScalingGroup)
-	assert(generator.WriteTmpFiles(ctx))
+	assert(generator.WriteTmpFiles(ctx, runFlags.InstanceCount))
 
 	if runFlags.DryRun {
 		confirm(fmt.Sprintf("remove tmp files from %s ?", generator.TmpDir()))
@@ -56,7 +56,7 @@ func runRun(cmd *cobra.Command, args []string) {
 		updateScalingGroups(&runFlags.ScalingGroup, count, location, func(runUpdate runUpdateCallback) {
 			generator := job.Generate(groups, runFlags.ScalingGroup)
 
-			assert(generator.WriteTmpFiles(ctx))
+			assert(generator.WriteTmpFiles(ctx, runFlags.InstanceCount))
 
 			unitNames := generator.UnitNames()
 			fileNames := generator.FileNames()
