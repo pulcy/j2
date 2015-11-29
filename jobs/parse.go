@@ -257,11 +257,11 @@ func (t *Task) parse(obj *hclobj.Object) error {
 		if o.Type == hclobj.ValueTypeString {
 			t.Volumes = []string{o.Value.(string)}
 		} else if o.Type == hclobj.ValueTypeList {
-			for _, o := range o.Elem(false) {
+			for _, o := range o.Elem(true) {
 				if o.Type == hclobj.ValueTypeString {
 					t.Volumes = append(t.Volumes, o.Value.(string))
 				} else {
-					return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes array of task %s is not a string", t.Name))
+					return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes array of task %s is not a string but %v", t.Name, o.Type))
 				}
 			}
 		} else {
@@ -274,7 +274,7 @@ func (t *Task) parse(obj *hclobj.Object) error {
 		if o.Type == hclobj.ValueTypeString {
 			t.VolumesFrom = []TaskName{TaskName(o.Value.(string))}
 		} else if o.Type == hclobj.ValueTypeList {
-			for _, o := range o.Elem(false) {
+			for _, o := range o.Elem(true) {
 				if o.Type == hclobj.ValueTypeString {
 					t.VolumesFrom = append(t.VolumesFrom, TaskName(o.Value.(string)))
 				} else {
