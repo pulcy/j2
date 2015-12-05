@@ -42,6 +42,7 @@ func NewExecOptions(start ...string) *execOptions {
 		TimeoutStartSec:         0,
 		ContainerTimeoutStopSec: 10,
 		EnvironmentFiles:        []string{"/etc/environment"},
+		Environment:             make(map[string]string),
 		ExecStart:               strings.Join(start, " "),
 	}
 }

@@ -30,13 +30,25 @@ func newJobFunctions(jobPath string, options fg.Options) *jobFunctions {
 // Functions returns all supported template functions
 func (jf *jobFunctions) Functions() template.FuncMap {
 	return template.FuncMap{
-		"cat":     jf.cat,
-		"env":     jf.getEnv,
-		"opt":     jf.getOpt,
-		"quote":   strconv.Quote,
-		"replace": strings.Replace,
-		"trim":    strings.TrimSpace,
+		"cat":          jf.cat,
+		"env":          jf.getEnv,
+		"opt":          jf.getOpt,
+		"quote":        strconv.Quote,
+		"replace":      strings.Replace,
+		"trim":         strings.TrimSpace,
+		"private_ipv4": jf.getPrivateIPV4,
+		"public_ipv4":  jf.getPublicIPV4,
 	}
+}
+
+// getPrivateIPV4 gets the COREOS_PRIVATE_IPV4 address.
+func (jf *jobFunctions) getPrivateIPV4() string {
+	return "${COREOS_PRIVATE_IPV4}"
+}
+
+// getPublicIPV4 gets the COREOS_PUBLIC_IPV4 address.
+func (jf *jobFunctions) getPublicIPV4() string {
+	return "${COREOS_PUBLIC_IPV4}"
 }
 
 // getEnv loads an environment value and returns an error if it is empty.
