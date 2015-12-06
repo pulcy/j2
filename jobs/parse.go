@@ -249,6 +249,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 	delete(m, "volumes")
 	delete(m, "volumes-from")
 	delete(m, "frontend")
+	delete(m, "capabilities")
 
 	// Default count to 1 if not specified
 	if _, ok := m["count"]; !ok {
@@ -292,44 +293,34 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 
 	// Parse volumes
 	if o := obj.List.Filter("volumes"); len(o.Items) > 0 {
-		for _, o := range o.Elem().Items {
-			if olit, ok := o.Val.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
-				t.Volumes = append(t.Volumes, olit.Token.Value().(string))
-			} else if list, ok := o.Val.(*ast.ListType); ok {
-				for _, n := range list.List {
-					if olit, ok := n.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
-						t.Volumes = append(t.Volumes, olit.Token.Value().(string))
-					} else {
-						return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes array of task %s is not a string but %v", t.Name, n))
-					}
-				}
-			} else {
-				return maskAny(errgo.WithCausef(nil, ValidationError, "volumes of task %s is not a string or array", t.Name))
-			}
+		list, err := parseStringList(o, fmt.Sprintf("volumes of task %s", t.Name))
+		if err != nil {
+			return maskAny(err)
 		}
+		t.Volumes = list
 	}
 
 	// Parse volumes-from
 	if o := obj.List.Filter("volumes-from"); len(o.Items) > 0 {
-		for _, o := range o.Elem().Items {
-			if olit, ok := o.Val.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
-				t.VolumesFrom = append(t.VolumesFrom, TaskName(olit.Token.Value().(string)))
-			} else if list, ok := o.Val.(*ast.ListType); ok {
-				for _, n := range list.List {
-					if olit, ok := n.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
-						t.VolumesFrom = append(t.VolumesFrom, TaskName(olit.Token.Value().(string)))
-					} else {
-						return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes-from array of task %s is not a string", t.Name))
-					}
-				}
-			} else {
-				return maskAny(errgo.WithCausef(nil, ValidationError, "volumes-from of task %s is not a string or array", t.Name))
-			}
+		list, err := parseStringList(o, fmt.Sprintf("volumes-from of task %s", t.Name))
+		if err != nil {
+			return maskAny(err)
+		}
+		for _, x := range list {
+			t.VolumesFrom = append(t.VolumesFrom, TaskName(x))
 		}
 	}
 
-	// Parse frontends
+	// Parse capabilities
+	if o := obj.List.Filter("capabilities"); len(o.Items) > 0 {
+		list, err := parseStringList(o, fmt.Sprintf("capabilities of task %s", t.Name))
+		if err != nil {
+			return maskAny(err)
+		}
+		t.Capabilities = list
+	}
 
+	// Parse frontends
 	if o := obj.List.Filter("frontend"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {
 			if obj, ok := o.Val.(*ast.ObjectType); ok {
@@ -360,4 +351,24 @@ func (f *FrontEnd) parse(obj *ast.ObjectType) error {
 	}
 
 	return nil
+}
+
+func parseStringList(o *ast.ObjectList, context string) ([]string, error) {
+	result := []string{}
+	for _, o := range o.Elem().Items {
+		if olit, ok := o.Val.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
+			result = append(result, olit.Token.Value().(string))
+		} else if list, ok := o.Val.(*ast.ListType); ok {
+			for _, n := range list.List {
+				if olit, ok := n.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
+					result = append(result, olit.Token.Value().(string))
+				} else {
+					return nil, maskAny(errgo.WithCausef(nil, ValidationError, "element of %s is not a string but %v", context, n))
+				}
+			}
+		} else {
+			return nil, maskAny(errgo.WithCausef(nil, ValidationError, "%s is not a string or array", context))
+		}
+	}
+	return result, nil
 }

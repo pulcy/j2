@@ -61,6 +61,7 @@ type Task struct {
 	Ports         []string          `json:"ports,omitempty"`
 	FrontEnds     []FrontEnd        `json:"frontends,omitempty"`
 	HttpCheckPath string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
+	Capabilities  []string          `json:"capabilities,omitempty"`
 }
 
 type TaskList []*Task
@@ -198,6 +199,10 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
 		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
 	}
 	execStart = append(execStart, fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
+	for _, cap := range t.Capabilities {
+		execStart = append(execStart, "--cap-add "+cap)
+	}
+
 	execStart = append(execStart, image)
 	execStart = append(execStart, t.Args...)
 
