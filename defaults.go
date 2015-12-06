@@ -6,17 +6,15 @@ import (
 
 // globals
 const (
-	defaultJobPath         = ""
-	defaultStack           = ""
-	defaultTunnel          = ""
-	defaultForce           = false
-	defaultDryRun          = false
-	defaultScalingGroup    = uint(0) // all
-	defaultPrivateRegistry = "arvika.pulcy.com:5000"
-	defaultLogLevel        = "debug"
-	defaultDomain          = "iggi.xyz" // TODO
-	defaultLocal           = false
-	defaultInstanceCount   = 3
+	defaultJobPath       = ""
+	defaultStack         = ""
+	defaultTunnel        = ""
+	defaultForce         = false
+	defaultDryRun        = false
+	defaultScalingGroup  = uint(0)    // all
+	defaultDomain        = "iggi.xyz" // TODO
+	defaultLocal         = false
+	defaultInstanceCount = 3
 )
 
 var (

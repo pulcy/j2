@@ -20,8 +20,6 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.BoolVarP(&f.Force, "force", "f", defaultForce, "wheather to confirm destroy or not")
 	fs.BoolVarP(&f.DryRun, "dry-run", "d", defaultDryRun, "wheather to schedule units or not")
 	fs.UintVar(&f.ScalingGroup, "scaling-group", defaultScalingGroup, "scaling group to deploy")
-	fs.StringVar(&f.PrivateRegistry, "private-registry", defaultPrivateRegistry, "private registry for the docker images")
-	fs.StringVar(&f.LogLevel, "log-level", defaultLogLevel, "log-level for our services")
 	fs.BoolVarP(&f.Local, "local", "l", defaultLocal, "User local vagrant test cluster")
 	fs.DurationVar(&f.StopDelay, "stop-delay", defaultStopDelay, "Time between stop and destroy")
 	fs.DurationVar(&f.DestroyDelay, "destroy-delay", defaultDestroyDelay, "Time between destroy and re-create")
@@ -53,10 +51,6 @@ func deploymentDefaults(fs *pflag.FlagSet, f *fg.Flags, args []string) {
 	}
 	if f.Tunnel == "" {
 		f.Tunnel = fmt.Sprintf("%s.%s", f.Stack, f.Domain)
-	}
-
-	if f.LogLevel == "" {
-		f.LogLevel = "debug"
 	}
 
 	if f.JobPath == "" && len(args) == 1 {
