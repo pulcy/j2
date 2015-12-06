@@ -102,39 +102,12 @@ func (t *Task) createUnits(ctx generatorContext) ([]*units.Unit, error) {
 // createMainUnit
 func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	name := t.containerName(ctx.ScalingGroup)
-	serviceName := t.serviceName()
 	image := t.Image.String()
-	execStart := []string{
-		"/usr/bin/docker",
-		"run",
-		"--rm",
-		fmt.Sprintf("--name %s", name),
+	execStart, err := t.createMainDockerCmdLine(ctx)
+	if err != nil {
+		return nil, maskAny(err)
 	}
-	if len(t.Ports) > 0 {
-		for _, p := range t.Ports {
-			execStart = append(execStart, fmt.Sprintf("-p %s", p))
-		}
-	} else {
-		execStart = append(execStart, "-P")
-	}
-	after := []string{}
-	for _, v := range t.Volumes {
-		execStart = append(execStart, fmt.Sprintf("-v %s", v))
-	}
-	for _, name := range t.VolumesFrom {
-		other, err := t.group.Task(name)
-		if err != nil {
-			return nil, maskAny(err)
-		}
-		execStart = append(execStart, fmt.Sprintf("--volumes-from %s", other.containerName(ctx.ScalingGroup)))
-		after = append(after, other.unitName(strconv.Itoa(int(ctx.ScalingGroup)))+".service")
-	}
-	for k, v := range t.Environment {
-		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
-	}
-	execStart = append(execStart, fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
-	execStart = append(execStart, image)
-	execStart = append(execStart, t.Args...)
+
 	main := &units.Unit{
 		Name:         t.unitName(strconv.Itoa(int(ctx.ScalingGroup))),
 		FullName:     t.unitName(strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
@@ -153,20 +126,14 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	main.ExecOptions.ExecStartPre = []string{
 		fmt.Sprintf("/usr/bin/docker pull %s", image),
 		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
-		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
+		fmt.Sprintf("-/usr/bin/docker rm -f %s", t.containerName(ctx.ScalingGroup)),
 	}
 	for _, v := range t.Volumes {
 		dir := strings.Split(v, ":")
 		mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s'", dir[0], dir[0])
 		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
 	}
-	for _, name := range t.VolumesFrom {
-		other, err := t.group.Task(name)
-		if err != nil {
-			return nil, maskAny(err)
-		}
-		main.ExecOptions.Require(other.containerName(ctx.ScalingGroup))
-	}
+
 	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name)
 	main.ExecOptions.ExecStopPost = []string{
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
@@ -175,17 +142,100 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	if t.group.IsScalable() && ctx.InstanceCount > 1 {
 		main.FleetOptions.Conflicts(t.unitName("*") + ".service")
 	}
+
+	// Service dependencies
+	// Requires=
 	//main.ExecOptions.Require("flanneld.service")
+	if requires, err := t.createMainRequires(ctx); err != nil {
+		return nil, maskAny(err)
+	} else {
+		main.ExecOptions.Require(requires...)
+	}
 	main.ExecOptions.Require("docker.service")
-	main.ExecOptions.After("docker.service")
-	main.ExecOptions.After("yard.service")
-	main.ExecOptions.After(after...)
+	// After=...
+	if after, err := t.createMainAfter(ctx); err != nil {
+		return nil, maskAny(err)
+	} else {
+		main.ExecOptions.After(after...)
+	}
 
 	if err := t.addFrontEndRegistration(main); err != nil {
 		return nil, maskAny(err)
 	}
 
 	return main, nil
+}
+
+// createMainDockerCmdLine creates the `ExecStart` line for
+// the main unit.
+func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
+	serviceName := t.serviceName()
+	image := t.Image.String()
+	execStart := []string{
+		"/usr/bin/docker",
+		"run",
+		"--rm",
+		fmt.Sprintf("--name %s", t.containerName(ctx.ScalingGroup)),
+	}
+	if len(t.Ports) > 0 {
+		for _, p := range t.Ports {
+			execStart = append(execStart, fmt.Sprintf("-p %s", p))
+		}
+	} else {
+		execStart = append(execStart, "-P")
+	}
+	for _, v := range t.Volumes {
+		execStart = append(execStart, fmt.Sprintf("-v %s", v))
+	}
+	for _, name := range t.VolumesFrom {
+		other, err := t.group.Task(name)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		execStart = append(execStart, fmt.Sprintf("--volumes-from %s", other.containerName(ctx.ScalingGroup)))
+	}
+	for k, v := range t.Environment {
+		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
+	}
+	execStart = append(execStart, fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
+	execStart = append(execStart, image)
+	execStart = append(execStart, t.Args...)
+
+	return execStart, nil
+}
+
+// createMainAfter creates the `After=` sequence for the main unit
+func (t *Task) createMainAfter(ctx generatorContext) ([]string, error) {
+	after := []string{
+		"docker.service",
+		"yard.service",
+	}
+	for _, name := range t.VolumesFrom {
+		other, err := t.group.Task(name)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		after = append(after, other.unitName(strconv.Itoa(int(ctx.ScalingGroup)))+".service")
+	}
+
+	return after, nil
+}
+
+// createMainRequires creates the `Requires=` sequence for the main unit
+func (t *Task) createMainRequires(ctx generatorContext) ([]string, error) {
+	requires := []string{
+		"docker.service",
+	}
+
+	for _, name := range t.VolumesFrom {
+		other, err := t.group.Task(name)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		requires = append(requires, other.unitName(strconv.Itoa(int(ctx.ScalingGroup)))+".service")
+	}
+
+	return requires, nil
 }
 
 // Gets the full name of this task: job/taskgroup/task

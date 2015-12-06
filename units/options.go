@@ -67,8 +67,8 @@ func (e *execOptions) After(after ...string) {
 	e.after = append(e.after, after...)
 }
 
-func (e *execOptions) Require(require string) {
-	e.Requires = append(e.Requires, require)
+func (e *execOptions) Require(require ...string) {
+	e.Requires = append(e.Requires, require...)
 }
 
 type fleetOptions struct {
