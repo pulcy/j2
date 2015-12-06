@@ -31,10 +31,13 @@ func init() {
 
 func destroyRun(cmd *cobra.Command, args []string) {
 	deploymentDefaults(cmd.Flags(), &destroyFlags.Flags, args)
-	destroyValidators(&destroyFlags.Flags)
-	deploymentValidators(&destroyFlags.Flags)
+	cluster, err := loadCluster(&destroyFlags.Flags)
+	if err != nil {
+		Exitf("Cannot load cluster: %v\n", err)
+	}
+	destroyValidators(&destroyFlags.Flags, *cluster)
 
-	f := fleet.NewTunnel(destroyFlags.Tunnel)
+	f := fleet.NewTunnel(cluster.Tunnel)
 	list, err := f.List()
 	assert(err)
 
@@ -42,13 +45,13 @@ func destroyRun(cmd *cobra.Command, args []string) {
 	if len(unitNames) == 0 {
 		fmt.Printf("No units on the cluster match the given arguments\n")
 	} else {
-		assert(confirmDestroy(destroyFlags.Force, destroyFlags.Stack, unitNames))
-		assert(destroyUnits(destroyFlags.Stack, f, unitNames, destroyFlags.StopDelay))
+		assert(confirmDestroy(destroyFlags.Force, cluster.Stack, unitNames))
+		assert(destroyUnits(cluster.Stack, f, unitNames, destroyFlags.StopDelay))
 	}
 }
 
-func destroyValidators(f *fg.Flags) {
-	j, err := loadJob(f)
+func destroyValidators(f *fg.Flags, cluster fg.Cluster) {
+	j, err := loadJob(f, cluster)
 	if err == nil {
 		f.JobPath = j.Name.String()
 	}

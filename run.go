@@ -38,30 +38,34 @@ func runRun(cmd *cobra.Command, args []string) {
 
 	deploymentDefaults(cmd.Flags(), &runFlags.Flags, args)
 	runValidators(&runFlags.Flags)
-	deploymentValidators(&runFlags.Flags)
 
-	job, err := loadJob(&runFlags.Flags)
+	cluster, err := loadCluster(&runFlags.Flags)
+	if err != nil {
+		Exitf("Cannot load cluster: %v\n", err)
+	}
+	job, err := loadJob(&runFlags.Flags, *cluster)
 	if err != nil {
 		Exitf("Cannot load job: %v\n", err)
 	}
+
 	groups := groups(&runFlags.Flags)
 	generator := job.Generate(groups, runFlags.ScalingGroup)
-	assert(generator.WriteTmpFiles(ctx, runFlags.InstanceCount))
+	assert(generator.WriteTmpFiles(ctx, cluster.InstanceCount))
 
 	if runFlags.DryRun {
 		confirm(fmt.Sprintf("remove tmp files from %s ?", generator.TmpDir()))
 	} else {
-		location := runFlags.Stack
+		location := cluster.Stack
 		count := job.MaxCount()
 		updateScalingGroups(&runFlags.ScalingGroup, count, location, func(runUpdate runUpdateCallback) {
 			generator := job.Generate(groups, runFlags.ScalingGroup)
 
-			assert(generator.WriteTmpFiles(ctx, runFlags.InstanceCount))
+			assert(generator.WriteTmpFiles(ctx, cluster.InstanceCount))
 
 			unitNames := generator.UnitNames()
 			fileNames := generator.FileNames()
 
-			runUpdate(runFlags.Stack, runFlags.Tunnel, unitNames, fileNames, runFlags.StopDelay, runFlags.DestroyDelay)
+			runUpdate(cluster.Stack, cluster.Tunnel, unitNames, fileNames, runFlags.StopDelay, runFlags.DestroyDelay)
 			assert(generator.RemoveTmpFiles())
 		}, runFlags.SliceDelay, runFlags.Force)
 	}

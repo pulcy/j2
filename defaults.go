@@ -6,15 +6,14 @@ import (
 
 // globals
 const (
-	defaultJobPath       = ""
-	defaultStack         = ""
-	defaultTunnel        = ""
-	defaultForce         = false
-	defaultDryRun        = false
-	defaultScalingGroup  = uint(0)    // all
-	defaultDomain        = "iggi.xyz" // TODO
-	defaultLocal         = false
-	defaultInstanceCount = 3
+	defaultJobPath        = ""
+	defaultClusterPath    = ""
+	defaultTunnelOverride = ""
+	defaultForce          = false
+	defaultDryRun         = false
+	defaultScalingGroup   = uint(0)    // all
+	defaultDomain         = "iggi.xyz" // TODO
+	defaultLocal          = false
 )
 
 var (

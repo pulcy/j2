@@ -7,15 +7,20 @@ import (
 	"text/template"
 
 	"github.com/hashicorp/hcl"
-	hclobj "github.com/hashicorp/hcl/hcl"
+	"github.com/hashicorp/hcl/hcl/ast"
+	"github.com/hashicorp/hcl/hcl/token"
 	"github.com/juju/errgo"
 	"github.com/mitchellh/mapstructure"
 
 	fg "arvika.pulcy.com/pulcy/deployit/flags"
 )
 
+type parseJobOptions struct {
+	Cluster fg.Cluster
+}
+
 // ParseJob takes input from a given reader and parses it into a Job.
-func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
+func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error) {
 	// Create a template, add the function map, and parse the text.
 	tmpl, err := template.New("job").Funcs(jf.Functions()).Parse(string(input))
 	if err != nil {
@@ -24,20 +29,29 @@ func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
 
 	// Run the template to verify the output.
 	buffer := &bytes.Buffer{}
-	err = tmpl.Execute(buffer, nil)
+	err = tmpl.Execute(buffer, opts)
 	if err != nil {
 		return nil, maskAny(err)
 	}
 
 	// Parse the input
-	obj, err := hcl.Parse(buffer.String())
+	root, err := hcl.Parse(buffer.String())
 	if err != nil {
 		return nil, maskAny(err)
+	}
+	// Top-level item should be a list
+	list, ok := root.Node.(*ast.ObjectList)
+	if !ok {
+		return nil, errgo.New("error parsing: root should be an object")
 	}
 
 	// Parse hcl into Job
 	job := &Job{}
-	if err := job.parse(obj); err != nil {
+	matches := list.Filter("job")
+	if len(matches.Items) == 0 {
+		return nil, errgo.New("'job' stanza not found")
+	}
+	if err := job.parse(matches); err != nil {
 		return nil, maskAny(err)
 	}
 
@@ -53,23 +67,34 @@ func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
 }
 
 // ParseJobFromFile reads a job from file
-func ParseJobFromFile(path string, options fg.Options) (*Job, error) {
+func ParseJobFromFile(path string, cluster fg.Cluster, options fg.Options) (*Job, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	jf := newJobFunctions(path, options)
-	job, err := parseJob(data, jf)
+	jf := newJobFunctions(path, cluster, options)
+	opts := parseJobOptions{
+		Cluster: cluster,
+	}
+	job, err := parseJob(data, opts, jf)
 	if err != nil {
 		return nil, maskAny(err)
 	}
 	return job, nil
 }
 
-func (j *Job) parse(obj *hclobj.Object) error {
+func (j *Job) parse(list *ast.ObjectList) error {
+	list = list.Children()
+	if len(list.Items) != 1 {
+		return fmt.Errorf("only one 'job' block allowed")
+	}
+
+	// Get our job object
+	obj := list.Items[0]
+
 	// Decode the full thing into a map[string]interface for ease
 	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, obj); err != nil {
+	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
 		return maskAny(err)
 	}
 	delete(m, "group")
@@ -80,8 +105,18 @@ func (j *Job) parse(obj *hclobj.Object) error {
 		return maskAny(err)
 	}
 
+	j.Name = JobName(obj.Keys[0].Token.Value().(string))
+
+	// Value should be an object
+	var listVal *ast.ObjectList
+	if ot, ok := obj.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return errgo.Newf("job '%s' value: should be an object", j.Name)
+	}
+
 	// If we have tasks outside, do those
-	if o := obj.Get("task", false); o != nil {
+	if o := listVal.Filter("task"); len(o.Items) > 0 {
 		tmp := &TaskGroup{}
 		if err := tmp.parseTasks(o); err != nil {
 			return err
@@ -99,7 +134,7 @@ func (j *Job) parse(obj *hclobj.Object) error {
 	}
 
 	// Parse the task groups
-	if o := obj.Get("group", false); o != nil {
+	if o := listVal.Filter("group"); len(o.Items) > 0 {
 		if err := j.parseGroups(o); err != nil {
 			return fmt.Errorf("error parsing 'group': %s", err)
 		}
@@ -108,31 +143,32 @@ func (j *Job) parse(obj *hclobj.Object) error {
 	return nil
 }
 
-func (j *Job) parseGroups(obj *hclobj.Object) error {
-	// Get all the maps of keys to the actual object
-	objects := make(map[string]*hclobj.Object)
-	for _, o1 := range obj.Elem(false) {
-		for _, o2 := range o1.Elem(true) {
-			if _, ok := objects[o2.Key]; ok {
-				return fmt.Errorf(
-					"group '%s' defined more than once",
-					o2.Key)
-			}
-
-			objects[o2.Key] = o2
-		}
-	}
-
-	if len(objects) == 0 {
+func (j *Job) parseGroups(list *ast.ObjectList) error {
+	list = list.Children()
+	if len(list.Items) == 0 {
 		return nil
 	}
 
-	// Go through each object and turn it into an actual result.
-	for _, o := range objects {
+	seen := make(map[string]struct{})
+	for _, item := range list.Items {
+		n := item.Keys[0].Token.Value().(string)
+
+		// Make sure we haven't already found this
+		if _, ok := seen[n]; ok {
+			return fmt.Errorf("group '%s' defined more than once", n)
+		}
+		seen[n] = struct{}{}
+
+		// We need this later
+		obj, ok := item.Val.(*ast.ObjectType)
+		if !ok {
+			return fmt.Errorf("group '%s': should be an object", n)
+		}
+
 		// Build the group with the basic decode
 		tg := &TaskGroup{}
-		tg.Name = TaskGroupName(o.Key)
-		if err := tg.parse(o); err != nil {
+		tg.Name = TaskGroupName(n)
+		if err := tg.parse(obj); err != nil {
 			return maskAny(err)
 		}
 
@@ -143,7 +179,7 @@ func (j *Job) parseGroups(obj *hclobj.Object) error {
 }
 
 // parse a task group
-func (tg *TaskGroup) parse(obj *hclobj.Object) error {
+func (tg *TaskGroup) parse(obj *ast.ObjectType) error {
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, obj); err != nil {
 		return maskAny(err)
@@ -161,7 +197,7 @@ func (tg *TaskGroup) parse(obj *hclobj.Object) error {
 	}
 
 	// Parse tasks
-	if o := obj.Get("task", false); o != nil {
+	if o := obj.List.Filter("task"); len(o.Items) > 0 {
 		if err := tg.parseTasks(o); err != nil {
 			return maskAny(err)
 		}
@@ -171,31 +207,28 @@ func (tg *TaskGroup) parse(obj *hclobj.Object) error {
 }
 
 // parse a list of tasks
-func (tg *TaskGroup) parseTasks(obj *hclobj.Object) error {
-	// Get all the maps of keys to the actual object
-	objects := make([]*hclobj.Object, 0, 5)
-	set := make(map[string]struct{})
-	for _, o1 := range obj.Elem(false) {
-		for _, o2 := range o1.Elem(true) {
-			if _, ok := set[o2.Key]; ok {
-				return fmt.Errorf(
-					"task '%s' defined more than once",
-					o2.Key)
-			}
-
-			objects = append(objects, o2)
-			set[o2.Key] = struct{}{}
-		}
-	}
-
-	if len(objects) == 0 {
+func (tg *TaskGroup) parseTasks(list *ast.ObjectList) error {
+	list = list.Children()
+	if len(list.Items) == 0 {
 		return nil
 	}
 
-	for _, o := range objects {
+	// Get all the maps of keys to the actual object
+	seen := make(map[string]struct{})
+	for _, item := range list.Items {
+		n := item.Keys[0].Token.Value().(string)
+		if _, ok := seen[n]; ok {
+			return fmt.Errorf("task '%s' defined more than once", n)
+		}
+		seen[n] = struct{}{}
+		obj, ok := item.Val.(*ast.ObjectType)
+		if !ok {
+			return fmt.Errorf("task '%s': should be an object", tg.Name)
+		}
+
 		t := &Task{}
-		t.Name = TaskName(o.Key)
-		if err := t.parse(o); err != nil {
+		t.Name = TaskName(n)
+		if err := t.parse(obj); err != nil {
 			return maskAny(err)
 		}
 
@@ -206,7 +239,7 @@ func (tg *TaskGroup) parseTasks(obj *hclobj.Object) error {
 }
 
 // parse a task
-func (t *Task) parse(obj *hclobj.Object) error {
+func (t *Task) parse(obj *ast.ObjectType) error {
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, obj); err != nil {
 		return err
@@ -227,23 +260,28 @@ func (t *Task) parse(obj *hclobj.Object) error {
 		return maskAny(err)
 	}
 
-	if o := obj.Get("image", false); o != nil && o.Type == hclobj.ValueTypeString {
-		img, err := ParseDockerImage(o.Value.(string))
-		if err != nil {
-			return maskAny(err)
+	if o := obj.List.Filter("image"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "task %s defines multiple images", t.Name))
 		}
-		t.Image = img
-	} else if o != nil {
-		return maskAny(errgo.WithCausef(nil, ValidationError, "image of task %s is not a string", t.Name))
+		if obj, ok := o.Items[0].Val.(*ast.LiteralType); ok && obj.Token.Type == token.STRING {
+			img, err := ParseDockerImage(obj.Token.Value().(string))
+			if err != nil {
+				return maskAny(err)
+			}
+			t.Image = img
+		} else {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "image for task %s is not a string", t.Name))
+		}
 	} else {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "image missing for task %s", t.Name))
 	}
 
 	// If we have env, then parse them
-	if o := obj.Get("env", false); o != nil {
-		for _, o := range o.Elem(false) {
+	if o := obj.List.Filter("env"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
 			var m map[string]interface{}
-			if err := hcl.DecodeObject(&m, o); err != nil {
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
 				return maskAny(err)
 			}
 			if err := mapstructure.WeakDecode(m, &t.Environment); err != nil {
@@ -253,46 +291,50 @@ func (t *Task) parse(obj *hclobj.Object) error {
 	}
 
 	// Parse volumes
-	if o := obj.Get("volumes", false); o != nil {
-		if o.Type == hclobj.ValueTypeString {
-			t.Volumes = []string{o.Value.(string)}
-		} else if o.Type == hclobj.ValueTypeList {
-			for _, o := range o.Elem(true) {
-				if o.Type == hclobj.ValueTypeString {
-					t.Volumes = append(t.Volumes, o.Value.(string))
-				} else {
-					return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes array of task %s is not a string but %v", t.Name, o.Type))
+	if o := obj.List.Filter("volumes"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if olit, ok := o.Val.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
+				t.Volumes = append(t.Volumes, olit.Token.Value().(string))
+			} else if list, ok := o.Val.(*ast.ListType); ok {
+				for _, n := range list.List {
+					if olit, ok := n.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
+						t.Volumes = append(t.Volumes, olit.Token.Value().(string))
+					} else {
+						return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes array of task %s is not a string but %v", t.Name, n))
+					}
 				}
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "volumes of task %s is not a string or array", t.Name))
 			}
-		} else {
-			return maskAny(errgo.WithCausef(nil, ValidationError, "volumes of task %s is not a string or array", t.Name))
 		}
 	}
 
 	// Parse volumes-from
-	if o := obj.Get("volumes-from", false); o != nil {
-		if o.Type == hclobj.ValueTypeString {
-			t.VolumesFrom = []TaskName{TaskName(o.Value.(string))}
-		} else if o.Type == hclobj.ValueTypeList {
-			for _, o := range o.Elem(true) {
-				if o.Type == hclobj.ValueTypeString {
-					t.VolumesFrom = append(t.VolumesFrom, TaskName(o.Value.(string)))
-				} else {
-					return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes-from array of task %s is not a string", t.Name))
+	if o := obj.List.Filter("volumes-from"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if olit, ok := o.Val.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
+				t.VolumesFrom = append(t.VolumesFrom, TaskName(olit.Token.Value().(string)))
+			} else if list, ok := o.Val.(*ast.ListType); ok {
+				for _, n := range list.List {
+					if olit, ok := n.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
+						t.VolumesFrom = append(t.VolumesFrom, TaskName(olit.Token.Value().(string)))
+					} else {
+						return maskAny(errgo.WithCausef(nil, ValidationError, "element of volumes-from array of task %s is not a string", t.Name))
+					}
 				}
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "volumes-from of task %s is not a string or array", t.Name))
 			}
-		} else {
-			return maskAny(errgo.WithCausef(nil, ValidationError, "volumes-from of task %s is not a string or array", t.Name))
 		}
 	}
 
 	// Parse frontends
 
-	if first := obj.Get("frontend", false); first != nil {
-		for _, o := range first.Elem(false) {
-			if o.Type == hclobj.ValueTypeObject {
+	if o := obj.List.Filter("frontend"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
 				f := FrontEnd{}
-				if err := f.parse(o); err != nil {
+				if err := f.parse(obj); err != nil {
 					return maskAny(err)
 				}
 				t.FrontEnds = append(t.FrontEnds, f)
@@ -306,7 +348,7 @@ func (t *Task) parse(obj *hclobj.Object) error {
 }
 
 // parse a frontend
-func (f *FrontEnd) parse(obj *hclobj.Object) error {
+func (f *FrontEnd) parse(obj *ast.ObjectType) error {
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, obj); err != nil {
 		return err

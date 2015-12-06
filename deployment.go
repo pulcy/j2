@@ -1,10 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/juju/errgo"
+	"github.com/kardianos/osext"
 	"github.com/spf13/pflag"
 
 	fg "arvika.pulcy.com/pulcy/deployit/flags"
@@ -13,9 +15,8 @@ import (
 
 func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.StringVarP(&f.JobPath, "job", "j", defaultJobPath, "filename of the job description")
-	fs.StringVarP(&f.Stack, "stack", "s", defaultStack, "stack name of the cluster")
-	fs.StringVar(&f.Domain, "domain", defaultDomain, "domain name of the cluster")
-	fs.StringVarP(&f.Tunnel, "tunnel", "t", defaultTunnel, "SSH endpoint to tunnel through with fleet")
+	fs.StringVarP(&f.ClusterPath, "cluster", "c", defaultClusterPath, "cluster description name or filename")
+	fs.StringVarP(&f.TunnelOverride, "tunnel", "t", defaultTunnelOverride, "SSH endpoint to tunnel through with fleet (cluster override)")
 	fs.StringSliceVarP(&f.Groups, "groups", "g", defaultGroups, "target task groups to deploy")
 	fs.BoolVarP(&f.Force, "force", "f", defaultForce, "wheather to confirm destroy or not")
 	fs.BoolVarP(&f.DryRun, "dry-run", "d", defaultDryRun, "wheather to schedule units or not")
@@ -25,7 +26,6 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.DurationVar(&f.DestroyDelay, "destroy-delay", defaultDestroyDelay, "Time between destroy and re-create")
 	fs.DurationVar(&f.SliceDelay, "slice-delay", defaultSliceDelay, "Time between update of scaling slices")
 	fs.VarP(&f.Options, "option", "o", "Set an option (key=value)")
-	fs.IntVar(&f.InstanceCount, "instance-count", defaultInstanceCount, "Number of machines in the cluster")
 }
 
 func deploymentDefaults(fs *pflag.FlagSet, f *fg.Flags, args []string) {
@@ -43,24 +43,16 @@ func deploymentDefaults(fs *pflag.FlagSet, f *fg.Flags, args []string) {
 	})
 
 	if f.Local {
-		f.Tunnel = "core-01"
-		f.Stack = "core-01"
 		f.StopDelay = 5 * time.Second
 		f.DestroyDelay = 3 * time.Second
 		f.SliceDelay = 5 * time.Second
 	}
-	if f.Tunnel == "" {
-		f.Tunnel = fmt.Sprintf("%s.%s", f.Stack, f.Domain)
-	}
 
-	if f.JobPath == "" && len(args) == 1 {
+	if f.JobPath == "" && len(args) <= 1 {
 		f.JobPath = args[0]
 	}
-}
-
-func deploymentValidators(f *fg.Flags) {
-	if f.Stack == "" || f.Tunnel == "" {
-		Exitf("--stack or --tunnel missing")
+	if f.ClusterPath == "" && len(args) <= 2 {
+		f.ClusterPath = args[1]
 	}
 }
 
@@ -74,13 +66,59 @@ func groups(f *fg.Flags) []jobs.TaskGroupName {
 }
 
 // loadJob loads the a job from the given flags.
-func loadJob(f *fg.Flags) (*jobs.Job, error) {
+func loadJob(f *fg.Flags, cluster fg.Cluster) (*jobs.Job, error) {
 	if f.JobPath == "" {
 		return nil, maskAny(errgo.New("--job missing"))
 	}
-	job, err := jobs.ParseJobFromFile(f.JobPath, f.Options)
+	path, err := resolvePath(f.JobPath, "config", ".hcl")
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	job, err := jobs.ParseJobFromFile(path, cluster, f.Options)
 	if err != nil {
 		return nil, maskAny(err)
 	}
 	return job, nil
+}
+
+// loadCluster loads a cluster description from the given flags.
+func loadCluster(f *fg.Flags) (*fg.Cluster, error) {
+	if f.ClusterPath == "" {
+		return nil, maskAny(errgo.New("--cluster missing"))
+	}
+	path, err := resolvePath(f.ClusterPath, "config/clusters", ".hcl")
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	cluster, err := fg.ParseClusterFromFile(path)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	if f.TunnelOverride != "" {
+		cluster.Tunnel = f.TunnelOverride
+	}
+	if f.Local {
+		cluster.Tunnel = "core-01"
+		cluster.Stack = "core-01"
+	}
+	return cluster, nil
+}
+
+// resolvePath tries to resolve a given path.
+// 1) Try as real path
+// 2) Try as filename relative to my process with given relative folder & extension
+func resolvePath(path, relativeFolder, extension string) (string, error) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		// path not found, try locating it by name in our relative folder
+		folder, err := osext.ExecutableFolder()
+		if err != nil {
+			return "", maskAny(err)
+		}
+		path = filepath.Join(folder, relativeFolder, path) + extension
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			// Try without extensions
+			path = filepath.Join(folder, relativeFolder, path)
+		}
+	}
+	return path, nil
 }

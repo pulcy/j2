@@ -6,7 +6,7 @@
 		"tasks": [{
 			"name": "db",
 			"image": "redis:latest",
-			"volumes": ["/var/run/docker.sock:/tmp/docker.sock"]
+			"volumes": ["/var/run/docker.sock:/tmp/docker.sock", "/etc:/etc"]
 		}]
 	}, {
 		"name": "dummy",

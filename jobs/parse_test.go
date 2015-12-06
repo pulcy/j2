@@ -32,7 +32,12 @@ func TestParse(t *testing.T) {
 		options := fg.Options{}
 		options.Set("option1=value1")
 		options.Set("option2=value2")
-		job, err := jobs.ParseJobFromFile(filepath.Join(fixtureDir, tc.Name), options)
+		cluster := fg.Cluster{
+			Domain:        "test.com",
+			Stack:         "stack",
+			InstanceCount: 3,
+		}
+		job, err := jobs.ParseJobFromFile(filepath.Join(fixtureDir, tc.Name), cluster, options)
 		if tc.ErrorExpected {
 			if err == nil {
 				t.Fatalf("Expected error in %s", tc.Name)

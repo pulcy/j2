@@ -16,14 +16,16 @@ import (
 type jobFunctions struct {
 	jobPath string
 	options fg.Options
+	cluster fg.Cluster
 }
 
 // newJobFunctions creates a new instance of jobFunctions
-func newJobFunctions(jobPath string, options fg.Options) *jobFunctions {
+func newJobFunctions(jobPath string, cluster fg.Cluster, options fg.Options) *jobFunctions {
 	absJobPath, _ := filepath.Abs(jobPath)
 	return &jobFunctions{
 		jobPath: absJobPath,
 		options: options,
+		cluster: cluster,
 	}
 }
 
@@ -64,6 +66,20 @@ func (jf *jobFunctions) getEnv(key string) (string, error) {
 func (jf *jobFunctions) getOpt(key string) (string, error) {
 	value, ok := jf.options.Get(key)
 	if !ok {
+		value, ok := jf.cluster.DefaultOptions.Get(key)
+		if ok {
+			return value, nil
+		}
+		switch key {
+		case "domain":
+			return jf.cluster.Domain, nil
+		case "stack":
+			return jf.cluster.Stack, nil
+		case "tunnel":
+			return jf.cluster.Tunnel, nil
+		case "instance-count":
+			return strconv.Itoa(jf.cluster.InstanceCount), nil
+		}
 		return "", errgo.WithCausef(nil, ValidationError, "Missing option '%s'", key)
 	}
 	return value, nil
