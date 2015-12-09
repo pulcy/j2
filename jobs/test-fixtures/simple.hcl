@@ -51,6 +51,11 @@ job "test" {
 		private-frontend { }
 	}
 
+	task "global" {
+		global = true
+		image = "alpine:latest"
+	}
+
 	task "couchdb" {
 		image = "couchdb:latest"
 		private-frontend {

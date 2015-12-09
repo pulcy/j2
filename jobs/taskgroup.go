@@ -97,6 +97,16 @@ func (tg *TaskGroup) IsScalable() bool {
 
 // createUnits creates all units needed to run this taskgroup.
 func (tg *TaskGroup) createUnits(ctx generatorContext) ([]*units.Unit, error) {
+	if tg.Global {
+		if ctx.ScalingGroup != 1 {
+			return nil, nil
+		}
+	} else {
+		if ctx.ScalingGroup > tg.Count {
+			return nil, nil
+		}
+	}
+
 	// Create all units for my tasks
 	units := []*units.Unit{}
 	for _, t := range tg.Tasks {

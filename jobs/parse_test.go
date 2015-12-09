@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 
 	fg "arvika.pulcy.com/pulcy/deployit/flags"
 	"arvika.pulcy.com/pulcy/deployit/jobs"
+	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
 const (
@@ -19,12 +21,28 @@ const (
 
 func TestParse(t *testing.T) {
 	cases := []struct {
-		Name          string
-		ErrorExpected bool
+		Name              string
+		ErrorExpected     bool
+		ExpectedUnitNames []string
 	}{
 		{
 			"simple.hcl",
 			false,
+			[]string{
+				"test-couchdb-couchdb.service",
+				"test-db-db.service",
+				"test-dummy-dummy@1.service",
+				"test-dummy-dummy@2.service",
+				"test-dummy-dummy@3.service",
+				"test-global-global.service",
+				"test-registrator-registrator.service",
+				"test-web-backup@1.service",
+				"test-web-backup@2.service",
+				"test-web-nginx@1.service",
+				"test-web-nginx@2.service",
+				"test-web-storage@1.service",
+				"test-web-storage@2.service",
+			},
 		},
 	}
 
@@ -59,6 +77,19 @@ func TestParse(t *testing.T) {
 			} else if len(diffs) > 0 {
 				t.Fatalf("JSON diffs in %s\n%s\nGot: %s", tc.Name, strings.Join(diffs, "\n"), json)
 			}
+
+			// Now generate units
+			generator := job.Generate(nil, 0)
+			ctx := units.RenderContext{
+				ProjectName:    "testproject",
+				ProjectVersion: "test-version",
+				ProjectBuild:   "test-build",
+			}
+			defer generator.RemoveTmpFiles()
+			if err := generator.WriteTmpFiles(ctx, 3); err != nil {
+				t.Fatalf("WriteTmpFiles failed: %#v", err)
+			}
+			compareUnitNames(t, tc.ExpectedUnitNames, generator.UnitNames())
 		}
 	}
 }
@@ -76,4 +107,14 @@ func compareJson(a, b []byte) ([]string, error) {
 
 	diffs := pretty.Diff(oa, ob)
 	return diffs, nil
+}
+
+func compareUnitNames(t *testing.T, expected, found []string) {
+	sort.Strings(expected)
+	sort.Strings(found)
+	expectedStr := strings.Join(expected, ",")
+	foundStr := strings.Join(found, ",")
+	if expectedStr != foundStr {
+		t.Fatalf("Unexpected unit names. Expected '%s', got '%s'", expectedStr, foundStr)
+	}
 }

@@ -29,6 +29,14 @@
             "image": "alpine:latest"
         }]
     }, {
+        "name": "global",
+        "count": 1,
+        "global": true,
+        "tasks": [{
+            "name": "global",
+            "image": "alpine:latest"
+        }]
+    }, {
         "name": "registrator",
         "count": 1,
         "global": true,
