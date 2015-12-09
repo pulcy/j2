@@ -1,5 +1,5 @@
 [Unit]
-Description=Main unit for test/registrator/registrator slice 1
+Description=Main unit for test/registrator/registrator [global]
 Requires=docker.service
 Requires=docker.service
 After=docker.service

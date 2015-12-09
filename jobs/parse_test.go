@@ -129,6 +129,7 @@ func compareUnitNames(t *testing.T, expected, found []string) {
 }
 
 func compareUnitFiles(t *testing.T, fileNames []string, fixtureDir string) {
+	errors := []string{}
 	for _, fn := range fileNames {
 		fixturePath := filepath.Join(fixtureDir, filepath.Base(fn))
 		if _, err := os.Stat(fixturePath); os.IsNotExist(err) || os.Getenv("UPDATE-FIXTURES") == "1" {
@@ -136,17 +137,21 @@ func compareUnitFiles(t *testing.T, fileNames []string, fixtureDir string) {
 			os.MkdirAll(fixtureDir, 0755)
 			data, err := ioutil.ReadFile(fn)
 			if err != nil {
-				t.Fatalf("Failed to read '%s': %#v", fn, err)
-			}
-			if err := ioutil.WriteFile(fixturePath, data, 0755); err != nil {
-				t.Fatalf("Failed to create fixture: %#v", err)
+				errors = append(errors, fmt.Sprintf("Failed to read '%s': %#v", fn, err))
+			} else {
+				if err := ioutil.WriteFile(fixturePath, data, 0755); err != nil {
+					errors = append(errors, fmt.Sprintf("Failed to create fixture: %#v", err))
+				}
 			}
 		} else {
 			// Compare
 			cmd := exec.Command("diff", fn, fixturePath)
 			if output, err := cmd.Output(); err != nil {
-				t.Fatalf("File '%s' is different:\n%s", fixturePath, string(output))
+				errors = append(errors, fmt.Sprintf("File '%s' is different:\n%s", fixturePath, string(output)))
 			}
 		}
+	}
+	if len(errors) > 0 {
+		t.Fatal(strings.Join(errors, "\n"))
 	}
 }

@@ -122,10 +122,14 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		return nil, maskAny(err)
 	}
 
+	descriptionPostfix := fmt.Sprintf("[slice %d of %d]", ctx.ScalingGroup, t.group.Count)
+	if t.group.Global {
+		descriptionPostfix = "[global]"
+	}
 	main := &units.Unit{
 		Name:         t.unitName(strconv.Itoa(int(ctx.ScalingGroup))),
 		FullName:     t.unitName(strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
-		Description:  fmt.Sprintf("Main unit for %s slice %v", t.fullName(), ctx.ScalingGroup),
+		Description:  fmt.Sprintf("Main unit for %s %s", t.fullName(), descriptionPostfix),
 		Type:         "service",
 		Scalable:     t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,

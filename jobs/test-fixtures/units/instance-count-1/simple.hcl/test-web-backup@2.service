@@ -1,5 +1,5 @@
 [Unit]
-Description=Main unit for test/web/backup slice 2
+Description=Main unit for test/web/backup [slice 2 of 2]
 Requires=docker.service
 Requires=docker.service
 After=docker.service
