@@ -18,7 +18,7 @@ job "base" {
 		}
 
 		task "lb" {
-			image = "pulcy/lb:0.6.4"
+			image = "pulcy/lb:0.7.3"
 			ports = ["0.0.0.0:80:80", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
 			volumes-from = "certificates"
 			args = ["--etcd-addr", "http://{{private_ipv4}}:4001/pulcy",
