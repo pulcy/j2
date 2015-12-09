@@ -1,0 +1,27 @@
+[Unit]
+Description=Main unit for test/registrator/registrator slice 1
+Requires=docker.service
+Requires=docker.service
+After=docker.service
+After=yard.service
+
+[Service]
+Restart=on-failure
+RestartSec=1
+StartLimitInterval=300s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+ExecStartPre=/usr/bin/docker pull gliderlabs/registrator:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 test-registrator-registrator
+ExecStartPre=-/usr/bin/docker rm -f test-registrator-registrator
+ExecStartPre=/bin/sh -c 'test -e /var/run/docker.sock || mkdir -p /var/run/docker.sock'
+ExecStart=/usr/bin/docker run --rm --name test-registrator-registrator -P -v /var/run/docker.sock:/tmp/docker.sock -e SERVICE_NAME=test-registrator-registrator --cap-add IPC_LOCK gliderlabs/registrator:latest etcd://${COREOS_PRIVATE_IPV4}:4001/pulcy
+ExecStop=-/usr/bin/docker stop -t 10 test-registrator-registrator
+ExecStopPost=-/usr/bin/docker rm -f test-registrator-registrator
+
+[X-Fleet]
+Global=true
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

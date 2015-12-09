@@ -2,7 +2,10 @@ package jobs_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -29,8 +32,8 @@ func TestParse(t *testing.T) {
 			"simple.hcl",
 			false,
 			[]string{
-				"test-couchdb-couchdb.service",
-				"test-db-db.service",
+				"test-couchdb-couchdb@1.service",
+				"test-db-db@1.service",
 				"test-dummy-dummy@1.service",
 				"test-dummy-dummy@2.service",
 				"test-dummy-dummy@3.service",
@@ -79,19 +82,25 @@ func TestParse(t *testing.T) {
 			}
 
 			// Now generate units
-			generator := job.Generate(nil, 0)
-			ctx := units.RenderContext{
-				ProjectName:    "testproject",
-				ProjectVersion: "test-version",
-				ProjectBuild:   "test-build",
-			}
-			defer generator.RemoveTmpFiles()
-			if err := generator.WriteTmpFiles(ctx, 3); err != nil {
-				t.Fatalf("WriteTmpFiles failed: %#v", err)
-			}
-			compareUnitNames(t, tc.ExpectedUnitNames, generator.UnitNames())
+			testUnits(t, job, 1, tc.ExpectedUnitNames, tc.Name)
+			testUnits(t, job, 3, tc.ExpectedUnitNames, tc.Name)
 		}
 	}
+}
+
+func testUnits(t *testing.T, job *jobs.Job, instanceCount int, expectedUnitNames []string, testName string) {
+	generator := job.Generate(nil, 0)
+	ctx := units.RenderContext{
+		ProjectName:    "testproject",
+		ProjectVersion: "test-version",
+		ProjectBuild:   "test-build",
+	}
+	defer generator.RemoveTmpFiles()
+	if err := generator.WriteTmpFiles(ctx, instanceCount); err != nil {
+		t.Fatalf("WriteTmpFiles failed: %#v", err)
+	}
+	compareUnitNames(t, expectedUnitNames, generator.UnitNames())
+	compareUnitFiles(t, generator.FileNames(), filepath.Join(fixtureDir, "units", fmt.Sprintf("instance-count-%d", instanceCount), testName))
 }
 
 func compareJson(a, b []byte) ([]string, error) {
@@ -116,5 +125,28 @@ func compareUnitNames(t *testing.T, expected, found []string) {
 	foundStr := strings.Join(found, ",")
 	if expectedStr != foundStr {
 		t.Fatalf("Unexpected unit names. Expected '%s', got '%s'", expectedStr, foundStr)
+	}
+}
+
+func compareUnitFiles(t *testing.T, fileNames []string, fixtureDir string) {
+	for _, fn := range fileNames {
+		fixturePath := filepath.Join(fixtureDir, filepath.Base(fn))
+		if _, err := os.Stat(fixturePath); os.IsNotExist(err) || os.Getenv("UPDATE-FIXTURES") == "1" {
+			// Fixture does not yet exist, create it
+			os.MkdirAll(fixtureDir, 0755)
+			data, err := ioutil.ReadFile(fn)
+			if err != nil {
+				t.Fatalf("Failed to read '%s': %#v", fn, err)
+			}
+			if err := ioutil.WriteFile(fixturePath, data, 0755); err != nil {
+				t.Fatalf("Failed to create fixture: %#v", err)
+			}
+		} else {
+			// Compare
+			cmd := exec.Command("diff", fn, fixturePath)
+			if output, err := cmd.Output(); err != nil {
+				t.Fatalf("File '%s' is different:\n%s", fixturePath, string(output))
+			}
+		}
 	}
 }

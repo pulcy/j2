@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -207,9 +208,12 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
 		}
 		execStart = append(execStart, fmt.Sprintf("--volumes-from %s", other.containerName(ctx.ScalingGroup)))
 	}
+	envArgs := []string{}
 	for k, v := range t.Environment {
-		execStart = append(execStart, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
+		envArgs = append(envArgs, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
 	}
+	sort.Strings(envArgs)
+	execStart = append(execStart, envArgs...)
 	execStart = append(execStart, fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
 	for _, cap := range t.Capabilities {
 		execStart = append(execStart, "--cap-add "+cap)

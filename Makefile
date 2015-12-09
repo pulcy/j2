@@ -62,6 +62,9 @@ $(BIN): $(GOBUILDDIR) $(SOURCES)
 run-tests:
 	@make run-test test=./...
 
+update-tests:
+	@make run-tests UPDATE-FIXTURES=1
+
 run-test:
 	@if test "$(test)" = "" ; then \
 		echo "missing test parameter, that is, path to test folder e.g. './middleware/'."; \
@@ -72,6 +75,7 @@ run-test:
 	    -v $(shell pwd):/usr/code \
 	    -e GOPATH=/usr/code/.gobuild \
 		-e TEST_ENV=test-env \
+		-e UPDATE-FIXTURES=$(UPDATE-FIXTURES) \
 	    -w /usr/code \
 		golang:$(GOVERSION) \
 	    go test $(test)

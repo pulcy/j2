@@ -1,0 +1,26 @@
+[Unit]
+Description=Main unit for test/global/global slice 1
+Requires=docker.service
+Requires=docker.service
+After=docker.service
+After=yard.service
+
+[Service]
+Restart=on-failure
+RestartSec=1
+StartLimitInterval=300s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+ExecStartPre=/usr/bin/docker pull alpine:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 test-global-global
+ExecStartPre=-/usr/bin/docker rm -f test-global-global
+ExecStart=/usr/bin/docker run --rm --name test-global-global -P -e SERVICE_NAME=test-global-global alpine:latest
+ExecStop=-/usr/bin/docker stop -t 10 test-global-global
+ExecStopPost=-/usr/bin/docker rm -f test-global-global
+
+[X-Fleet]
+Global=true
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

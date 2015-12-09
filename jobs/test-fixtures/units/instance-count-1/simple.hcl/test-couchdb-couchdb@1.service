@@ -1,0 +1,26 @@
+[Unit]
+Description=Main unit for test/couchdb/couchdb slice 1
+Requires=docker.service
+Requires=docker.service
+After=docker.service
+After=yard.service
+
+[Service]
+Restart=on-failure
+RestartSec=1
+StartLimitInterval=300s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+ExecStartPre=/usr/bin/docker pull couchdb:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 test-couchdb-couchdb-1
+ExecStartPre=-/usr/bin/docker rm -f test-couchdb-couchdb-1
+ExecStart=/usr/bin/docker run --rm --name test-couchdb-couchdb-1 -P -e SERVICE_NAME=test-couchdb-couchdb couchdb:latest
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3QuY291Y2hkYi5jb3VjaGRiLnByaXZhdGUiLCJwb3J0Ijo1OTg0LCJwcml2YXRlIjp0cnVlfV0sInNlcnZpY2UiOiJ0ZXN0LWNvdWNoZGItY291Y2hkYiJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-couchdb-couchdb'
+ExecStop=-/usr/bin/docker stop -t 10 test-couchdb-couchdb-1
+ExecStopPost=-/usr/bin/docker rm -f test-couchdb-couchdb-1
+
+[X-Fleet]
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

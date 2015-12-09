@@ -1,0 +1,27 @@
+[Unit]
+Description=Main unit for test/web/storage slice 2
+Requires=docker.service
+Requires=docker.service
+After=docker.service
+After=yard.service
+
+[Service]
+Restart=on-failure
+RestartSec=1
+StartLimitInterval=300s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+ExecStartPre=/usr/bin/docker pull mystorage:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 test-web-storage-2
+ExecStartPre=-/usr/bin/docker rm -f test-web-storage-2
+ExecStart=/usr/bin/docker run --rm --name test-web-storage-2 -P -e SERVICE_NAME=test-web-storage mystorage:latest
+ExecStop=-/usr/bin/docker stop -t 10 test-web-storage-2
+ExecStopPost=-/usr/bin/docker rm -f test-web-storage-2
+
+[X-Fleet]
+Conflicts=test-web-storage@*.service
+MachineOf=test-web-backup@2.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

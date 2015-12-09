@@ -90,9 +90,9 @@ func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
 }
 
 // Is this group scalable?
-// That is count > 1 and not global
+// That mean "not global"
 func (tg *TaskGroup) IsScalable() bool {
-	return tg.Count > 1 && !tg.Global
+	return !tg.Global
 }
 
 // createUnits creates all units needed to run this taskgroup.
