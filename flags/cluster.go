@@ -17,13 +17,13 @@ const (
 // Cluster contains all variables describing a cluster (deployment target)
 type Cluster struct {
 	// Name within the domain e.g. alpha-c32
-	Stack string `maspstructure:"stack"`
+	Stack string `mapstructure:"stack"`
 	// Domain name e.g. pulcy.com
-	Domain string `maspstructure:"domain"`
+	Domain string `mapstructure:"domain"`
 	// SSH tunnel needed to reach the cluster (optional)
-	Tunnel string `maspstructure:"tunnel,omitempty"`
+	Tunnel string `mapstructure:"tunnel,omitempty"`
 	// Size of the cluster (in instances==machines)
-	InstanceCount int `maspstructure:"instance-count,omitempty"`
+	InstanceCount int `mapstructure:"instance-count,omitempty"`
 
 	DefaultOptions Options `mapstructure:"default-options,omitempty"`
 }
@@ -78,9 +78,7 @@ func ParseClusterFromFile(path string) (*Cluster, error) {
 	}
 
 	// Parse hcl into Cluster
-	cluster := &Cluster{
-		InstanceCount: defaultInstanceCount,
-	}
+	cluster := &Cluster{}
 	if err := cluster.parse(matches); err != nil {
 		return nil, maskAny(err)
 	}
@@ -112,11 +110,13 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 		return maskAny(err)
 	}
 	delete(m, "default-options")
+	fmt.Printf("cluster map=%#v\n", m)
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, c); err != nil {
 		return maskAny(err)
 	}
+	fmt.Printf("cluster=%#v\n", c)
 
 	if o := ot.List.Filter("default-options"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {
