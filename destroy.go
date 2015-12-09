@@ -109,7 +109,7 @@ func destroyUnits(stack string, f *fleet.FleetTunnel, units []string, stopDelay 
 	var out string
 	out, err := f.Stop(units...)
 	if err != nil {
-		return errgo.Mask(err)
+		fmt.Printf("Warning: stop failed.\n%s\n", err.Error())
 	}
 
 	fmt.Println(out)
