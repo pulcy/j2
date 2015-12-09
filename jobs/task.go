@@ -52,16 +52,18 @@ type Task struct {
 	Count  uint       `json:"-"` // This value is used during parsing only
 	Global bool       `json:"-"` // This value is used during parsing only
 
-	Type          TaskType          `json:"type,omitempty" mapstructure:"type,omitempty"`
-	Image         DockerImage       `json:"image"`
-	VolumesFrom   []TaskName        `json:"volumes-from,omitempty"`
-	Volumes       []string          `json:"volumes,omitempty"`
-	Args          []string          `json:"args,omitempty"`
-	Environment   map[string]string `json:"environment,omitempty"`
-	Ports         []string          `json:"ports,omitempty"`
-	FrontEnds     []FrontEnd        `json:"frontends,omitempty"`
-	HttpCheckPath string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
-	Capabilities  []string          `json:"capabilities,omitempty"`
+	Type             TaskType          `json:"type,omitempty" mapstructure:"type,omitempty"`
+	Image            DockerImage       `json:"image"`
+	VolumesFrom      []TaskName        `json:"volumes-from,omitempty"`
+	Volumes          []string          `json:"volumes,omitempty"`
+	Args             []string          `json:"args,omitempty"`
+	Environment      map[string]string `json:"environment,omitempty"`
+	Ports            []string          `json:"ports,omitempty"`
+	PublicFrontEnds  []PublicFrontEnd  `json:"frontends,omitempty"`
+	PrivateFrontEnds []PrivateFrontEnd `json:"private-frontends,omitempty"`
+	HttpCheckPath    string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
+	Capabilities     []string          `json:"capabilities,omitempty"`
+	Links            []LinkName        `json:"links,omitempty"`
 }
 
 type TaskList []*Task
@@ -80,7 +82,17 @@ func (t *Task) Validate() error {
 			return maskAny(err)
 		}
 	}
-	for _, f := range t.FrontEnds {
+	for _, ln := range t.Links {
+		if err := ln.Validate(); err != nil {
+			return maskAny(err)
+		}
+	}
+	for _, f := range t.PublicFrontEnds {
+		if err := f.Validate(); err != nil {
+			return maskAny(err)
+		}
+	}
+	for _, f := range t.PrivateFrontEnds {
 		if err := f.Validate(); err != nil {
 			return maskAny(err)
 		}
@@ -202,6 +214,9 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
 	for _, cap := range t.Capabilities {
 		execStart = append(execStart, "--cap-add "+cap)
 	}
+	for _, ln := range t.Links {
+		execStart = append(execStart, fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", ln.PrivateDomainName()))
+	}
 
 	execStart = append(execStart, image)
 	execStart = append(execStart, t.Args...)
@@ -248,6 +263,12 @@ func (t *Task) fullName() string {
 	return fmt.Sprintf("%s/%s", t.group.fullName(), t.Name)
 }
 
+// privateDomainName returns the DNS name (in the private namespace) for the given task.
+func (t *Task) privateDomainName() string {
+	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name)
+	return ln.PrivateDomainName()
+}
+
 // unitName returns the name of the systemd unit for this task.
 func (t *Task) unitName(scalingGroup string) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
@@ -278,15 +299,16 @@ type frontendRecord struct {
 }
 
 type frontendSelectorRecord struct {
-	Domain      string `json:"domain,omitempty"`
-	PathPrefix  string `json:"path-prefix,omitempty"`
-	SslCert     string `json:"ssl-cert,omitempty"`
-	PrivatePort int    `json:"private-port,omitempty"`
+	Domain     string `json:"domain,omitempty"`
+	PathPrefix string `json:"path-prefix,omitempty"`
+	SslCert    string `json:"ssl-cert,omitempty"`
+	Port       int    `json:"port,omitempty"`
+	Private    bool   `json:"private,omitempty"`
 }
 
 // addFrontEndRegistration adds registration code for frontends to the given units
 func (t *Task) addFrontEndRegistration(main *units.Unit) error {
-	if len(t.FrontEnds) == 0 {
+	if len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
 		return nil
 	}
 	key := "/pulcy/frontend/" + t.serviceName()
@@ -294,12 +316,18 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 		Service:       t.serviceName(),
 		HttpCheckPath: t.HttpCheckPath,
 	}
-	for _, fr := range t.FrontEnds {
+	for _, fr := range t.PublicFrontEnds {
 		record.Selectors = append(record.Selectors, frontendSelectorRecord{
-			Domain:      fr.Domain,
-			PathPrefix:  fr.PathPrefix,
-			SslCert:     fr.SslCert,
-			PrivatePort: fr.PrivatePort,
+			Domain:     fr.Domain,
+			PathPrefix: fr.PathPrefix,
+			SslCert:    fr.SslCert,
+		})
+	}
+	for _, fr := range t.PrivateFrontEnds {
+		record.Selectors = append(record.Selectors, frontendSelectorRecord{
+			Domain:  t.privateDomainName(),
+			Port:    fr.Port,
+			Private: true,
 		})
 	}
 	json, err := json.Marshal(&record)

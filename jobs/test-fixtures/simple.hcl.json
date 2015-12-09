@@ -1,72 +1,86 @@
 {
-	"name": "test",
-	"groups": [{
-		"name": "db",
-		"count": 1,
-		"tasks": [{
-			"name": "db",
-			"image": "redis:latest",
-			"volumes": ["/var/run/docker.sock:/tmp/docker.sock", "/etc:/etc"]
-		}]
-	}, {
-		"name": "dummy",
-		"count": 3,
-		"tasks": [{
-			"name": "dummy",
-			"image": "alpine:latest"
-		}]
-	}, {
-		"name": "registrator",
-		"count": 1,
-		"global": true,
-		"tasks": [{
-			"name": "registrator",
-			"image": "gliderlabs/registrator:latest",
-			"volumes": ["/var/run/docker.sock:/tmp/docker.sock"],
-			"args": ["etcd://${COREOS_PRIVATE_IPV4}:4001/pulcy"],
-			"capabilities": ["IPC_LOCK"]
-		}]
-	}, {
-		"name": "web",
-		"count": 2,
-		"tasks": [{
-				"name": "backup",
-				"type": "oneshot",
-				"image": "mybackup:latest"
-			}, {
-			"name": "nginx",
-			"image": "alpine:3.2",
-			"args": [
-				"ls",
-				"-al"
-			],
-			"environment": {
-				"key": "123",
-				"name": "ewout",
-				"envkey": "test-env",
-				"cattest": "This is the content of file.txt",
-				"quotetest": "hello",
-				"replacetest": "1.2.3",
-				"opttest1": "value1",
-				"opttest2": "value2",
-				"opttestenv": "test-env"
-			},
-			"volumes-from": ["storage"],
-			"http-check-path": "/",
-			"frontends": [{
-				"path-prefix": "/"
-			}, {
-				"domain": "foo.com"
-			}, {
-				"domain": "foo2.com",
-				"path-prefix": "/foo2",
-				"ssl-cert": "pulcy.pem"
-			}, {
-				"private-port": 1234
-			}]
-		}, {
-			"name": "storage",
-			"image": "mystorage:latest"
-		}]
-	}]
+    "name": "test",
+    "groups": [{
+        "name": "couchdb",
+        "count": 1,
+        "tasks": [{
+            "name": "couchdb",
+            "image": "couchdb:latest",
+            "private-frontends": [{
+                "port": 5984
+            }]
+        }]
+    }, {
+        "name": "db",
+        "count": 1,
+        "tasks": [{
+            "name": "db",
+            "image": "redis:latest",
+            "volumes": ["/var/run/docker.sock:/tmp/docker.sock", "/etc:/etc"],
+            "private-frontends": [{
+                "port": 80
+            }]
+        }]
+    }, {
+        "name": "dummy",
+        "count": 3,
+        "tasks": [{
+            "name": "dummy",
+            "image": "alpine:latest"
+        }]
+    }, {
+        "name": "registrator",
+        "count": 1,
+        "global": true,
+        "tasks": [{
+            "name": "registrator",
+            "image": "gliderlabs/registrator:latest",
+            "volumes": ["/var/run/docker.sock:/tmp/docker.sock"],
+            "args": ["etcd://${COREOS_PRIVATE_IPV4}:4001/pulcy"],
+            "capabilities": ["IPC_LOCK"]
+        }]
+    }, {
+        "name": "web",
+        "count": 2,
+        "tasks": [{
+            "name": "backup",
+            "type": "oneshot",
+            "image": "mybackup:latest"
+        }, {
+            "name": "nginx",
+            "image": "alpine:3.2",
+            "args": [
+                "ls",
+                "-al",
+                "--db",
+                "http://test.couchdb.couchdb.private:81"
+            ],
+            "environment": {
+                "key": "123",
+                "name": "ewout",
+                "envkey": "test-env",
+                "cattest": "This is the content of file.txt",
+                "quotetest": "hello",
+                "replacetest": "1.2.3",
+                "opttest1": "value1",
+                "opttest2": "value2",
+                "opttestenv": "test-env"
+            },
+            "links": ["test.couchdb.couchdb"],
+            "volumes-from": ["storage"],
+            "http-check-path": "/",
+            "frontends": [{
+                "path-prefix": "/"
+            }, {
+                "domain": "foo.com"
+            }, {
+                "domain": "foo2.com",
+                "path-prefix": "/foo2",
+                "ssl-cert": "pulcy.pem"
+            }]
+        }, {
+            "name": "storage",
+            "image": "mystorage:latest"
+        }]
+    }]
 }

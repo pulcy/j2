@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,6 +12,10 @@ import (
 	"github.com/juju/errgo"
 
 	fg "arvika.pulcy.com/pulcy/deployit/flags"
+)
+
+const (
+	privateLoadBalancerPort = 81
 )
 
 type jobFunctions struct {
@@ -40,6 +45,7 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 		"trim":         strings.TrimSpace,
 		"private_ipv4": jf.getPrivateIPV4,
 		"public_ipv4":  jf.getPublicIPV4,
+		"link_url":     jf.linkURL,
 	}
 }
 
@@ -103,4 +109,13 @@ func (jf *jobFunctions) cat(path string) (string, error) {
 // jobDir returns the folder containing the current jobPath.
 func (jf *jobFunctions) jobDir() string {
 	return filepath.Dir(jf.jobPath)
+}
+
+// linkURL creates an URL to the domain name (in private namespace) of the given link
+func (jf *jobFunctions) linkURL(linkName string) (string, error) {
+	ln := LinkName(linkName)
+	if err := ln.Validate(); err != nil {
+		return "", maskAny(err)
+	}
+	return fmt.Sprintf("http://%s:%d", ln.PrivateDomainName(), privateLoadBalancerPort), nil
 }

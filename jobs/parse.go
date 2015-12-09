@@ -92,16 +92,8 @@ func (j *Job) parse(list *ast.ObjectList) error {
 	// Get our job object
 	obj := list.Items[0]
 
-	// Decode the full thing into a map[string]interface for ease
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
-		return maskAny(err)
-	}
-	delete(m, "group")
-	delete(m, "task")
-
-	// Decode the rest
-	if err := mapstructure.WeakDecode(m, j); err != nil {
+	// Decode the object
+	if err := decode(obj.Val, []string{"group", "task"}, nil, j); err != nil {
 		return maskAny(err)
 	}
 
@@ -180,19 +172,11 @@ func (j *Job) parseGroups(list *ast.ObjectList) error {
 
 // parse a task group
 func (tg *TaskGroup) parse(obj *ast.ObjectType) error {
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, obj); err != nil {
-		return maskAny(err)
-	}
-	delete(m, "task")
-
-	// Default count to 1 if not specified
-	if _, ok := m["count"]; !ok {
-		m["count"] = defaultCount
-	}
-
 	// Build the group with the basic decode
-	if err := mapstructure.WeakDecode(m, tg); err != nil {
+	defaultValues := map[string]interface{}{
+		"count": defaultCount,
+	}
+	if err := decode(obj, []string{"task"}, defaultValues, tg); err != nil {
 		return maskAny(err)
 	}
 
@@ -240,24 +224,21 @@ func (tg *TaskGroup) parseTasks(list *ast.ObjectList) error {
 
 // parse a task
 func (t *Task) parse(obj *ast.ObjectType) error {
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, obj); err != nil {
-		return err
-	}
-	delete(m, "env")
-	delete(m, "image")
-	delete(m, "volumes")
-	delete(m, "volumes-from")
-	delete(m, "frontend")
-	delete(m, "capabilities")
-
-	// Default count to 1 if not specified
-	if _, ok := m["count"]; !ok {
-		m["count"] = defaultCount
-	}
-
 	// Build the task
-	if err := mapstructure.WeakDecode(m, t); err != nil {
+	excludedKeys := []string{
+		"env",
+		"image",
+		"volumes",
+		"volumes-from",
+		"frontend",
+		"private-frontend",
+		"capabilities",
+		"links",
+	}
+	defaultValues := map[string]interface{}{
+		"count": defaultCount,
+	}
+	if err := decode(obj, excludedKeys, defaultValues, t); err != nil {
 		return maskAny(err)
 	}
 
@@ -281,11 +262,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 	// If we have env, then parse them
 	if o := obj.List.Filter("env"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {
-			var m map[string]interface{}
-			if err := hcl.DecodeObject(&m, o.Val); err != nil {
-				return maskAny(err)
-			}
-			if err := mapstructure.WeakDecode(m, &t.Environment); err != nil {
+			if err := decode(o.Val, nil, nil, &t.Environment); err != nil {
 				return maskAny(err)
 			}
 		}
@@ -320,17 +297,43 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 		t.Capabilities = list
 	}
 
-	// Parse frontends
+	// Parse links
+	if o := obj.List.Filter("links"); len(o.Items) > 0 {
+		list, err := parseStringList(o, fmt.Sprintf("links of task %s", t.Name))
+		if err != nil {
+			return maskAny(err)
+		}
+		for _, x := range list {
+			t.Links = append(t.Links, LinkName(x).normalize())
+		}
+	}
+
+	// Parse public frontends
 	if o := obj.List.Filter("frontend"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {
 			if obj, ok := o.Val.(*ast.ObjectType); ok {
-				f := FrontEnd{}
+				f := PublicFrontEnd{}
 				if err := f.parse(obj); err != nil {
 					return maskAny(err)
 				}
-				t.FrontEnds = append(t.FrontEnds, f)
+				t.PublicFrontEnds = append(t.PublicFrontEnds, f)
 			} else {
 				return maskAny(errgo.WithCausef(nil, ValidationError, "frontend of task %s is not an object or array", t.Name))
+			}
+		}
+	}
+
+	// Parse private frontends
+	if o := obj.List.Filter("private-frontend"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				f := PrivateFrontEnd{}
+				if err := f.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				t.PrivateFrontEnds = append(t.PrivateFrontEnds, f)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "private-frontend of task %s is not an object or array", t.Name))
 			}
 		}
 	}
@@ -338,15 +341,23 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 	return nil
 }
 
-// parse a frontend
-func (f *FrontEnd) parse(obj *ast.ObjectType) error {
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, obj); err != nil {
-		return err
+// parse a public frontend
+func (f *PublicFrontEnd) parse(obj *ast.ObjectType) error {
+	// Build the frontend
+	if err := decode(obj, nil, nil, f); err != nil {
+		return maskAny(err)
 	}
 
+	return nil
+}
+
+// parse a private frontend
+func (f *PrivateFrontEnd) parse(obj *ast.ObjectType) error {
 	// Build the frontend
-	if err := mapstructure.WeakDecode(m, f); err != nil {
+	defaultValues := map[string]interface{}{
+		"port": 80,
+	}
+	if err := decode(obj, nil, defaultValues, f); err != nil {
 		return maskAny(err)
 	}
 
@@ -371,4 +382,21 @@ func parseStringList(o *ast.ObjectList, context string) ([]string, error) {
 		}
 	}
 	return result, nil
+}
+
+// Decode from object to data structure using `mapstructure`
+func decode(obj ast.Node, excludeKeys []string, defaultValues map[string]interface{}, data interface{}) error {
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj); err != nil {
+		return maskAny(err)
+	}
+	for _, key := range excludeKeys {
+		delete(m, key)
+	}
+	for k, v := range defaultValues {
+		if _, ok := m[k]; !ok {
+			m[k] = v
+		}
+	}
+	return maskAny(mapstructure.WeakDecode(m, data))
 }
