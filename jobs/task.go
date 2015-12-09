@@ -342,6 +342,7 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 	if err != nil {
 		return maskAny(err)
 	}
+	main.ProjectSetting("FrontEndRegistration", key+"="+string(json))
 	main.ExecOptions.ExecStartPost = append(main.ExecOptions.ExecStartPost,
 		fmt.Sprintf("/bin/sh -c 'echo %s | base64 -d | /usr/bin/etcdctl set %s'", base64.StdEncoding.EncodeToString(json), key),
 	)

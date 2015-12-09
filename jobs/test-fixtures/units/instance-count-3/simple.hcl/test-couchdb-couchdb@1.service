@@ -25,3 +25,4 @@ Conflicts=test-couchdb-couchdb@*.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
+FrontEndRegistration="/pulcy/frontend/test-couchdb-couchdb={\"selectors\":[{\"domain\":\"test.couchdb.couchdb.private\",\"port\":5984,\"private\":true}],\"service\":\"test-couchdb-couchdb\"}"

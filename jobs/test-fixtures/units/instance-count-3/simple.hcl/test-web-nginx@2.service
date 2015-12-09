@@ -28,3 +28,4 @@ MachineOf=test-web-backup@2.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
+FrontEndRegistration="/pulcy/frontend/test-web-nginx={\"selectors\":[{\"path-prefix\":\"/\"},{\"domain\":\"foo.com\"},{\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\"}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"

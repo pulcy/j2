@@ -27,3 +27,4 @@ Conflicts=test-db-db@*.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
+FrontEndRegistration="/pulcy/frontend/test-db-db={\"selectors\":[{\"domain\":\"test.db.db.private\",\"port\":80,\"private\":true}],\"service\":\"test-db-db\"}"

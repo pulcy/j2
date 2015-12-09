@@ -91,8 +91,11 @@ func (u *Unit) Render(ctx RenderContext) string {
 	lines = append(lines,
 		fmt.Sprintf("[X-%s]", ctx.ProjectName),
 		fmt.Sprintf("GeneratedBy=\"%s %s, build %s\"", ctx.ProjectName, ctx.ProjectVersion, ctx.ProjectBuild),
-		"",
 	)
+	for k, v := range u.projectSettings {
+		lines = append(lines, fmt.Sprintf("%s=%s", k, strconv.Quote(v)))
+	}
+	lines = append(lines, "")
 
 	return strings.Join(lines, "\n")
 }
