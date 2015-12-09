@@ -66,6 +66,12 @@ func Exitf(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
+func Verbosef(format string, args ...interface{}) {
+	if globalFlags.verbose {
+		fmt.Printf(format, args...)
+	}
+}
+
 func assert(err error) {
 	if err != nil {
 		Exitf("Assertion failed: %#v", err)

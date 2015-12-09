@@ -110,13 +110,11 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 		return maskAny(err)
 	}
 	delete(m, "default-options")
-	fmt.Printf("cluster map=%#v\n", m)
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, c); err != nil {
 		return maskAny(err)
 	}
-	fmt.Printf("cluster=%#v\n", c)
 
 	if o := ot.List.Filter("default-options"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {

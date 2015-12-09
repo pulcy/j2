@@ -122,7 +122,7 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		return nil, maskAny(err)
 	}
 
-	descriptionPostfix := fmt.Sprintf("[slice %d of %d]", ctx.ScalingGroup, t.group.Count)
+	descriptionPostfix := fmt.Sprintf("[slice %d]", ctx.ScalingGroup)
 	if t.group.Global {
 		descriptionPostfix = "[global]"
 	}

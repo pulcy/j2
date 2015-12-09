@@ -1,5 +1,5 @@
 [Unit]
-Description=Main unit for test/dummy/dummy [slice 1 of 3]
+Description=Main unit for test/dummy/dummy [slice 1]
 Requires=docker.service
 Requires=docker.service
 After=docker.service

@@ -1,5 +1,5 @@
 [Unit]
-Description=Main unit for test/web/nginx [slice 2 of 2]
+Description=Main unit for test/web/nginx [slice 2]
 Requires=docker.service
 Requires=test-web-storage@2.service
 Requires=docker.service

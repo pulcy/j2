@@ -55,6 +55,15 @@ func (f *FleetTunnel) List() ([]string, error) {
 	return strings.Split(strings.TrimSpace(stdOut), "\n"), nil
 }
 
+func (f *FleetTunnel) Cat(unitName string) (string, error) {
+	stdOut, err := f.exec("cat", unitName)
+	if err != nil {
+		return "", err
+	}
+
+	return stdOut, nil
+}
+
 func (f *FleetTunnel) exec(subcmd string, args ...string) (string, error) {
 	params := []string{
 		"--request-timeout=10",
