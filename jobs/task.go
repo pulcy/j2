@@ -8,10 +8,20 @@ import (
 	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
-var (
+const (
 	secretsPath     = "/tmp/secrets"
 	unitKindMain    = "-mn"
 	unitKindSecrets = "-sc"
+)
+
+var (
+	commonAfter = []string{
+		"docker.service",
+		"yard.service",
+	}
+	commonRequires = []string{
+		"docker.service",
+	}
 )
 
 type Task struct {

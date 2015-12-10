@@ -142,10 +142,8 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
 
 // createMainAfter creates the `After=` sequence for the main unit
 func (t *Task) createMainAfter(ctx generatorContext) ([]string, error) {
-	after := []string{
-		"docker.service",
-		"yard.service",
-	}
+	after := append([]string{}, commonAfter...)
+
 	if len(t.Secrets) > 0 {
 		secretsUnit := t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
 		after = append(after, secretsUnit)
@@ -163,9 +161,7 @@ func (t *Task) createMainAfter(ctx generatorContext) ([]string, error) {
 
 // createMainRequires creates the `Requires=` sequence for the main unit
 func (t *Task) createMainRequires(ctx generatorContext) ([]string, error) {
-	requires := []string{
-		"docker.service",
-	}
+	requires := append([]string{}, commonRequires...)
 
 	if len(t.Secrets) > 0 {
 		secretsUnit := t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"

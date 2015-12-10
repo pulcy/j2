@@ -31,18 +31,9 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 
 	// Service dependencies
 	// Requires=
-	//main.ExecOptions.Require("flanneld.service")
-	if requires, err := t.createMainRequires(ctx); err != nil {
-		return nil, maskAny(err)
-	} else {
-		unit.ExecOptions.Require(requires...)
-	}
+	unit.ExecOptions.Require(commonRequires...)
 	// After=...
-	if after, err := t.createMainAfter(ctx); err != nil {
-		return nil, maskAny(err)
-	} else {
-		unit.ExecOptions.After(after...)
-	}
+	unit.ExecOptions.After(commonAfter...)
 
 	return unit, nil
 }
