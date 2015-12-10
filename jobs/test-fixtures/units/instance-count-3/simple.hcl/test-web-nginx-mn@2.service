@@ -1,11 +1,11 @@
 [Unit]
 Description=Main unit for test/web/nginx [slice 2]
 Requires=docker.service
-Requires=test-web-storage@2.service
+Requires=test-web-storage-mn@2.service
 Requires=docker.service
 After=docker.service
 After=yard.service
-After=test-web-storage@2.service
+After=test-web-storage-mn@2.service
 
 [Service]
 Restart=on-failure
@@ -23,8 +23,8 @@ ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-2
 ExecStopPost=-/usr/bin/docker rm -f test-web-nginx-2
 
 [X-Fleet]
-Conflicts=test-web-nginx@*.service
-MachineOf=test-web-backup@2.service
+Conflicts=test-web-nginx-mn@*.service
+MachineOf=test-web-backup-mn@2.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

@@ -20,7 +20,7 @@ ExecStop=-/usr/bin/docker stop -t 10 test-web-storage-1
 ExecStopPost=-/usr/bin/docker rm -f test-web-storage-1
 
 [X-Fleet]
-MachineOf=test-web-backup@1.service
+MachineOf=test-web-backup-mn@1.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

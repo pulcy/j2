@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -17,6 +18,9 @@ import (
 
 var (
 	taskNamePattern = regexp.MustCompile(`^([a-z0-9_]{2,30})$`)
+	secretsPath     = "/tmp/secrets"
+	unitKindMain    = "-mn"
+	unitKindSecrets = "-sc"
 )
 
 type TaskName string
@@ -65,6 +69,7 @@ type Task struct {
 	HttpCheckPath    string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
 	Capabilities     []string          `json:"capabilities,omitempty"`
 	Links            []LinkName        `json:"links,omitempty"`
+	Secrets          []Secret          `json:"secrets,omitempty"`
 }
 
 type TaskList []*Task
@@ -98,12 +103,26 @@ func (t *Task) Validate() error {
 			return maskAny(err)
 		}
 	}
+	for _, s := range t.Secrets {
+		if err := s.Validate(); err != nil {
+			return maskAny(err)
+		}
+	}
 	return nil
 }
 
 // createUnits creates all units needed to run this task.
 func (t *Task) createUnits(ctx generatorContext) ([]*units.Unit, error) {
 	units := []*units.Unit{}
+
+	if len(t.Secrets) > 0 {
+		unit, err := t.createSecretsUnit(ctx)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		units = append(units, unit)
+	}
+
 	main, err := t.createMainUnit(ctx)
 	if err != nil {
 		return nil, maskAny(err)
@@ -127,8 +146,8 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		descriptionPostfix = "[global]"
 	}
 	main := &units.Unit{
-		Name:         t.unitName(strconv.Itoa(int(ctx.ScalingGroup))),
-		FullName:     t.unitName(strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
+		Name:         t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))),
+		FullName:     t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
 		Description:  fmt.Sprintf("Main unit for %s %s", t.fullName(), descriptionPostfix),
 		Type:         "service",
 		Scalable:     t.group.IsScalable(),
@@ -158,7 +177,7 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	}
 	main.FleetOptions.IsGlobal = t.group.Global
 	if t.group.IsScalable() && ctx.InstanceCount > 1 {
-		main.FleetOptions.Conflicts(t.unitName("*") + ".service")
+		main.FleetOptions.Conflicts(t.unitName(unitKindMain, "*") + ".service")
 	}
 
 	// Service dependencies
@@ -205,6 +224,15 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
 	for _, v := range t.Volumes {
 		execStart = append(execStart, fmt.Sprintf("-v %s", v))
 	}
+	for _, secret := range t.Secrets {
+		if ok, path := secret.TargetFile(); ok {
+			hostPath, err := t.secretHostPath(secret, ctx.ScalingGroup)
+			if err != nil {
+				return nil, maskAny(err)
+			}
+			execStart = append(execStart, fmt.Sprintf("-v %s:%s:ro", hostPath, path))
+		}
+	}
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
 		if err != nil {
@@ -215,6 +243,11 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
 	envArgs := []string{}
 	for k, v := range t.Environment {
 		envArgs = append(envArgs, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
+	}
+	for _, secret := range t.Secrets {
+		if ok, key := secret.TargetEnviroment(); ok {
+			envArgs = append(envArgs, "-e "+strconv.Quote(fmt.Sprintf("%s=${%s}", key, key)))
+		}
 	}
 	sort.Strings(envArgs)
 	execStart = append(execStart, envArgs...)
@@ -238,12 +271,16 @@ func (t *Task) createMainAfter(ctx generatorContext) ([]string, error) {
 		"docker.service",
 		"yard.service",
 	}
+	if len(t.Secrets) > 0 {
+		secretsUnit := t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
+		after = append(after, secretsUnit)
+	}
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		after = append(after, other.unitName(strconv.Itoa(int(ctx.ScalingGroup)))+".service")
+		after = append(after, other.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup)))+".service")
 	}
 
 	return after, nil
@@ -255,15 +292,65 @@ func (t *Task) createMainRequires(ctx generatorContext) ([]string, error) {
 		"docker.service",
 	}
 
+	if len(t.Secrets) > 0 {
+		secretsUnit := t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
+		requires = append(requires, secretsUnit)
+	}
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		requires = append(requires, other.unitName(strconv.Itoa(int(ctx.ScalingGroup)))+".service")
+		requires = append(requires, other.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup)))+".service")
 	}
 
 	return requires, nil
+}
+
+// createSecretsUnit creates a unit used to extract secrets from vault
+func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
+	descriptionPostfix := fmt.Sprintf("[slice %d]", ctx.ScalingGroup)
+	if t.group.Global {
+		descriptionPostfix = "[global]"
+	}
+
+	execStart := []string{"TODO"}
+	unit := &units.Unit{
+		Name:         t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))),
+		FullName:     t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
+		Description:  fmt.Sprintf("Secrets unit for %s %s", t.fullName(), descriptionPostfix),
+		Type:         "service",
+		Scalable:     t.group.IsScalable(),
+		ScalingGroup: ctx.ScalingGroup,
+		ExecOptions:  units.NewExecOptions(execStart...),
+		FleetOptions: units.NewFleetOptions(),
+	}
+	unit.ExecOptions.IsOneshot = true
+	unit.ExecOptions.ExecStopPost = []string{
+	// TODO cleanup
+	//fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
+	}
+	unit.FleetOptions.IsGlobal = t.group.Global
+	if t.group.IsScalable() && ctx.InstanceCount > 1 {
+		unit.FleetOptions.Conflicts(t.unitName(unitKindSecrets, "*") + ".service")
+	}
+
+	// Service dependencies
+	// Requires=
+	//main.ExecOptions.Require("flanneld.service")
+	if requires, err := t.createMainRequires(ctx); err != nil {
+		return nil, maskAny(err)
+	} else {
+		unit.ExecOptions.Require(requires...)
+	}
+	// After=...
+	if after, err := t.createMainAfter(ctx); err != nil {
+		return nil, maskAny(err)
+	} else {
+		unit.ExecOptions.After(after...)
+	}
+
+	return unit, nil
 }
 
 // Gets the full name of this task: job/taskgroup/task
@@ -277,9 +364,18 @@ func (t *Task) privateDomainName() string {
 	return ln.PrivateDomainName()
 }
 
+// secretHostPath creates the path of the host of a given secret for the given task.
+func (t *Task) secretHostPath(secret Secret, scalingGroup uint) (string, error) {
+	hash, err := secret.hash()
+	if err != nil {
+		return "", maskAny(err)
+	}
+	return filepath.Join(secretsPath, t.containerName(scalingGroup), hash), nil
+}
+
 // unitName returns the name of the systemd unit for this task.
-func (t *Task) unitName(scalingGroup string) string {
-	base := strings.Replace(t.fullName(), "/", "-", -1)
+func (t *Task) unitName(kind string, scalingGroup string) string {
+	base := strings.Replace(t.fullName(), "/", "-", -1) + kind
 	if !t.group.IsScalable() {
 		return base
 	}

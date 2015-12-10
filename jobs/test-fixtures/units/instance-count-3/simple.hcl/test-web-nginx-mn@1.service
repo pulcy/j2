@@ -1,11 +1,11 @@
 [Unit]
-Description=Main unit for test/web/nginx [slice 2]
+Description=Main unit for test/web/nginx [slice 1]
 Requires=docker.service
-Requires=test-web-storage@2.service
+Requires=test-web-storage-mn@1.service
 Requires=docker.service
 After=docker.service
 After=yard.service
-After=test-web-storage@2.service
+After=test-web-storage-mn@1.service
 
 [Service]
 Restart=on-failure
@@ -15,15 +15,16 @@ StartLimitBurst=3
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
 ExecStartPre=/usr/bin/docker pull alpine:3.2
-ExecStartPre=-/usr/bin/docker stop -t 10 test-web-nginx-2
-ExecStartPre=-/usr/bin/docker rm -f test-web-nginx-2
-ExecStart=/usr/bin/docker run --rm --name test-web-nginx-2 -P --volumes-from test-web-storage-2 -e "cattest=This is the content of file.txt" -e "envkey=test-env" -e "key=123" -e "name=ewout" -e "opttest1=value1" -e "opttest2=value2" -e "opttestenv=test-env" -e "quotetest=hello" -e "replacetest=1.2.3" -e SERVICE_NAME=test-web-nginx --add-host test.couchdb.couchdb.private:${COREOS_PRIVATE_IPV4} alpine:3.2 ls -al --db http://test.couchdb.couchdb.private:81
+ExecStartPre=-/usr/bin/docker stop -t 10 test-web-nginx-1
+ExecStartPre=-/usr/bin/docker rm -f test-web-nginx-1
+ExecStart=/usr/bin/docker run --rm --name test-web-nginx-1 -P --volumes-from test-web-storage-1 -e "cattest=This is the content of file.txt" -e "envkey=test-env" -e "key=123" -e "name=ewout" -e "opttest1=value1" -e "opttest2=value2" -e "opttestenv=test-env" -e "quotetest=hello" -e "replacetest=1.2.3" -e SERVICE_NAME=test-web-nginx --add-host test.couchdb.couchdb.private:${COREOS_PRIVATE_IPV4} alpine:3.2 ls -al --db http://test.couchdb.couchdb.private:81
 ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsiZG9tYWluIjoiZm9vLmNvbSJ9LHsiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0ifV0sInNlcnZpY2UiOiJ0ZXN0LXdlYi1uZ2lueCIsImh0dHAtY2hlY2stcGF0aCI6Ii8ifQ== | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx'
-ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-2
-ExecStopPost=-/usr/bin/docker rm -f test-web-nginx-2
+ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-1
+ExecStopPost=-/usr/bin/docker rm -f test-web-nginx-1
 
 [X-Fleet]
-MachineOf=test-web-backup@2.service
+Conflicts=test-web-nginx-mn@*.service
+MachineOf=test-web-backup-mn@1.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

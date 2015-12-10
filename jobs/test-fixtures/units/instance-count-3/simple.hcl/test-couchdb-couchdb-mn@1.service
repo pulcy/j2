@@ -21,7 +21,7 @@ ExecStop=-/usr/bin/docker stop -t 10 test-couchdb-couchdb-1
 ExecStopPost=-/usr/bin/docker rm -f test-couchdb-couchdb-1
 
 [X-Fleet]
-Conflicts=test-couchdb-couchdb@*.service
+Conflicts=test-couchdb-couchdb-mn@*.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

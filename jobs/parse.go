@@ -234,6 +234,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 		"private-frontend",
 		"capabilities",
 		"links",
+		"secret",
 	}
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
@@ -338,6 +339,23 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 		}
 	}
 
+	// Parse secrets
+	if o := obj.List.Filter("secret"); len(o.Items) > 0 {
+		for _, o := range o.Children().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				s := Secret{}
+				n := o.Keys[0].Token.Value().(string)
+				if err := s.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				s.Path = n
+				t.Secrets = append(t.Secrets, s)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "secret of task %s is not an object or array", t.Name))
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -358,6 +376,16 @@ func (f *PrivateFrontEnd) parse(obj *ast.ObjectType) error {
 		"port": 80,
 	}
 	if err := decode(obj, nil, defaultValues, f); err != nil {
+		return maskAny(err)
+	}
+
+	return nil
+}
+
+// parse a secret
+func (s *Secret) parse(obj *ast.ObjectType) error {
+	// Build the secret
+	if err := decode(obj, nil, nil, s); err != nil {
 		return maskAny(err)
 	}
 
