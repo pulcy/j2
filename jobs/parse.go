@@ -398,5 +398,15 @@ func decode(obj ast.Node, excludeKeys []string, defaultValues map[string]interfa
 			m[k] = v
 		}
 	}
-	return maskAny(mapstructure.WeakDecode(m, data))
+	decoderConfig := &mapstructure.DecoderConfig{
+		ErrorUnused:      true,
+		WeaklyTypedInput: true,
+		Metadata:         nil,
+		Result:           data,
+	}
+	decoder, err := mapstructure.NewDecoder(decoderConfig)
+	if err != nil {
+		return maskAny(err)
+	}
+	return maskAny(decoder.Decode(m))
 }
