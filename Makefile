@@ -78,4 +78,4 @@ run-test:
 		-e UPDATE-FIXTURES=$(UPDATE-FIXTURES) \
 	    -w /usr/code \
 		golang:$(GOVERSION) \
-	    go test $(test)
+	    go test $(test) -v

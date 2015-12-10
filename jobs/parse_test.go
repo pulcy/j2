@@ -47,9 +47,15 @@ func TestParse(t *testing.T) {
 				"test-web-storage@2.service",
 			},
 		},
+		{
+			"extra-fields.hcl",
+			true,
+			[]string{},
+		},
 	}
 
 	for _, tc := range cases {
+		t.Logf("testing %s", tc.Name)
 		options := fg.Options{}
 		options.Set("option1=value1")
 		options.Set("option2=value2")
