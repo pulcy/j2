@@ -22,7 +22,7 @@ func (t *Task) createTimerUnit(ctx generatorContext) (*units.Unit, error) {
 		FleetOptions: units.NewFleetOptions(),
 	}
 	unit.ExecOptions.OnCalendar = t.Timer
-	unit.ExecOptions.Unit = t.unitName(unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
+	unit.ExecOptions.Unit = t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
 
 	return unit, nil
 }

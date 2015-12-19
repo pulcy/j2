@@ -37,6 +37,7 @@ job "test" {
 		task "backup" {
 			type = "oneshot"
 			image = "mybackup:latest"
+			timer = "hourly"
 		}
 	}
 

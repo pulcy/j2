@@ -1,0 +1,12 @@
+[Unit]
+Description=Timer unit for test/web/backup [slice 2]
+
+[Timer]
+OnCalendar=hourly
+Unit=test-web-backup-mn@2.service
+
+[X-Fleet]
+MachineOf=test-web-backup-mn@2.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

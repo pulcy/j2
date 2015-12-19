@@ -53,6 +53,7 @@
         "tasks": [{
             "name": "backup",
             "type": "oneshot",
+            "timer": "hourly",
             "image": "mybackup:latest"
         }, {
             "name": "nginx",
