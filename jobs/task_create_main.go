@@ -207,6 +207,7 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 			Domain:     fr.Domain,
 			PathPrefix: fr.PathPrefix,
 			SslCert:    fr.SslCert,
+			Port:       fr.Port,
 		})
 	}
 	for _, fr := range t.PrivateFrontEnds {
