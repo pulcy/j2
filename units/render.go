@@ -31,47 +31,58 @@ func (u *Unit) Render(ctx RenderContext) string {
 	}
 	lines = append(lines, "")
 
-	lines = append(lines, "[Service]")
-	if u.ExecOptions.IsOneshot {
-		lines = append(lines, "Type=oneshot")
-	}
-	if u.ExecOptions.RemainsAfterExit {
-		lines = append(lines, "RemainAfterExit=yes")
-	}
-	if !u.ExecOptions.IsOneshot {
-		lines = append(lines, "Restart="+u.ExecOptions.Restart)
-		lines = append(lines, "RestartSec="+strconv.Itoa(int(u.ExecOptions.RestartSec)))
-		lines = append(lines, "StartLimitInterval="+u.ExecOptions.StartLimitInterval)
-		lines = append(lines, "StartLimitBurst="+strconv.Itoa(int(u.ExecOptions.StartLimitBurst)))
-	}
-	lines = append(lines, "TimeoutStartSec="+strconv.Itoa(int(u.ExecOptions.TimeoutStartSec)))
-	for _, x := range u.ExecOptions.EnvironmentFiles {
-		lines = append(lines, "EnvironmentFile="+x)
-	}
-	for k, v := range u.ExecOptions.Environment {
-		lines = append(lines, fmt.Sprintf("Environment=\"%s=%s\"", k, v))
-	}
+	if u.Type == "service" {
+		lines = append(lines, "[Service]")
+		if u.ExecOptions.IsOneshot {
+			lines = append(lines, "Type=oneshot")
+		}
+		if u.ExecOptions.RemainsAfterExit {
+			lines = append(lines, "RemainAfterExit=yes")
+		}
+		if !u.ExecOptions.IsOneshot {
+			lines = append(lines, "Restart="+u.ExecOptions.Restart)
+			lines = append(lines, "RestartSec="+strconv.Itoa(int(u.ExecOptions.RestartSec)))
+			lines = append(lines, "StartLimitInterval="+u.ExecOptions.StartLimitInterval)
+			lines = append(lines, "StartLimitBurst="+strconv.Itoa(int(u.ExecOptions.StartLimitBurst)))
+		}
+		lines = append(lines, "TimeoutStartSec="+strconv.Itoa(int(u.ExecOptions.TimeoutStartSec)))
+		for _, x := range u.ExecOptions.EnvironmentFiles {
+			lines = append(lines, "EnvironmentFile="+x)
+		}
+		for k, v := range u.ExecOptions.Environment {
+			lines = append(lines, fmt.Sprintf("Environment=\"%s=%s\"", k, v))
+		}
 
-	for _, x := range u.ExecOptions.ExecStartPre {
-		lines = append(lines, "ExecStartPre="+x)
-	}
-	if u.ExecOptions.ExecStart != "" {
-		lines = append(lines, "ExecStart="+u.ExecOptions.ExecStart)
-	}
-	for _, x := range u.ExecOptions.ExecStartPost {
-		lines = append(lines, "ExecStartPost="+x)
-	}
+		for _, x := range u.ExecOptions.ExecStartPre {
+			lines = append(lines, "ExecStartPre="+x)
+		}
+		if u.ExecOptions.ExecStart != "" {
+			lines = append(lines, "ExecStart="+u.ExecOptions.ExecStart)
+		}
+		for _, x := range u.ExecOptions.ExecStartPost {
+			lines = append(lines, "ExecStartPost="+x)
+		}
 
-	for _, x := range u.ExecOptions.ExecStopPre {
-		lines = append(lines, "ExecStopPre="+x)
+		for _, x := range u.ExecOptions.ExecStopPre {
+			lines = append(lines, "ExecStopPre="+x)
+		}
+		if u.ExecOptions.ExecStop != "" {
+			lines = append(lines, "ExecStop="+u.ExecOptions.ExecStop)
+		}
+		for _, x := range u.ExecOptions.ExecStopPost {
+			lines = append(lines, "ExecStopPost="+x)
+		}
+		lines = append(lines, "")
+	} else if u.Type == "timer" {
+		lines = append(lines, "[Timer]")
+		if u.ExecOptions.OnCalendar != "" {
+			lines = append(lines, "OnCalendar="+u.ExecOptions.OnCalendar)
+		}
+		if u.ExecOptions.Unit != "" {
+			lines = append(lines, "Unit="+u.ExecOptions.Unit)
+		}
+		lines = append(lines, "")
 	}
-	if u.ExecOptions.ExecStop != "" {
-		lines = append(lines, "ExecStop="+u.ExecOptions.ExecStop)
-	}
-	for _, x := range u.ExecOptions.ExecStopPost {
-		lines = append(lines, "ExecStopPost="+x)
-	}
-	lines = append(lines, "")
 
 	lines = append(lines, "[X-Fleet]")
 	if u.FleetOptions.IsGlobal {

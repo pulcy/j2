@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/juju/errgo"
+
 	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
@@ -12,6 +14,7 @@ const (
 	secretsPath     = "/tmp/secrets"
 	unitKindMain    = "-mn"
 	unitKindSecrets = "-sc"
+	unitKindTimer   = "-ti"
 )
 
 var (
@@ -31,6 +34,7 @@ type Task struct {
 	Global bool       `json:"-"` // This value is used during parsing only
 
 	Type             TaskType          `json:"type,omitempty" mapstructure:"type,omitempty"`
+	Timer            string            `json:"timer,omitempty" mapstructure:"timer,omitempty"`
 	Image            DockerImage       `json:"image"`
 	VolumesFrom      []TaskName        `json:"volumes-from,omitempty"`
 	Volumes          []string          `json:"volumes,omitempty"`
@@ -79,6 +83,11 @@ func (t *Task) Validate() error {
 			return maskAny(err)
 		}
 	}
+	if t.Timer != "" {
+		if t.Type != "oneshot" {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "timer only valid in combination with oneshot (in '%s')", t.Name))
+		}
+	}
 	return nil
 }
 
@@ -99,6 +108,14 @@ func (t *Task) createUnits(ctx generatorContext) ([]*units.Unit, error) {
 		return nil, maskAny(err)
 	}
 	units = append(units, main)
+
+	timer, err := t.createTimerUnit(ctx)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	if timer != nil {
+		units = append(units, timer)
+	}
 
 	return units, nil
 }

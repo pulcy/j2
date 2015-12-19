@@ -6,6 +6,7 @@ import (
 )
 
 type execOptions struct {
+	// Service
 	IsOneshot               bool
 	IsForking               bool
 	RemainsAfterExit        bool
@@ -28,6 +29,10 @@ type execOptions struct {
 	after                   []string
 	MachineOf               string
 	Requires                []string
+
+	// Timer
+	OnCalendar string
+	Unit       string
 }
 
 func NewExecOptions(start ...string) *execOptions {
