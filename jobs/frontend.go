@@ -9,6 +9,7 @@ type PublicFrontEnd struct {
 	Domain     string `json:"domain,omitempty" mapstructure:"domain,omitempty"`
 	PathPrefix string `json:"path-prefix,omitempty" mapstructure:"path-prefix,omitempty"`
 	SslCert    string `json:"ssl-cert,omitempty" mapstructure:"ssl-cert,omitempty"`
+	Port       int    `json:"port,omitempty" mapstructure:"port,omitempty"`
 }
 
 // PrivateFrontEnd contains a specification of a private HTTP(S) frontend.
