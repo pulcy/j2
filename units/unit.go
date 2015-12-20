@@ -19,3 +19,14 @@ func (unit *Unit) ProjectSetting(key, value string) {
 	}
 	unit.projectSettings[key] = value
 }
+
+// GroupUnitsOnMachine modifies given list of units such
+// that all units are forced on the same machine (of the first unit)
+func GroupUnitsOnMachine(units ...*Unit) {
+	for i, u := range units {
+		if i == 0 {
+			continue
+		}
+		u.ExecOptions.MachineOf = units[0].FullName
+	}
+}

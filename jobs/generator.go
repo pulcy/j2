@@ -52,20 +52,22 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, instanceCount int) er
 				ScalingGroup:  scalingGroup,
 				InstanceCount: instanceCount,
 			}
-			units, err := tg.createUnits(genCtx)
+			unitChains, err := tg.createUnits(genCtx)
 			if err != nil {
 				return maskAny(err)
 			}
-			for _, unit := range units {
-				content := unit.Render(ctx)
-				unitName := unit.FullName
-				path := filepath.Join(g.tmpDir, unitName)
-				err := ioutil.WriteFile(path, []byte(content), 0666)
-				if err != nil {
-					return maskAny(err)
+			for _, chain := range unitChains {
+				for _, unit := range chain {
+					content := unit.Render(ctx)
+					unitName := unit.FullName
+					path := filepath.Join(g.tmpDir, unitName)
+					err := ioutil.WriteFile(path, []byte(content), 0666)
+					if err != nil {
+						return maskAny(err)
+					}
+					files = append(files, path)
+					unitNames = append(unitNames, unitName)
 				}
-				files = append(files, path)
-				unitNames = append(unitNames, unitName)
 			}
 		}
 	}

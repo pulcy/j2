@@ -92,32 +92,35 @@ func (t *Task) Validate() error {
 }
 
 // createUnits creates all units needed to run this task.
-func (t *Task) createUnits(ctx generatorContext) ([]*units.Unit, error) {
-	units := []*units.Unit{}
+func (t *Task) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
+	mainChain := units.UnitChain{}
 
 	if len(t.Secrets) > 0 {
 		unit, err := t.createSecretsUnit(ctx)
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		units = append(units, unit)
+		mainChain = append(mainChain, unit)
 	}
 
 	main, err := t.createMainUnit(ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	units = append(units, main)
+	mainChain = append(mainChain, main)
 
 	timer, err := t.createTimerUnit(ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}
+
+	chains := []units.UnitChain{mainChain}
 	if timer != nil {
-		units = append(units, timer)
+		timerChain := units.UnitChain{timer}
+		chains = append(chains, timerChain)
 	}
 
-	return units, nil
+	return chains, nil
 }
 
 // Gets the full name of this task: job/taskgroup/task

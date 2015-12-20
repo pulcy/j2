@@ -144,10 +144,6 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
 func (t *Task) createMainAfter(ctx generatorContext) ([]string, error) {
 	after := append([]string{}, commonAfter...)
 
-	if len(t.Secrets) > 0 {
-		secretsUnit := t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
-		after = append(after, secretsUnit)
-	}
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
 		if err != nil {
@@ -163,10 +159,6 @@ func (t *Task) createMainAfter(ctx generatorContext) ([]string, error) {
 func (t *Task) createMainRequires(ctx generatorContext) ([]string, error) {
 	requires := append([]string{}, commonRequires...)
 
-	if len(t.Secrets) > 0 {
-		secretsUnit := t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
-		requires = append(requires, secretsUnit)
-	}
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
 		if err != nil {

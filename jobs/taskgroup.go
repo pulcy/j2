@@ -96,7 +96,7 @@ func (tg *TaskGroup) IsScalable() bool {
 }
 
 // createUnits creates all units needed to run this taskgroup.
-func (tg *TaskGroup) createUnits(ctx generatorContext) ([]*units.Unit, error) {
+func (tg *TaskGroup) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
 	if tg.Global {
 		if ctx.ScalingGroup != 1 {
 			return nil, nil
@@ -108,21 +108,30 @@ func (tg *TaskGroup) createUnits(ctx generatorContext) ([]*units.Unit, error) {
 	}
 
 	// Create all units for my tasks
-	units := []*units.Unit{}
+	chains := []units.UnitChain{}
+	allUnits := []*units.Unit{}
 	for _, t := range tg.Tasks {
-		taskUnits, err := t.createUnits(ctx)
+		taskUnitChains, err := t.createUnits(ctx)
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		units = append(units, taskUnits...)
+		chains = append(chains, taskUnitChains...)
+		// Link chains to enfore the actual chain
+		for _, chain := range taskUnitChains {
+			chain.Link()
+		}
+		// Collect all units in the chain
+		for _, chain := range taskUnitChains {
+			allUnits = append(allUnits, chain...)
+		}
 	}
 
 	// Force units to be on the same machine
 	if !tg.Global {
-		groupUnitsOnMachine(units)
+		units.GroupUnitsOnMachine(allUnits...)
 	}
 
-	return units, nil
+	return chains, nil
 }
 
 // Gets the full name of this taskgroup: job/taskgroup
