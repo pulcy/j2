@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dchest/uniuri"
+	"github.com/nyarla/go-crypt"
+
 	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
@@ -177,11 +180,17 @@ type frontendRecord struct {
 }
 
 type frontendSelectorRecord struct {
-	Domain     string `json:"domain,omitempty"`
-	PathPrefix string `json:"path-prefix,omitempty"`
-	SslCert    string `json:"ssl-cert,omitempty"`
-	Port       int    `json:"port,omitempty"`
-	Private    bool   `json:"private,omitempty"`
+	Domain     string       `json:"domain,omitempty"`
+	PathPrefix string       `json:"path-prefix,omitempty"`
+	SslCert    string       `json:"ssl-cert,omitempty"`
+	Port       int          `json:"port,omitempty"`
+	Private    bool         `json:"private,omitempty"`
+	Users      []userRecord `json:"users,omitempty"`
+}
+
+type userRecord struct {
+	Name         string `json:"user"`
+	PasswordHash string `json:"pwhash"`
 }
 
 // addFrontEndRegistration adds registration code for frontends to the given units
@@ -194,20 +203,25 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 		Service:       t.serviceName(),
 		HttpCheckPath: t.HttpCheckPath,
 	}
+
 	for _, fr := range t.PublicFrontEnds {
-		record.Selectors = append(record.Selectors, frontendSelectorRecord{
+		selRecord := frontendSelectorRecord{
 			Domain:     fr.Domain,
 			PathPrefix: fr.PathPrefix,
 			SslCert:    fr.SslCert,
 			Port:       fr.Port,
-		})
+		}
+		selRecord.addUsers(fr.Users)
+		record.Selectors = append(record.Selectors, selRecord)
 	}
 	for _, fr := range t.PrivateFrontEnds {
-		record.Selectors = append(record.Selectors, frontendSelectorRecord{
+		selRecord := frontendSelectorRecord{
 			Domain:  t.privateDomainName(),
 			Port:    fr.Port,
 			Private: true,
-		})
+		}
+		selRecord.addUsers(fr.Users)
+		record.Selectors = append(record.Selectors, selRecord)
 	}
 	json, err := json.Marshal(&record)
 	if err != nil {
@@ -218,4 +232,16 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 		fmt.Sprintf("/bin/sh -c 'echo %s | base64 -d | /usr/bin/etcdctl set %s'", base64.StdEncoding.EncodeToString(json), key),
 	)
 	return nil
+}
+
+// addUsers adds the given users to the selector record, while encrypting the passwords.
+func (selRecord *frontendSelectorRecord) addUsers(users []User) {
+	for _, u := range users {
+		salt := uniuri.New()
+		userRec := userRecord{
+			Name:         u.Name,
+			PasswordHash: crypt.Crypt(u.Password, salt),
+		}
+		selRecord.Users = append(selRecord.Users, userRec)
+	}
 }

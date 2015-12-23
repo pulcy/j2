@@ -362,8 +362,25 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 // parse a public frontend
 func (f *PublicFrontEnd) parse(obj *ast.ObjectType) error {
 	// Build the frontend
-	if err := decode(obj, nil, nil, f); err != nil {
+	excludedKeys := []string{
+		"user",
+	}
+	if err := decode(obj, excludedKeys, nil, f); err != nil {
 		return maskAny(err)
+	}
+	if o := obj.List.Filter("user"); len(o.Items) > 0 {
+		for _, o := range o.Children().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				n := o.Keys[0].Token.Value().(string)
+				u := User{Name: n}
+				if err := u.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				f.Users = append(f.Users, u)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "user of frontend %#v is not an object or array", f))
+			}
+		}
 	}
 
 	return nil
@@ -372,11 +389,28 @@ func (f *PublicFrontEnd) parse(obj *ast.ObjectType) error {
 // parse a private frontend
 func (f *PrivateFrontEnd) parse(obj *ast.ObjectType) error {
 	// Build the frontend
+	excludedKeys := []string{
+		"user",
+	}
 	defaultValues := map[string]interface{}{
 		"port": 80,
 	}
-	if err := decode(obj, nil, defaultValues, f); err != nil {
+	if err := decode(obj, excludedKeys, defaultValues, f); err != nil {
 		return maskAny(err)
+	}
+	if o := obj.List.Filter("user"); len(o.Items) > 0 {
+		for _, o := range o.Children().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				n := o.Keys[0].Token.Value().(string)
+				u := User{Name: n}
+				if err := u.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				f.Users = append(f.Users, u)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "user of frontend %#v is not an object or array", f))
+			}
+		}
 	}
 
 	return nil
@@ -386,6 +420,16 @@ func (f *PrivateFrontEnd) parse(obj *ast.ObjectType) error {
 func (s *Secret) parse(obj *ast.ObjectType) error {
 	// Build the secret
 	if err := decode(obj, nil, nil, s); err != nil {
+		return maskAny(err)
+	}
+
+	return nil
+}
+
+// parse a user
+func (u *User) parse(obj *ast.ObjectType) error {
+	// Build the secret
+	if err := decode(obj, nil, nil, u); err != nil {
 		return maskAny(err)
 	}
 

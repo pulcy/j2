@@ -18,7 +18,7 @@ ExecStartPre=/usr/bin/docker pull alpine:3.2
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-nginx-2
 ExecStartPre=-/usr/bin/docker rm -f test-web-nginx-2
 ExecStart=/usr/bin/docker run --rm --name test-web-nginx-2 -P --volumes-from test-web-storage-2 -e "cattest=This is the content of file.txt" -e "envkey=test-env" -e "key=123" -e "name=ewout" -e "opttest1=value1" -e "opttest2=value2" -e "opttestenv=test-env" -e "quotetest=hello" -e "replacetest=1.2.3" -e SERVICE_NAME=test-web-nginx --add-host test.couchdb.couchdb.private:${COREOS_PRIVATE_IPV4} alpine:3.2 ls -al --db http://test.couchdb.couchdb.private:81
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsiZG9tYWluIjoiZm9vLmNvbSJ9LHsiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0ifV0sInNlcnZpY2UiOiJ0ZXN0LXdlYi1uZ2lueCIsImh0dHAtY2hlY2stcGF0aCI6Ii8ifQ== | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx'
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsiZG9tYWluIjoiZm9vLmNvbSJ9LHsiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6ImVoaEUzL2phM2ZhZVkifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx'
 ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-2
 ExecStopPost=-/usr/bin/docker rm -f test-web-nginx-2
 
@@ -27,4 +27,4 @@ MachineOf=test-web-backup-mn@2.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration="/pulcy/frontend/test-web-nginx={\"selectors\":[{\"path-prefix\":\"/\"},{\"domain\":\"foo.com\"},{\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\"}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"
+FrontEndRegistration="/pulcy/frontend/test-web-nginx={\"selectors\":[{\"path-prefix\":\"/\"},{\"domain\":\"foo.com\"},{\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\",\"users\":[{\"user\":\"tester\",\"pwhash\":\"ehhE3/ja3faeY\"}]}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"

@@ -18,7 +18,11 @@
             "image": "redis:latest",
             "volumes": ["/var/run/docker.sock:/tmp/docker.sock", "/etc:/etc"],
             "private-frontends": [{
-                "port": 80
+                "port": 80,
+                "users": [{
+                    "name": "admin",
+                    "password": "dummy"
+                }]
             }]
         }]
     }, {
@@ -85,7 +89,11 @@
             }, {
                 "domain": "foo2.com",
                 "path-prefix": "/foo2",
-                "ssl-cert": "pulcy.pem"
+                "ssl-cert": "pulcy.pem",
+                "users": [{
+                    "name": "tester",
+                    "password": "foo"
+                }]
             }]
         }, {
             "name": "storage",

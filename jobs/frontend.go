@@ -10,11 +10,19 @@ type PublicFrontEnd struct {
 	PathPrefix string `json:"path-prefix,omitempty" mapstructure:"path-prefix,omitempty"`
 	SslCert    string `json:"ssl-cert,omitempty" mapstructure:"ssl-cert,omitempty"`
 	Port       int    `json:"port,omitempty" mapstructure:"port,omitempty"`
+	Users      []User `json:"users,omitempty"`
 }
 
 // PrivateFrontEnd contains a specification of a private HTTP(S) frontend.
 type PrivateFrontEnd struct {
-	Port int `json:"port,omitempty" mapstructure:"port,omitempty"`
+	Port  int    `json:"port,omitempty" mapstructure:"port,omitempty"`
+	Users []User `json:"users,omitempty"`
+}
+
+// User contains a user name+password who has access to a frontend
+type User struct {
+	Name     string `json:"name" mapstructure:"name"`
+	Password string `json:"password" mapstructure:"password"`
 }
 
 // Validate checks the values of the given frontend.

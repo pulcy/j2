@@ -47,6 +47,8 @@ $(GOBUILDDIR):
 	@cd $(GOPATH) && pulcy go get github.com/hashicorp/hcl
 	@cd $(GOPATH) && pulcy go get github.com/kr/pretty
 	@cd $(GOPATH) && pulcy go get github.com/kardianos/osext
+	@cd $(GOPATH) && pulcy go get github.com/nyarla/go-crypt
+	@cd $(GOPATH) && pulcy go get github.com/dchest/uniuri
 
 $(BIN): $(GOBUILDDIR) $(SOURCES)
 	docker run \

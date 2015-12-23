@@ -18,7 +18,7 @@ ExecStartPre=-/usr/bin/docker rm -f test-db-db-1
 ExecStartPre=/bin/sh -c 'test -e /var/run/docker.sock || mkdir -p /var/run/docker.sock'
 ExecStartPre=/bin/sh -c 'test -e /etc || mkdir -p /etc'
 ExecStart=/usr/bin/docker run --rm --name test-db-db-1 -P -v /var/run/docker.sock:/tmp/docker.sock -v /etc:/etc -e SERVICE_NAME=test-db-db redis:latest
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3QuZGIuZGIucHJpdmF0ZSIsInBvcnQiOjgwLCJwcml2YXRlIjp0cnVlfV0sInNlcnZpY2UiOiJ0ZXN0LWRiLWRiIn0= | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-db-db'
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3QuZGIuZGIucHJpdmF0ZSIsInBvcnQiOjgwLCJwcml2YXRlIjp0cnVlLCJ1c2VycyI6W3sidXNlciI6ImFkbWluIiwicHdoYXNoIjoiRTBkNU9vTFI0bUovcyJ9XX1dLCJzZXJ2aWNlIjoidGVzdC1kYi1kYiJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-db-db'
 ExecStop=-/usr/bin/docker stop -t 10 test-db-db-1
 ExecStopPost=-/usr/bin/docker rm -f test-db-db-1
 
@@ -26,4 +26,4 @@ ExecStopPost=-/usr/bin/docker rm -f test-db-db-1
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration="/pulcy/frontend/test-db-db={\"selectors\":[{\"domain\":\"test.db.db.private\",\"port\":80,\"private\":true}],\"service\":\"test-db-db\"}"
+FrontEndRegistration="/pulcy/frontend/test-db-db={\"selectors\":[{\"domain\":\"test.db.db.private\",\"port\":80,\"private\":true,\"users\":[{\"user\":\"admin\",\"pwhash\":\"E0d5OoLR4mJ/s\"}]}],\"service\":\"test-db-db\"}"

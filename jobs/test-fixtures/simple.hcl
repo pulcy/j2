@@ -29,6 +29,9 @@ job "test" {
 				domain = "foo2.com"
 				path-prefix = "/foo2"
 				ssl-cert = "pulcy.pem"
+				user "tester" {
+					password = "foo"
+				}
 			}
 		}
 		task "storage" {
@@ -49,7 +52,11 @@ job "test" {
 	task "db" {
 		image = "redis:latest"
 		volumes = ["/var/run/docker.sock:/tmp/docker.sock", "/etc:/etc"]
-		private-frontend { }
+		private-frontend {
+			user "admin" {
+				password = "dummy"
+			}
+		}
 	}
 
 	task "global" {
