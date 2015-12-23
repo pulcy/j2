@@ -48,10 +48,10 @@ func deploymentDefaults(fs *pflag.FlagSet, f *fg.Flags, args []string) {
 		f.SliceDelay = 5 * time.Second
 	}
 
-	if f.JobPath == "" && len(args) <= 1 {
+	if f.JobPath == "" && len(args) >= 1 {
 		f.JobPath = args[0]
 	}
-	if f.ClusterPath == "" && len(args) <= 2 {
+	if f.ClusterPath == "" && len(args) >= 2 {
 		f.ClusterPath = args[1]
 	}
 }
