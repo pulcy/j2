@@ -63,11 +63,8 @@ func (u *Unit) Render(ctx RenderContext) string {
 			lines = append(lines, "ExecStartPost="+x)
 		}
 
-		for _, x := range u.ExecOptions.ExecStopPre {
-			lines = append(lines, "ExecStopPre="+x)
-		}
-		if u.ExecOptions.ExecStop != "" {
-			lines = append(lines, "ExecStop="+u.ExecOptions.ExecStop)
+		for _, x := range u.ExecOptions.ExecStop {
+			lines = append(lines, "ExecStop="+x)
 		}
 		for _, x := range u.ExecOptions.ExecStopPost {
 			lines = append(lines, "ExecStopPost="+x)

@@ -85,7 +85,8 @@
             "frontends": [{
                 "path-prefix": "/"
             }, {
-                "domain": "foo.com"
+                "domain": "foo.com",
+                "weight": 10
             }, {
                 "domain": "foo2.com",
                 "path-prefix": "/foo2",
@@ -93,7 +94,8 @@
                 "users": [{
                     "name": "tester",
                     "password": "foo"
-                }]
+                }],
+                "weight": 12
             }]
         }, {
             "name": "storage",

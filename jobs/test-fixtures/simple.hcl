@@ -23,9 +23,11 @@ job "test" {
 				path-prefix = "/"
 			}
 			frontend {
+				weight = 10
 				domain = "foo.com"
 			}
 			frontend {
+				weight = 12
 				domain = "foo2.com"
 				path-prefix = "/foo2"
 				ssl-cert = "pulcy.pem"

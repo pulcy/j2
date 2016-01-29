@@ -49,10 +49,12 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
 	}
 
-	main.ExecOptions.ExecStop = fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name)
-	main.ExecOptions.ExecStopPost = []string{
+	main.ExecOptions.ExecStop = append(main.ExecOptions.ExecStop,
+		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
+	)
+	main.ExecOptions.ExecStopPost = append(main.ExecOptions.ExecStopPost,
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
-	}
+	)
 	main.FleetOptions.IsGlobal = t.group.Global
 	if t.group.IsScalable() && ctx.InstanceCount > 1 {
 		main.FleetOptions.Conflicts(t.unitName(unitKindMain, "*") + ".service")
@@ -74,7 +76,7 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		main.ExecOptions.After(after...)
 	}
 
-	if err := t.addFrontEndRegistration(main); err != nil {
+	if err := t.addFrontEndRegistration(main, ctx); err != nil {
 		return nil, maskAny(err)
 	}
 
@@ -180,6 +182,7 @@ type frontendRecord struct {
 }
 
 type frontendSelectorRecord struct {
+	Weight     int          `json:"weight,omitempty"`
 	Domain     string       `json:"domain,omitempty"`
 	PathPrefix string       `json:"path-prefix,omitempty"`
 	SslCert    string       `json:"ssl-cert,omitempty"`
@@ -194,11 +197,11 @@ type userRecord struct {
 }
 
 // addFrontEndRegistration adds registration code for frontends to the given units
-func (t *Task) addFrontEndRegistration(main *units.Unit) error {
+func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) error {
 	if len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
 		return nil
 	}
-	key := "/pulcy/frontend/" + t.serviceName()
+	key := fmt.Sprintf("/pulcy/frontend/%s-%d", t.serviceName(), ctx.ScalingGroup)
 	record := frontendRecord{
 		Service:       t.serviceName(),
 		HttpCheckPath: t.HttpCheckPath,
@@ -206,6 +209,7 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 
 	for _, fr := range t.PublicFrontEnds {
 		selRecord := frontendSelectorRecord{
+			Weight:     fr.Weight,
 			Domain:     fr.Domain,
 			PathPrefix: fr.PathPrefix,
 			SslCert:    fr.SslCert,
@@ -230,6 +234,10 @@ func (t *Task) addFrontEndRegistration(main *units.Unit) error {
 	main.ProjectSetting("FrontEndRegistration", key+"="+string(json))
 	main.ExecOptions.ExecStartPost = append(main.ExecOptions.ExecStartPost,
 		fmt.Sprintf("/bin/sh -c 'echo %s | base64 -d | /usr/bin/etcdctl set %s'", base64.StdEncoding.EncodeToString(json), key),
+	)
+	main.ExecOptions.ExecStop = append(
+		[]string{fmt.Sprintf("-/usr/bin/etcdctl rm %s", key)},
+		main.ExecOptions.ExecStop...,
 	)
 	return nil
 }

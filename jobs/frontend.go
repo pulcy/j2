@@ -11,12 +11,14 @@ type PublicFrontEnd struct {
 	SslCert    string `json:"ssl-cert,omitempty" mapstructure:"ssl-cert,omitempty"`
 	Port       int    `json:"port,omitempty" mapstructure:"port,omitempty"`
 	Users      []User `json:"users,omitempty"`
+	Weight     int    `json:"weight,omitempty" mapstructure:"weight,omitempty"`
 }
 
 // PrivateFrontEnd contains a specification of a private HTTP(S) frontend.
 type PrivateFrontEnd struct {
-	Port  int    `json:"port,omitempty" mapstructure:"port,omitempty"`
-	Users []User `json:"users,omitempty"`
+	Port   int    `json:"port,omitempty" mapstructure:"port,omitempty"`
+	Users  []User `json:"users,omitempty"`
+	Weight int    `json:"weight,omitempty" mapstructure:"weight,omitempty"`
 }
 
 // User contains a user name+password who has access to a frontend
@@ -28,6 +30,9 @@ type User struct {
 // Validate checks the values of the given frontend.
 // If ok, return nil, otherwise returns an error.
 func (f *PublicFrontEnd) Validate() error {
+	if f.Weight < 0 || f.Weight > 100 {
+		return errgo.WithCausef(nil, ValidationError, "weight must be between 0 and 100")
+	}
 	if f.SslCert != "" {
 		// Domain must be set
 		if f.Domain == "" {
@@ -40,5 +45,8 @@ func (f *PublicFrontEnd) Validate() error {
 // Validate checks the values of the given frontend.
 // If ok, return nil, otherwise returns an error.
 func (f *PrivateFrontEnd) Validate() error {
+	if f.Weight < 0 || f.Weight > 100 {
+		return errgo.WithCausef(nil, ValidationError, "weight must be between 0 and 100")
+	}
 	return nil
 }

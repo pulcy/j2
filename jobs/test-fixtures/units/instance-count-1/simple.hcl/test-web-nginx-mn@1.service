@@ -18,7 +18,8 @@ ExecStartPre=/usr/bin/docker pull alpine:3.2
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-nginx-1
 ExecStartPre=-/usr/bin/docker rm -f test-web-nginx-1
 ExecStart=/usr/bin/docker run --rm --name test-web-nginx-1 -P --volumes-from test-web-storage-1 -e "cattest=This is the content of file.txt" -e "envkey=test-env" -e "key=123" -e "name=ewout" -e "opttest1=value1" -e "opttest2=value2" -e "opttestenv=test-env" -e "quotetest=hello" -e "replacetest=1.2.3" -e SERVICE_NAME=test-web-nginx --add-host test.couchdb.couchdb.private:${COREOS_PRIVATE_IPV4} alpine:3.2 ls -al --db http://test.couchdb.couchdb.private:81
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsiZG9tYWluIjoiZm9vLmNvbSJ9LHsiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6IkREbjNTUDNoZVQyQlUifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx'
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsid2VpZ2h0IjoxMCwiZG9tYWluIjoiZm9vLmNvbSJ9LHsid2VpZ2h0IjoxMiwiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6IkxPNkwzNzB1MC8wMlUifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx-1'
+ExecStopPre=/usr/bin/etcdctl rm /pulcy/frontend/test-web-nginx-1
 ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-1
 ExecStopPost=-/usr/bin/docker rm -f test-web-nginx-1
 
@@ -27,4 +28,4 @@ MachineOf=test-web-backup-mn@1.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration="/pulcy/frontend/test-web-nginx={\"selectors\":[{\"path-prefix\":\"/\"},{\"domain\":\"foo.com\"},{\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\",\"users\":[{\"user\":\"tester\",\"pwhash\":\"DDn3SP3heT2BU\"}]}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"
+FrontEndRegistration="/pulcy/frontend/test-web-nginx-1={\"selectors\":[{\"path-prefix\":\"/\"},{\"weight\":10,\"domain\":\"foo.com\"},{\"weight\":12,\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\",\"users\":[{\"user\":\"tester\",\"pwhash\":\"LO6L370u0/02U\"}]}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"

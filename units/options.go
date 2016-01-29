@@ -21,8 +21,7 @@ type execOptions struct {
 	ExecStartPre            []string
 	ExecStart               string
 	ExecStartPost           []string
-	ExecStopPre             []string
-	ExecStop                string
+	ExecStop                []string
 	ExecStopPost            []string
 	BindsTos                []string
 	Wants                   string
