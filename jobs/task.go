@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/juju/errgo"
@@ -11,7 +10,6 @@ import (
 )
 
 const (
-	secretsPath     = "/tmp/secrets"
 	unitKindMain    = "-mn"
 	unitKindSecrets = "-sc"
 	unitKindTimer   = "-ti"
@@ -134,15 +132,6 @@ func (t *Task) privateDomainName() string {
 	return ln.PrivateDomainName()
 }
 
-// secretHostPath creates the path of the host of a given secret for the given task.
-func (t *Task) secretHostPath(secret Secret, scalingGroup uint) (string, error) {
-	hash, err := secret.hash()
-	if err != nil {
-		return "", maskAny(err)
-	}
-	return filepath.Join(secretsPath, t.containerName(scalingGroup), hash), nil
-}
-
 // unitName returns the name of the systemd unit for this task.
 func (t *Task) unitName(kind string, scalingGroup string) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1) + kind
@@ -173,4 +162,15 @@ func (t *Task) containerName(scalingGroup uint) string {
 // serviceName returns the name used to register this service.
 func (t *Task) serviceName() string {
 	return strings.Replace(t.fullName(), "/", "-", -1)
+}
+
+// hasEnvironmentSecrets returns true if the given task has secrets that should
+// be stored in an environment variable. False otherwise.
+func (t *Task) hasEnvironmentSecrets() bool {
+	for _, secret := range t.Secrets {
+		if ok, _ := secret.TargetEnviroment(); ok {
+			return true
+		}
+	}
+	return false
 }

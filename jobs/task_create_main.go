@@ -22,7 +22,7 @@ var (
 func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	name := t.containerName(ctx.ScalingGroup)
 	image := t.Image.String()
-	execStart, err := t.createMainDockerCmdLine(ctx)
+	execStart, env, err := t.createMainDockerCmdLine(ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -51,6 +51,9 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		dir := strings.Split(v, ":")
 		mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s'", dir[0], dir[0])
 		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
+	}
+	for k, v := range env {
+		main.ExecOptions.Environment[k] = v
 	}
 
 	main.ExecOptions.ExecStop = append(main.ExecOptions.ExecStop,
@@ -89,7 +92,7 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 
 // createMainDockerCmdLine creates the `ExecStart` line for
 // the main unit.
-func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
+func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, map[string]string, error) {
 	serviceName := t.serviceName()
 	image := t.Image.String()
 	execStart := []string{
@@ -98,55 +101,61 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, error) {
 		"--rm",
 		fmt.Sprintf("--name %s", t.containerName(ctx.ScalingGroup)),
 	}
+	env := make(map[string]string)
+	addArg := func(arg string) {
+		key := fmt.Sprintf("A%02d", len(env))
+		env[key] = arg
+		execStart = append(execStart, fmt.Sprintf("$%s", key))
+	}
 	if len(t.Ports) > 0 {
 		for _, p := range t.Ports {
-			execStart = append(execStart, fmt.Sprintf("-p %s", p))
+			addArg(fmt.Sprintf("-p %s", p))
 		}
 	} else {
 		execStart = append(execStart, "-P")
 	}
 	for _, v := range t.Volumes {
-		execStart = append(execStart, fmt.Sprintf("-v %s", v))
+		addArg(fmt.Sprintf("-v %s", v))
 	}
 	for _, secret := range t.Secrets {
 		if ok, path := secret.TargetFile(); ok {
-			hostPath, err := t.secretHostPath(secret, ctx.ScalingGroup)
+			hostPath, err := t.secretFilePath(ctx.ScalingGroup, secret)
 			if err != nil {
-				return nil, maskAny(err)
+				return nil, nil, maskAny(err)
 			}
-			execStart = append(execStart, fmt.Sprintf("-v %s:%s:ro", hostPath, path))
+			addArg(fmt.Sprintf("-v %s:%s:ro", hostPath, path))
 		}
 	}
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
 		if err != nil {
-			return nil, maskAny(err)
+			return nil, nil, maskAny(err)
 		}
-		execStart = append(execStart, fmt.Sprintf("--volumes-from %s", other.containerName(ctx.ScalingGroup)))
+		addArg(fmt.Sprintf("--volumes-from %s", other.containerName(ctx.ScalingGroup)))
 	}
-	envArgs := []string{}
-	for k, v := range t.Environment {
-		envArgs = append(envArgs, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, v)))
+	envKeys := []string{}
+	for k := range t.Environment {
+		envKeys = append(envKeys, k)
 	}
-	for _, secret := range t.Secrets {
-		if ok, key := secret.TargetEnviroment(); ok {
-			envArgs = append(envArgs, "-e "+strconv.Quote(fmt.Sprintf("%s=${%s}", key, key)))
-		}
+	sort.Strings(envKeys)
+	for _, k := range envKeys {
+		addArg("-e " + strconv.Quote(fmt.Sprintf("%s=%s", k, t.Environment[k])))
 	}
-	sort.Strings(envArgs)
-	execStart = append(execStart, envArgs...)
-	execStart = append(execStart, fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
+	if t.hasEnvironmentSecrets() {
+		addArg("--env-file=" + t.secretEnvironmentPath(ctx.ScalingGroup))
+	}
+	addArg(fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
 	for _, cap := range t.Capabilities {
-		execStart = append(execStart, "--cap-add "+cap)
+		addArg("--cap-add " + cap)
 	}
 	for _, ln := range t.Links {
-		execStart = append(execStart, fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", ln.PrivateDomainName()))
+		addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", ln.PrivateDomainName()))
 	}
 
 	execStart = append(execStart, image)
 	execStart = append(execStart, t.Args...)
 
-	return execStart, nil
+	return execStart, env, nil
 }
 
 // createMainAfter creates the `After=` sequence for the main unit

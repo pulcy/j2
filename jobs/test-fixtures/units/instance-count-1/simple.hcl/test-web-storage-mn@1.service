@@ -12,10 +12,11 @@ StartLimitInterval=300s
 StartLimitBurst=3
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=test-web-storage"
 ExecStartPre=/usr/bin/docker pull mystorage:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-storage-1
 ExecStartPre=-/usr/bin/docker rm -f test-web-storage-1
-ExecStart=/usr/bin/docker run --rm --name test-web-storage-1 -P -e SERVICE_NAME=test-web-storage mystorage:latest
+ExecStart=/usr/bin/docker run --rm --name test-web-storage-1 -P $A00 mystorage:latest
 ExecStop=-/usr/bin/docker stop -t 10 test-web-storage-1
 ExecStopPost=-/usr/bin/docker rm -f test-web-storage-1
 

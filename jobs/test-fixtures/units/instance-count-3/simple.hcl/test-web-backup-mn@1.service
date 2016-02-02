@@ -9,10 +9,11 @@ After=yard.service
 Type=oneshot
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=test-web-backup"
 ExecStartPre=/usr/bin/docker pull mybackup:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-backup-1
 ExecStartPre=-/usr/bin/docker rm -f test-web-backup-1
-ExecStart=/usr/bin/docker run --rm --name test-web-backup-1 -P -e SERVICE_NAME=test-web-backup mybackup:latest
+ExecStart=/usr/bin/docker run --rm --name test-web-backup-1 -P $A00 mybackup:latest
 ExecStop=-/usr/bin/docker stop -t 10 test-web-backup-1
 ExecStopPost=-/usr/bin/docker rm -f test-web-backup-1
 

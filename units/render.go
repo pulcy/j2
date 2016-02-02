@@ -2,6 +2,7 @@ package units
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -49,8 +50,14 @@ func (u *Unit) Render(ctx RenderContext) string {
 		for _, x := range u.ExecOptions.EnvironmentFiles {
 			lines = append(lines, "EnvironmentFile="+x)
 		}
-		for k, v := range u.ExecOptions.Environment {
-			lines = append(lines, fmt.Sprintf("Environment=\"%s=%s\"", k, v))
+		envKeys := []string{}
+		for k := range u.ExecOptions.Environment {
+			envKeys = append(envKeys, k)
+		}
+		sort.Strings(envKeys)
+		for _, k := range envKeys {
+			v := u.ExecOptions.Environment[k]
+			lines = append(lines, fmt.Sprintf("Environment=%s", strconv.Quote(fmt.Sprintf("%s=%s", k, v))))
 		}
 
 		for _, x := range u.ExecOptions.ExecStartPre {

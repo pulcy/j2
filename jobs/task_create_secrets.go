@@ -9,12 +9,22 @@ import (
 	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
+const (
+	secretsPath = "/tmp/secrets"
+)
+
 // createSecretsUnit creates a unit used to extract secrets from vault
 func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 	// Create all secret extraction commands
 	jobID := t.group.job.ID
 	if jobID == "" {
 		return nil, maskAny(fmt.Errorf("job ID missing for job %s with secrets", t.group.job.Name))
+	}
+	env := make(map[string]string)
+	addArg := func(arg string, cmd *[]string) {
+		key := fmt.Sprintf("A%02d", len(env))
+		env[key] = arg
+		*cmd = append(*cmd, fmt.Sprintf("$%s", key))
 	}
 	cmds := [][]string{}
 	envPaths := []string{}
@@ -28,32 +38,35 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 				"/usr/bin/docker",
 				"run",
 				"--rm",
-				"-v", "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro",
-				"-v", "/etc/machine-id:/etc/machine-id:ro",
+				"-v", "${VOLCLS}",
+				"-v", "${VOLMAC}",
 				ctx.Images.VaultMonkey,
 				"extract",
 				"file",
-				"--target", targetPath,
-				"--job-id", jobID,
-				secret.VaultPath(),
 			}
+			addArg("--target "+targetPath, &cmd)
+			addArg("--job-id "+jobID, &cmd)
+			addArg(secret.VaultPath(), &cmd)
 			cmds = append(cmds, cmd)
 		} else if ok, environmentKey := secret.TargetEnviroment(); ok {
 			envPaths = append(envPaths, fmt.Sprintf("%s=%s", environmentKey, secret.VaultPath()))
 		}
 	}
 	if len(envPaths) > 0 {
-		cmd := append([]string{
+		cmd := []string{
 			"/usr/bin/docker",
 			"run",
 			"--rm",
-			"-v", "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro",
-			"-v", "/etc/machine-id:/etc/machine-id:ro",
+			"-v", "${VOLCLS}",
+			"-v", "${VOLMAC}",
 			ctx.Images.VaultMonkey,
 			"extract",
 			"env",
-			"--job-id", jobID,
-		}, envPaths...)
+		}
+		addArg("--job-id "+jobID, &cmd)
+		for _, envPath := range envPaths {
+			addArg(envPath, &cmd)
+		}
 		cmds = append(cmds, cmd)
 	}
 
@@ -69,6 +82,12 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 		ExecOptions:  units.NewExecOptions(execStart...),
 		FleetOptions: units.NewFleetOptions(),
 	}
+	unit.ExecOptions.Environment["VOLCLS"] = "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro"
+	unit.ExecOptions.Environment["VOLMAC"] = "/etc/machine-id:/etc/machine-id:ro"
+	for k, v := range env {
+		unit.ExecOptions.Environment[k] = v
+	}
+
 	unit.ExecOptions.IsOneshot = true
 	if len(cmds) > 1 {
 		// Use all but last as ExecStartPre commands
@@ -89,7 +108,7 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 
 // secretsRootPath returns the path of the root directory that will contain secret files for the given task.
 func (t *Task) secretsRootPath(scalingGroup uint) string {
-	return filepath.Join("/tmp/secrets", t.containerName(scalingGroup))
+	return filepath.Join(secretsPath, t.containerName(scalingGroup))
 }
 
 // secretEnvironmentPath returns the path of the file containing all secret environment variables
