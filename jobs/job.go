@@ -26,7 +26,7 @@ func (jn JobName) Validate() error {
 }
 
 type Job struct {
-	ID     string        `json:"id"`
+	ID     string        `json:"id,omitempty"`
 	Name   JobName       `json:"name"`
 	Groups TaskGroupList `json:"groups"`
 }
