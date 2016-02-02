@@ -6,11 +6,16 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"arvika.pulcy.com/pulcy/deployit/jobs"
 )
 
 var (
 	projectVersion = "dev"
 	projectBuild   = "dev"
+	images         = jobs.Images{
+		VaultMonkey: "pulcy/vault-monkey:latest",
+	}
 )
 
 var (

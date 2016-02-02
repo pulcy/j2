@@ -40,7 +40,7 @@ type generatorContext struct {
 	Images
 }
 
-func (g *Generator) WriteTmpFiles(ctx units.RenderContext, instanceCount int) error {
+func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instanceCount int) error {
 	files := []string{}
 	unitNames := []string{}
 	maxCount := g.job.MaxCount()
@@ -56,6 +56,7 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, instanceCount int) er
 			genCtx := generatorContext{
 				ScalingGroup:  scalingGroup,
 				InstanceCount: instanceCount,
+				Images:        images,
 			}
 			unitChains, err := tg.createUnits(genCtx)
 			if err != nil {
