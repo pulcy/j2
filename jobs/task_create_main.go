@@ -14,6 +14,10 @@ import (
 	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
+var (
+	FixedPwhashSalt string // If set, this salt will be used for all pwhash's (only used for testing)
+)
+
 // createMainUnit
 func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	name := t.containerName(ctx.ScalingGroup)
@@ -245,7 +249,10 @@ func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) e
 // addUsers adds the given users to the selector record, while encrypting the passwords.
 func (selRecord *frontendSelectorRecord) addUsers(users []User) {
 	for _, u := range users {
-		salt := uniuri.New()
+		salt := FixedPwhashSalt
+		if salt == "" {
+			salt = uniuri.New()
+		}
 		userRec := userRecord{
 			Name:         u.Name,
 			PasswordHash: crypt.Crypt(u.Password, salt),

@@ -1,14 +1,64 @@
 package jobs
 
 import (
+	"fmt"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"arvika.pulcy.com/pulcy/deployit/units"
 )
 
 // createSecretsUnit creates a unit used to extract secrets from vault
 func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
-	execStart := []string{"TODO"}
+	// Create all secret extraction commands
+	jobID := t.group.job.ID
+	if jobID == "" {
+		return nil, maskAny(fmt.Errorf("job ID missing for job %s with secrets", t.group.job.Name))
+	}
+	cmds := [][]string{}
+	envPaths := []string{}
+	for _, secret := range t.Secrets {
+		if ok, _ := secret.TargetFile(); ok {
+			targetPath, err := t.secretFilePath(ctx.ScalingGroup, secret)
+			if err != nil {
+				return nil, maskAny(err)
+			}
+			cmd := []string{
+				"/usr/bin/docker",
+				"run",
+				"--rm",
+				"-v", "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro",
+				"-v", "/etc/machine-id:/etc/machine-id:ro",
+				ctx.Images.VaultMonkey,
+				"extract",
+				"file",
+				"--target", targetPath,
+				"--job-id", jobID,
+				secret.VaultPath(),
+			}
+			cmds = append(cmds, cmd)
+		} else if ok, environmentKey := secret.TargetEnviroment(); ok {
+			envPaths = append(envPaths, fmt.Sprintf("%s=%s", environmentKey, secret.VaultPath()))
+		}
+	}
+	if len(envPaths) > 0 {
+		cmd := append([]string{
+			"/usr/bin/docker",
+			"run",
+			"--rm",
+			"-v", "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro",
+			"-v", "/etc/machine-id:/etc/machine-id:ro",
+			ctx.Images.VaultMonkey,
+			"extract",
+			"env",
+			"--job-id", jobID,
+		}, envPaths...)
+		cmds = append(cmds, cmd)
+	}
+
+	// Use last comand as ExecStart
+	execStart := cmds[len(cmds)-1]
 	unit := &units.Unit{
 		Name:         t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))),
 		FullName:     t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
@@ -20,14 +70,13 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 		FleetOptions: units.NewFleetOptions(),
 	}
 	unit.ExecOptions.IsOneshot = true
-	unit.ExecOptions.ExecStopPost = []string{
-	// TODO cleanup
-	//fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
+	if len(cmds) > 1 {
+		// Use all but last as ExecStartPre commands
+		for _, cmd := range cmds[:len(cmds)-1] {
+			unit.ExecOptions.ExecStartPre = append(unit.ExecOptions.ExecStartPre, strings.Join(cmd, " "))
+		}
 	}
 	unit.FleetOptions.IsGlobal = t.group.Global
-	if t.group.IsScalable() && ctx.InstanceCount > 1 {
-		unit.FleetOptions.Conflicts(t.unitName(unitKindSecrets, "*") + ".service")
-	}
 
 	// Service dependencies
 	// Requires=
@@ -36,4 +85,27 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 	unit.ExecOptions.After(commonAfter...)
 
 	return unit, nil
+}
+
+// secretsRootPath returns the path of the root directory that will contain secret files for the given task.
+func (t *Task) secretsRootPath(scalingGroup uint) string {
+	return filepath.Join("/tmp/secrets", t.containerName(scalingGroup))
+}
+
+// secretEnvironmentPath returns the path of the file containing all secret environment variables
+// for the given container.
+func (t *Task) secretEnvironmentPath(scalingGroup uint) string {
+	return filepath.Join(t.secretsRootPath(scalingGroup), "environment")
+}
+
+// secretFilePath returns the path of the file containing the given secret (file type)
+func (t *Task) secretFilePath(scalingGroup uint, secret Secret) (string, error) {
+	if secret.File == "" {
+		return "", maskAny(fmt.Errorf("Wrong secret, file must be non-empty"))
+	}
+	hash, err := secret.hash()
+	if err != nil {
+		return "", maskAny(err)
+	}
+	return filepath.Join(t.secretsRootPath(scalingGroup), hash), nil
 }

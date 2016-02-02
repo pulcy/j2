@@ -44,6 +44,15 @@ func (s Secret) TargetFile() (bool, string) {
 	return false, ""
 }
 
+// VaultPath returns the path within the vault formatted at <path>[#<field>]
+func (s Secret) VaultPath() string {
+	path := s.Path
+	if s.Field != "" {
+		path = path + "#" + s.Field
+	}
+	return path
+}
+
 // hash returns a has of the given secret config
 func (s Secret) hash() (string, error) {
 	data, err := json.Marshal(s)

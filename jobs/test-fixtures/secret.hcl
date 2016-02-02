@@ -1,4 +1,5 @@
 job "secrets" {
+    id = "60B6C022-5316-4F0B-AEC6-F3EE0E73A986"
 
     task "env_secrets" {
         image = "alpine:3.2"

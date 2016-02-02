@@ -17,6 +17,10 @@ type Generator struct {
 	currentScalingGroup uint
 }
 
+type Images struct {
+	VaultMonkey string // Docker image name of vault-monkey
+}
+
 func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint) *Generator {
 	tmpDir, err := ioutil.TempDir("", "deployit")
 	if err != nil {
@@ -33,6 +37,7 @@ func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint) *G
 type generatorContext struct {
 	ScalingGroup  uint
 	InstanceCount int
+	Images
 }
 
 func (g *Generator) WriteTmpFiles(ctx units.RenderContext, instanceCount int) error {

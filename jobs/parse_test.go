@@ -105,6 +105,7 @@ func TestParse(t *testing.T) {
 }
 
 func testUnits(t *testing.T, job *jobs.Job, instanceCount int, expectedUnitNames []string, testName string) {
+	jobs.FixedPwhashSalt = "test-salt"
 	generator := job.Generate(nil, 0)
 	ctx := units.RenderContext{
 		ProjectName:    "testproject",
