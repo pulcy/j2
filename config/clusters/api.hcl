@@ -1,5 +1,4 @@
 cluster "api" {
-    id = "99132C65-0846-4479-8AA5-E500907D56AB"
     domain = "iggi.xyz"
     stack = "alpha"
 

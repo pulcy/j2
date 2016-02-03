@@ -16,8 +16,6 @@ const (
 
 // Cluster contains all variables describing a cluster (deployment target)
 type Cluster struct {
-	// Unique (not so easy to guess) ID
-	ID string `mapstructure:"id"`
 	// Name within the domain e.g. alpha-c32
 	Stack string `mapstructure:"stack"`
 	// Domain name e.g. pulcy.com
@@ -32,9 +30,6 @@ type Cluster struct {
 
 // validate checks the values in the given cluster
 func (c Cluster) validate() error {
-	if c.ID == "" {
-		return maskAny(errgo.WithCausef(nil, ValidationError, "ID missing"))
-	}
 	if c.Stack == "" {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "Stack missing"))
 	}
