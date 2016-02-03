@@ -38,8 +38,11 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 				"/usr/bin/docker",
 				"run",
 				"--rm",
+				"-v", "${SCROOT}",
+				"-v", "${VOLCRT}",
 				"-v", "${VOLCLS}",
 				"-v", "${VOLMAC}",
+				"--env-file", "/etc/pulcy/vault.env",
 				ctx.Images.VaultMonkey,
 				"extract",
 				"file",
@@ -53,16 +56,21 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 		}
 	}
 	if len(envPaths) > 0 {
+		targetPath := t.secretEnvironmentPath(ctx.ScalingGroup)
 		cmd := []string{
 			"/usr/bin/docker",
 			"run",
 			"--rm",
+			"-v", "${SCROOT}",
+			"-v", "${VOLCRT}",
 			"-v", "${VOLCLS}",
 			"-v", "${VOLMAC}",
+			"--env-file", "/etc/pulcy/vault.env",
 			ctx.Images.VaultMonkey,
 			"extract",
 			"env",
 		}
+		addArg("--target "+targetPath, &cmd)
 		addArg("--job-id "+jobID, &cmd)
 		for _, envPath := range envPaths {
 			addArg(envPath, &cmd)
@@ -82,6 +90,9 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 		ExecOptions:  units.NewExecOptions(execStart...),
 		FleetOptions: units.NewFleetOptions(),
 	}
+	secretsRoot := t.secretsRootPath(ctx.ScalingGroup)
+	unit.ExecOptions.Environment["SCROOT"] = fmt.Sprintf("%s:%s", secretsRoot, secretsRoot)
+	unit.ExecOptions.Environment["VOLCRT"] = "/etc/pulcy/vault.crt:/etc/pulcy/vault.crt:ro"
 	unit.ExecOptions.Environment["VOLCLS"] = "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro"
 	unit.ExecOptions.Environment["VOLMAC"] = "/etc/machine-id:/etc/machine-id:ro"
 	for k, v := range env {
@@ -89,6 +100,10 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 	}
 
 	unit.ExecOptions.IsOneshot = true
+	unit.ExecOptions.ExecStartPre = append(unit.ExecOptions.ExecStartPre,
+		fmt.Sprintf("/usr/bin/mkdir -p %s", secretsRoot),
+		fmt.Sprintf("/usr/bin/docker pull %s", ctx.Images.VaultMonkey),
+	)
 	if len(cmds) > 1 {
 		// Use all but last as ExecStartPre commands
 		for _, cmd := range cmds[:len(cmds)-1] {
