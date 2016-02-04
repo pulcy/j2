@@ -22,9 +22,13 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 	}
 	env := make(map[string]string)
 	addArg := func(arg string, cmd *[]string) {
-		key := fmt.Sprintf("A%02d", len(env))
-		env[key] = arg
-		*cmd = append(*cmd, fmt.Sprintf("$%s", key))
+		if strings.Contains(arg, "$") {
+			*cmd = append(*cmd, arg)
+		} else {
+			key := fmt.Sprintf("A%02d", len(env))
+			env[key] = arg
+			*cmd = append(*cmd, fmt.Sprintf("$%s", key))
+		}
 	}
 	cmds := [][]string{}
 	envPaths := []string{}

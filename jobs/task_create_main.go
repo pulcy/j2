@@ -103,9 +103,13 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, map[stri
 	}
 	env := make(map[string]string)
 	addArg := func(arg string) {
-		key := fmt.Sprintf("A%02d", len(env))
-		env[key] = arg
-		execStart = append(execStart, fmt.Sprintf("$%s", key))
+		if strings.Contains(arg, "$") {
+			execStart = append(execStart, arg)
+		} else {
+			key := fmt.Sprintf("A%02d", len(env))
+			env[key] = arg
+			execStart = append(execStart, fmt.Sprintf("$%s", key))
+		}
 	}
 	if len(t.Ports) > 0 {
 		for _, p := range t.Ports {
