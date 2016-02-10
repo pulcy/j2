@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	privateLoadBalancerPort = 81
+	privateLoadBalancerPort    = 81
+	privateTcpLoadBalancerPort = 82
 )
 
 type jobFunctions struct {
@@ -46,6 +47,7 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 		"private_ipv4": jf.getPrivateIPV4,
 		"public_ipv4":  jf.getPublicIPV4,
 		"link_url":     jf.linkURL,
+		"link_tls":     jf.linkTLS,
 	}
 }
 
@@ -118,4 +120,13 @@ func (jf *jobFunctions) linkURL(linkName string) (string, error) {
 		return "", maskAny(err)
 	}
 	return fmt.Sprintf("http://%s:%d", ln.PrivateDomainName(), privateLoadBalancerPort), nil
+}
+
+// linkTLS creates an URL with `tls` scheme to the domain name (in private TCP namespace) of the given link
+func (jf *jobFunctions) linkTLS(linkName string) (string, error) {
+	ln := LinkName(linkName)
+	if err := ln.Validate(); err != nil {
+		return "", maskAny(err)
+	}
+	return fmt.Sprintf("tls://%s:%d", ln.PrivateDomainName(), privateTcpLoadBalancerPort), nil
 }

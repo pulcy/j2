@@ -195,6 +195,7 @@ func (t *Task) createMainRequires(ctx generatorContext) ([]string, error) {
 type frontendRecord struct {
 	Selectors     []frontendSelectorRecord `json:"selectors"`
 	Service       string                   `json:"service,omitempty"`
+	Mode          string                   `json:"mode,omitempty"` // http|tcp
 	HttpCheckPath string                   `json:"http-check-path,omitempty"`
 }
 
@@ -236,6 +237,9 @@ func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) e
 		record.Selectors = append(record.Selectors, selRecord)
 	}
 	for _, fr := range t.PrivateFrontEnds {
+		if fr.Mode == "tcp" {
+			record.Mode = "tcp"
+		}
 		selRecord := frontendSelectorRecord{
 			Domain:  t.privateDomainName(),
 			Port:    fr.Port,

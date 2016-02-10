@@ -25,11 +25,10 @@ Environment="A07=-e \"opttestenv=test-env\""
 Environment="A08=-e \"quotetest=hello\""
 Environment="A09=-e \"replacetest=1.2.3\""
 Environment="A10=-e SERVICE_NAME=test-web-nginx"
-Environment="A11=--add-host test.couchdb.couchdb.private:${COREOS_PRIVATE_IPV4}"
 ExecStartPre=/usr/bin/docker pull alpine:3.2
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-nginx-2
 ExecStartPre=-/usr/bin/docker rm -f test-web-nginx-2
-ExecStart=/usr/bin/docker run --rm --name test-web-nginx-2 -P $A00 $A01 $A02 $A03 $A04 $A05 $A06 $A07 $A08 $A09 $A10 $A11 alpine:3.2 ls -al --db http://test.couchdb.couchdb.private:81
+ExecStart=/usr/bin/docker run --rm --name test-web-nginx-2 -P $A00 $A01 $A02 $A03 $A04 $A05 $A06 $A07 $A08 $A09 $A10 --add-host test.couchdb.couchdb.private:${COREOS_PRIVATE_IPV4} alpine:3.2 ls -al --db http://test.couchdb.couchdb.private:81
 ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsid2VpZ2h0IjoxMCwiZG9tYWluIjoiZm9vLmNvbSJ9LHsid2VpZ2h0IjoxMiwiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6InRlUk92WWNUUVNNZ1EifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx-2'
 ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-web-nginx-2
 ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-2

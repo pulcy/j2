@@ -48,7 +48,7 @@ type Task struct {
 }
 
 // Check for errors
-func (t *Task) Validate() error {
+func (t Task) Validate() error {
 	if err := t.Name.Validate(); err != nil {
 		return maskAny(err)
 	}
@@ -66,15 +66,26 @@ func (t *Task) Validate() error {
 			return maskAny(err)
 		}
 	}
+	httpFrontends := 0
+	tcpFrontends := 0
 	for _, f := range t.PublicFrontEnds {
 		if err := f.Validate(); err != nil {
 			return maskAny(err)
 		}
+		httpFrontends++
 	}
 	for _, f := range t.PrivateFrontEnds {
 		if err := f.Validate(); err != nil {
 			return maskAny(err)
 		}
+		if f.IsTcp() {
+			tcpFrontends++
+		} else {
+			httpFrontends++
+		}
+	}
+	if tcpFrontends > 0 && httpFrontends > 0 {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "cannot mix http and tcp frontends (in '%s')", t.Name))
 	}
 	for _, s := range t.Secrets {
 		if err := s.Validate(); err != nil {

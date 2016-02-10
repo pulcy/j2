@@ -12,15 +12,15 @@ job "base" {
 		global = true
 
 		task "certificates" {
-			image = "pulcy/pct:0.3.1"
+			image = "pulcy/pct:0.4.0"
 			secret "secret/base/lb/certificates-passphrase" {
                 environment = "PASSPHRASE"
             }
 		}
 
 		task "lb" {
-			image = "pulcy/lb:0.11.0"
-			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
+			image = "pulcy/lb:2016-02-05-21-17-35"
+			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "{{private_ipv4}}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
 			volumes-from = "certificates"
 			secret "secret/base/lb/stats-password" {
                 environment = "STATS_PASSWORD"
@@ -44,7 +44,8 @@ job "base" {
 				"--stats-port", "7088",
 				"--stats-ssl-cert", "pulcy.pem",
 				"--force-ssl={{opt "force-ssl"}}",
-				"--private-host", "{{private_ipv4}}"
+				"--private-host", "{{private_ipv4}}",
+				"--private-ssl-cert", "private.pem"
 			]
 		}
 	}

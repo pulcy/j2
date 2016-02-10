@@ -113,7 +113,10 @@ func testUnits(t *testing.T, job *jobs.Job, instanceCount int, expectedUnitNames
 		ProjectBuild:   "test-build",
 	}
 	defer generator.RemoveTmpFiles()
-	if err := generator.WriteTmpFiles(ctx, instanceCount); err != nil {
+	images := jobs.Images{
+		VaultMonkey: "pulcy/vault-monkey:latest",
+	}
+	if err := generator.WriteTmpFiles(ctx, images, instanceCount); err != nil {
 		t.Fatalf("WriteTmpFiles failed: %#v", err)
 	}
 	compareUnitNames(t, expectedUnitNames, generator.UnitNames())
