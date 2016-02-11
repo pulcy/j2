@@ -22,6 +22,7 @@ ExecStopPost=-/usr/bin/docker rm -f test-global-global
 
 [X-Fleet]
 Global=true
+MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

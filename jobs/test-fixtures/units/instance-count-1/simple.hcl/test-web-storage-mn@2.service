@@ -22,6 +22,8 @@ ExecStopPost=-/usr/bin/docker rm -f test-web-storage-2
 
 [X-Fleet]
 MachineOf=test-web-backup-mn@2.service
+MachineID=123456789
+MachineMetadata="web=true" "core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

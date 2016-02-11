@@ -22,6 +22,7 @@ ExecStopPost=-/usr/bin/docker rm -f test-dummy-dummy-2
 
 [X-Fleet]
 Conflicts=test-dummy-dummy-mn@*.service
+MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

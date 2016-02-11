@@ -45,6 +45,7 @@ type Task struct {
 	Capabilities     []string          `json:"capabilities,omitempty"`
 	Links            []LinkName        `json:"links,omitempty"`
 	Secrets          []Secret          `json:"secrets,omitempty"`
+	Constraints      Constraints       `json:"constraints,omitempty"`
 }
 
 // Check for errors
@@ -96,6 +97,9 @@ func (t Task) Validate() error {
 		if t.Type != "oneshot" {
 			return maskAny(errgo.WithCausef(nil, ValidationError, "timer only valid in combination with oneshot (in '%s')", t.Name))
 		}
+	}
+	if err := t.Constraints.Validate(); err != nil {
+		return maskAny(err)
 	}
 	return nil
 }

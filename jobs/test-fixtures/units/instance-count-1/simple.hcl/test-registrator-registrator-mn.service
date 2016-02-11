@@ -25,6 +25,7 @@ ExecStopPost=-/usr/bin/docker rm -f test-registrator-registrator
 
 [X-Fleet]
 Global=true
+MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

@@ -26,7 +26,6 @@ type execOptions struct {
 	BindsTos                []string
 	Wants                   string
 	after                   []string
-	MachineOf               string
 	Requires                []string
 
 	// Timer
@@ -77,26 +76,21 @@ func (e *execOptions) Require(require ...string) {
 
 type fleetOptions struct {
 	IsGlobal      bool
-	HasConflicts  bool
 	ConflictsWith []string
-	SameMachine   string
-	RawMetadata   bool
+	MachineOf     string
+	MachineID     string
 	Metadata      []string
 }
 
 func NewFleetOptions() *fleetOptions {
 	return &fleetOptions{
 		IsGlobal:      false,
-		HasConflicts:  false,
 		ConflictsWith: []string{},
-		SameMachine:   "",
-		RawMetadata:   false,
 		Metadata:      []string{},
 	}
 }
 
 func (f *fleetOptions) Conflicts(conflicts string) {
-	f.HasConflicts = true
 	f.ConflictsWith = append(f.ConflictsWith, conflicts)
 }
 
@@ -105,16 +99,11 @@ func (f *fleetOptions) Conflicts(conflicts string) {
 // https://coreos.com/docs/launching-containers/launching/fleet-unit-files/#user-defined-requirements
 // for more information on fleet's behaviour.
 func (f *fleetOptions) MachineMetadata(metadataValues ...string) {
-	// Strings have to be concacted as double quote encapsulated strings for fleet
-	metadataRule := fmt.Sprintf("\"%s\"", strings.Join(metadataValues, "\" \""))
-	f.Metadata = append(f.Metadata, metadataRule)
-}
-
-// SetRawMetadata ensures that metadata is just written to the templates as the
-// user defines it. Otherwise general metadata will be automatically added to
-// the templates, e.g. metadata for the stack name.
-func (f *fleetOptions) SetRawMetadata() {
-	f.RawMetadata = true
+	if len(metadataValues) > 0 {
+		// Strings have to be concatenated as double quote encapsulated strings for fleet
+		metadataRule := fmt.Sprintf("\"%s\"", strings.Join(metadataValues, "\" \""))
+		f.Metadata = append(f.Metadata, metadataRule)
+	}
 }
 
 func (f *fleetOptions) Global() {

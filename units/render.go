@@ -95,8 +95,11 @@ func (u *Unit) Render(ctx RenderContext) string {
 	for _, x := range u.FleetOptions.ConflictsWith {
 		lines = append(lines, "Conflicts="+x)
 	}
-	if u.ExecOptions.MachineOf != "" {
-		lines = append(lines, "MachineOf="+u.ExecOptions.MachineOf)
+	if u.FleetOptions.MachineOf != "" {
+		lines = append(lines, "MachineOf="+u.FleetOptions.MachineOf)
+	}
+	if u.FleetOptions.MachineID != "" {
+		lines = append(lines, "MachineID="+u.FleetOptions.MachineID)
 	}
 	for _, x := range u.FleetOptions.Metadata {
 		lines = append(lines, "MachineMetadata="+x)

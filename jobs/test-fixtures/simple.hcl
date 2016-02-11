@@ -1,7 +1,16 @@
 job "test" {
 
+	constraint {
+		attribute = "meta.core"
+		value = "true"
+	}
+
 	group "web" {
 		count = 2
+		constraint {
+			attribute = "meta.web"
+			value = "true"
+		}
 		task "nginx" {
 			image = "alpine:3.2"
 			args = ["ls", "-al", "--db", "{{link_url "test.couchdb"}}"]
@@ -38,6 +47,10 @@ job "test" {
 		}
 		task "storage" {
 			image = "mystorage:latest"
+			constraint {
+				attribute = "node.id"
+				value = "123456789"
+			}
 		}
 		task "backup" {
 			type = "oneshot"

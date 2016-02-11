@@ -18,6 +18,7 @@ ExecStop=-/usr/bin/docker stop -t 10 test-web-backup-2
 ExecStopPost=-/usr/bin/docker rm -f test-web-backup-2
 
 [X-Fleet]
+MachineMetadata="web=true" "core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

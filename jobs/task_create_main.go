@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/dchest/uniuri"
+	"github.com/juju/errgo"
 	"github.com/nyarla/go-crypt"
 
 	"arvika.pulcy.com/pulcy/deployit/units"
@@ -84,6 +85,10 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	}
 
 	if err := t.addFrontEndRegistration(main, ctx); err != nil {
+		return nil, maskAny(err)
+	}
+
+	if err := t.setupMainConstraints(main); err != nil {
 		return nil, maskAny(err)
 	}
 
@@ -190,6 +195,30 @@ func (t *Task) createMainRequires(ctx generatorContext) ([]string, error) {
 	}
 
 	return requires, nil
+}
+
+// setupMainConstraints creates constraint keys for the `X-Fleet` section for the main unit
+func (t *Task) setupMainConstraints(unit *units.Unit) error {
+	constraints := t.group.job.Constraints.Merge(t.group.Constraints).Merge(t.Constraints)
+
+	metadata := []string{}
+	for _, c := range constraints {
+		if strings.HasPrefix(c.Attribute, metaAttributePrefix) {
+			// meta.<somekey>
+			key := c.Attribute[len(metaAttributePrefix):]
+			metadata = append(metadata, fmt.Sprintf("%s=%s", key, c.Value))
+		} else {
+			switch c.Attribute {
+			case attributeNodeID:
+				unit.FleetOptions.MachineID = c.Value
+			default:
+				return errgo.WithCausef(nil, ValidationError, "Unknown constraint attribute '%s'", c.Attribute)
+			}
+		}
+	}
+	unit.FleetOptions.MachineMetadata(metadata...)
+
+	return nil
 }
 
 type frontendRecord struct {

@@ -26,9 +26,10 @@ func (jn JobName) Validate() error {
 }
 
 type Job struct {
-	ID     string        `json:"id,omitempty"`
-	Name   JobName       `json:"name"`
-	Groups TaskGroupList `json:"groups"`
+	ID          string        `json:"id,omitempty"`
+	Name        JobName       `json:"name"`
+	Groups      TaskGroupList `json:"groups"`
+	Constraints Constraints   `json:"constraints,omitempty"`
 }
 
 // Link objects just after parsing
@@ -58,6 +59,9 @@ func (j *Job) Validate() error {
 				return maskAny(errgo.WithCausef(nil, ValidationError, "job has duplicate taskgroup %s", tg.Name))
 			}
 		}
+	}
+	if err := j.Constraints.Validate(); err != nil {
+		return maskAny(err)
 	}
 	return nil
 }

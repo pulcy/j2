@@ -39,9 +39,10 @@ type TaskGroup struct {
 	Name TaskGroupName `json:"name", mapstructure:"-"`
 	job  *Job
 
-	Count  uint     `json:"count"`            // Number of instances of this group
-	Global bool     `json:"global,omitempty"` // Scheduled on all machines
-	Tasks  TaskList `json:"tasks"`
+	Count       uint        `json:"count"`            // Number of instances of this group
+	Global      bool        `json:"global,omitempty"` // Scheduled on all machines
+	Tasks       TaskList    `json:"tasks"`
+	Constraints Constraints `json:"constraints,omitempty"`
 }
 
 type TaskGroupList []*TaskGroup
@@ -75,6 +76,9 @@ func (tg *TaskGroup) Validate() error {
 				return maskAny(errgo.WithCausef(nil, ValidationError, "group %s has duplicate task %s", tg.Name, t.Name))
 			}
 		}
+	}
+	if err := tg.Constraints.Validate(); err != nil {
+		return maskAny(err)
 	}
 	return nil
 }

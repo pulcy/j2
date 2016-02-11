@@ -27,6 +27,6 @@ func GroupUnitsOnMachine(units ...*Unit) {
 		if i == 0 {
 			continue
 		}
-		u.ExecOptions.MachineOf = units[0].FullName
+		u.FleetOptions.MachineOf = units[0].FullName
 	}
 }

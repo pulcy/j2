@@ -93,7 +93,7 @@ func (j *Job) parse(list *ast.ObjectList) error {
 	obj := list.Items[0]
 
 	// Decode the object
-	if err := decode(obj.Val, []string{"group", "task"}, nil, j); err != nil {
+	if err := decode(obj.Val, []string{"group", "task", "constraint"}, nil, j); err != nil {
 		return maskAny(err)
 	}
 
@@ -129,6 +129,21 @@ func (j *Job) parse(list *ast.ObjectList) error {
 	if o := listVal.Filter("group"); len(o.Items) > 0 {
 		if err := j.parseGroups(o); err != nil {
 			return fmt.Errorf("error parsing 'group': %s", err)
+		}
+	}
+
+	// Parse constraints
+	if o := listVal.Filter("constraint"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				c := Constraint{}
+				if err := c.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				j.Constraints = append(j.Constraints, c)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "constraint of job %s is not an object", j.Name))
+			}
 		}
 	}
 
@@ -176,7 +191,7 @@ func (tg *TaskGroup) parse(obj *ast.ObjectType) error {
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
 	}
-	if err := decode(obj, []string{"task"}, defaultValues, tg); err != nil {
+	if err := decode(obj, []string{"task", "constraint"}, defaultValues, tg); err != nil {
 		return maskAny(err)
 	}
 
@@ -184,6 +199,21 @@ func (tg *TaskGroup) parse(obj *ast.ObjectType) error {
 	if o := obj.List.Filter("task"); len(o.Items) > 0 {
 		if err := tg.parseTasks(o); err != nil {
 			return maskAny(err)
+		}
+	}
+
+	// Parse constraints
+	if o := obj.List.Filter("constraint"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				c := Constraint{}
+				if err := c.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				tg.Constraints = append(tg.Constraints, c)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "constraint of task-group %s is not an object", tg.Name))
+			}
 		}
 	}
 
@@ -235,6 +265,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 		"capabilities",
 		"links",
 		"secret",
+		"constraint",
 	}
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
@@ -356,6 +387,21 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 		}
 	}
 
+	// Parse constraints
+	if o := obj.List.Filter("constraint"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				c := Constraint{}
+				if err := c.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				t.Constraints = append(t.Constraints, c)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "constraint of task %s is not an object", t.Name))
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -413,6 +459,15 @@ func (f *PrivateFrontEnd) parse(obj *ast.ObjectType) error {
 		}
 	}
 
+	return nil
+}
+
+// parse a constraint
+func (c *Constraint) parse(obj *ast.ObjectType) error {
+	// Build the constraint
+	if err := decode(obj, nil, nil, c); err != nil {
+		return maskAny(err)
+	}
 	return nil
 }
 

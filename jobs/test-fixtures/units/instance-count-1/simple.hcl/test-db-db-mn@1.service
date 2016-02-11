@@ -27,6 +27,7 @@ ExecStop=-/usr/bin/docker stop -t 10 test-db-db-1
 ExecStopPost=-/usr/bin/docker rm -f test-db-db-1
 
 [X-Fleet]
+MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

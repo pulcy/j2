@@ -28,6 +28,7 @@ ExecStopPost=-/usr/bin/docker rm -f test-db-db-1
 
 [X-Fleet]
 Conflicts=test-db-db-mn@*.service
+MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

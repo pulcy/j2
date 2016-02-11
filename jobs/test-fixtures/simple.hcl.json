@@ -1,5 +1,9 @@
 {
     "name": "test",
+    "constraints": [{
+        "attribute": "meta.core",
+        "value": "true"
+    }],
     "groups": [{
         "name": "couchdb",
         "count": 1,
@@ -54,6 +58,10 @@
     }, {
         "name": "web",
         "count": 2,
+        "constraints": [{
+            "attribute": "meta.web",
+            "value": "true"
+        }],
         "tasks": [{
             "name": "backup",
             "type": "oneshot",
@@ -99,6 +107,10 @@
             }]
         }, {
             "name": "storage",
+            "constraints": [{
+                "attribute": "node.id",
+                "value": "123456789"
+            }],
             "image": "mystorage:latest"
         }]
     }]

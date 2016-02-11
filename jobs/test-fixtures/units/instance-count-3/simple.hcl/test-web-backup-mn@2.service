@@ -19,6 +19,7 @@ ExecStopPost=-/usr/bin/docker rm -f test-web-backup-2
 
 [X-Fleet]
 Conflicts=test-web-backup-mn@*.service
+MachineMetadata="web=true" "core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

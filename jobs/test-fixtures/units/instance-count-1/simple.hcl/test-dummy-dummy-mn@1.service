@@ -21,6 +21,7 @@ ExecStop=-/usr/bin/docker stop -t 10 test-dummy-dummy-1
 ExecStopPost=-/usr/bin/docker rm -f test-dummy-dummy-1
 
 [X-Fleet]
+MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

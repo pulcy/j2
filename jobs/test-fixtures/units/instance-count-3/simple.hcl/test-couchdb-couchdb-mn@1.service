@@ -24,6 +24,7 @@ ExecStopPost=-/usr/bin/docker rm -f test-couchdb-couchdb-1
 
 [X-Fleet]
 Conflicts=test-couchdb-couchdb-mn@*.service
+MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
