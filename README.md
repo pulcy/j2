@@ -4,6 +4,20 @@
 It takes a job description as input and generates (fleet) unit files for all tasks in the given job.
 The unit files will be pushed onto a CoreOS cluster.
 
+##  Usage
+
+To create/update a [job](#job-specification) on a [cluster](#cluster-specification), run:
+
+```
+deployit run -j <jobpath> -c <clusterpath> [-o <optionspath]
+```
+
+To completely remove a job from a cluster, run:
+
+```
+deployit destroy -j <jobpath> -c <clusterpath>
+```
+
 ## Job specification
 
 A job is a logical group of services.
@@ -16,7 +30,7 @@ A very basic job looks like this:
 
 ```
 job "basic" {
-    task {
+    task "someservice" {
         image = "myimage"
     }
 }
@@ -155,3 +169,29 @@ The following attributes can be used in constraints.
 
 - `meta.<key>` - Refers to a key used in the metadata of a machine.
 - `node.id` - Refers to the `machine-id` of a machine.
+
+## Cluster specification
+
+A cluster file specifies those attributes of a cluster that are relevant for deploying jobs on it.
+
+A typical cluster file looks like:
+
+```
+cluster "production" {
+    domain = "example.com"
+    stack = "production"
+    instance-count = 3
+
+    default-options {
+        "force-ssl" = "true"
+    }
+}
+```
+
+The following keys can be specified on a `cluster`.
+
+- `domain` - The domain name of the cluster
+- `stack` - The name of the stack to deploy in. The combination of `stack` + `domain` forms the DNS name that is
+used to deploy units to.
+- `instance-count` - The number of machines in the cluster. If this number is higher than the `count` of a task-group,
+different instances of that task-group will be forced on different machines.
