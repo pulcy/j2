@@ -22,7 +22,7 @@ import (
 
 	"github.com/juju/errgo"
 
-	"arvika.pulcy.com/pulcy/deployit/units"
+	"git.pulcy.com/pulcy/deployit/units"
 )
 
 const (

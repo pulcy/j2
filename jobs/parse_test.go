@@ -27,9 +27,9 @@ import (
 
 	"github.com/kr/pretty"
 
-	fg "arvika.pulcy.com/pulcy/deployit/flags"
-	"arvika.pulcy.com/pulcy/deployit/jobs"
-	"arvika.pulcy.com/pulcy/deployit/units"
+	fg "git.pulcy.com/pulcy/deployit/flags"
+	"git.pulcy.com/pulcy/deployit/jobs"
+	"git.pulcy.com/pulcy/deployit/units"
 )
 
 const (

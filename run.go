@@ -24,9 +24,9 @@ import (
 	"github.com/juju/errgo"
 	"github.com/spf13/cobra"
 
-	fg "arvika.pulcy.com/pulcy/deployit/flags"
-	"arvika.pulcy.com/pulcy/deployit/fleet"
-	"arvika.pulcy.com/pulcy/deployit/units"
+	fg "git.pulcy.com/pulcy/deployit/flags"
+	"git.pulcy.com/pulcy/deployit/fleet"
+	"git.pulcy.com/pulcy/deployit/units"
 )
 
 var (

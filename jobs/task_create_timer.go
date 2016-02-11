@@ -17,7 +17,7 @@ package jobs
 import (
 	"strconv"
 
-	"arvika.pulcy.com/pulcy/deployit/units"
+	"git.pulcy.com/pulcy/deployit/units"
 )
 
 // createTimerUnit

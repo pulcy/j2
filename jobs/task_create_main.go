@@ -26,7 +26,7 @@ import (
 	"github.com/juju/errgo"
 	"github.com/nyarla/go-crypt"
 
-	"arvika.pulcy.com/pulcy/deployit/units"
+	"git.pulcy.com/pulcy/deployit/units"
 )
 
 var (

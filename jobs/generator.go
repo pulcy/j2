@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"arvika.pulcy.com/pulcy/deployit/units"
+	"git.pulcy.com/pulcy/deployit/units"
 )
 
 type Generator struct {
