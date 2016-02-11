@@ -25,8 +25,7 @@ const (
 	defaultTunnelOverride = ""
 	defaultForce          = false
 	defaultDryRun         = false
-	defaultScalingGroup   = uint(0)    // all
-	defaultDomain         = "iggi.xyz" // TODO
+	defaultScalingGroup   = uint(0) // all
 	defaultLocal          = false
 )
 
