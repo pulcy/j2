@@ -100,7 +100,11 @@ func loadCluster(f *fg.Flags) (*fg.Cluster, error) {
 	if f.ClusterPath == "" {
 		return nil, maskAny(errgo.New("--cluster missing"))
 	}
-	path, err := resolvePath(f.ClusterPath, "config/clusters", ".hcl")
+	clustersPath := os.Getenv("PULCY_CLUSTERS")
+	if clustersPath == "" {
+		clustersPath = "config/clusters"
+	}
+	path, err := resolvePath(f.ClusterPath, clustersPath, ".hcl")
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -121,17 +125,24 @@ func loadCluster(f *fg.Flags) (*fg.Cluster, error) {
 // resolvePath tries to resolve a given path.
 // 1) Try as real path
 // 2) Try as filename relative to my process with given relative folder & extension
-func resolvePath(path, relativeFolder, extension string) (string, error) {
+func resolvePath(path, altFolder, extension string) (string, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		// path not found, try locating it by name in our relative folder
-		folder, err := osext.ExecutableFolder()
-		if err != nil {
-			return "", maskAny(err)
+		// path not found, try locating it by name in a different folder
+		var folder string
+		if filepath.IsAbs(altFolder) {
+			folder = altFolder
+		} else {
+			// altFolder is relative, assume it is relative to our executable
+			exeFolder, err := osext.ExecutableFolder()
+			if err != nil {
+				return "", maskAny(err)
+			}
+			folder = filepath.Join(exeFolder, altFolder)
 		}
-		path = filepath.Join(folder, relativeFolder, path) + extension
+		path = filepath.Join(folder, path) + extension
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			// Try without extensions
-			path = filepath.Join(folder, relativeFolder, path)
+			path = filepath.Join(folder, path)
 		}
 	}
 	return path, nil
