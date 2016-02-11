@@ -53,18 +53,67 @@ The following keys can be specified on a `task`.
   mapped into the port namespace of the machine on which the container is scheduled.
   Each port entry must be a valid docker port specification.
   Note that `ports` are not often used. In most cases you'll use a `frontend` or `private-frontend`.
+- `links` - Contains a list of task names that this task will link to through a docker link. Each name must be a fully qualified task name (job.group.task).
+- `capabilities` - Contains a list of Linux capabilities to add to the container. (See `docker run --cap-add`)
 - `constraint` - See [Constraints](#constraints)
+- `http-check-path` - Contains an HTTP path for the load-balancer to call when checking the status of this task.
+- `frontend` - Contains a public load-balancer registration. This configures the load-balancer to forward certain requests from the public network interface(s) of the cluster to this task. See [Frontends](#frontends).
+- `private-frontend` - Contains a private load-balancer registration. This configures the load-balancer to forward certain requests from the private network interface(s) of the cluster to this task. See [Frontends](#frontends).
+- `secret` - Contains a specification for a secret value to be fetched and mapped into the container. See [Secret](#secrets).
+
+#### Frontends
+
+Frontends are used to provide a configuration for the load-balancer.
+
+The following keys can be specified on a public frontend.
+
+- `domain` - The load-balancer will forward requests that match this domain.
+- `path-prefix` - The load-balancer will forward requests where the path of the requests starts with this prefix.
+- `ssl-cert` - The load-balancer will use an SSL certificate with this filename for connections to this task. If you do not specify an SSL certificate and the load-balancer is configured to use [Let's Encrypt](https://letsencrypt.org) a certificate will be automatically created for the specified `domain`.
+
+The following keys can be specified on a all frontends.
+
+- `port` - The load-balancer will forward requests to this port of the task. If you do not specify a port, it will forward requests to any of the ports exposed by the container.
+- `user` - User objects specify password authentication to be used for requests forwarded for this task.
+- `weight` - Contains a value [0...100] used to order frontend specifications in the load-balancer. If 2 frontend specifications both match a specific request, the one with the highest weight will be used.
+
+The following keys can be specified on a private frontend.
+
+- `mode` - Specifies the mode the load-balancer will be configured for for this frontend. Mode can be `http` (default) or `tcp`.
+Frontends using `tcp` mode will offer TCP over TLS connections, using SNI to identify the correct task to forward the request to.
+The connection from the load-balancer to the task will use TCP only.
+
+#### Secrets
+
+Secrets are used to pass sensitive data to tasks in a secure manor.
+The sensitive data can be exposed as an environment variable (e.g. passwords) or as a file (e.g. certificates).
+Secrets are extracted from a [Vault](https://vaultproject.io).
+
+A secret looks like this:
 
 ```
-TODO
-PublicFrontEnds  []PublicFrontEnd  `json:"frontends,omitempty"`
-PrivateFrontEnds []PrivateFrontEnd `json:"private-frontends,omitempty"`
-HttpCheckPath    string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
-Capabilities     []string          `json:"capabilities,omitempty"`
-Links            []LinkName        `json:"links,omitempty"`
-Secrets          []Secret          `json:"secrets,omitempty"`
-Constraints      Constraints       `json:"constraints,omitempty"`
+secret "secret/mypassword" {
+    environment = "MYPASSWORD"
+}
 ```
+
+The above secret results in the value of a secret under path "secret/mypassword" to be passed to the task in an environment variable named "MYPASSWORD".
+
+```
+secret "secret/mycertificate" {
+    file = "/config/mycertificate.pem"
+}
+```
+
+The above secret results in the value of a secret under path "secret/mycertificate" to be passed to the task in a file mounted on "/config/mycertificate.pem".
+
+The following keys can be specified on a `secret`.
+
+- `field` - Contains the name of the field of the secret. If no field is specified, the `value` field is fetched.
+- `environment` - Contains the name of the environment variable that will be passed into the container.
+- `file` - Contains the full path of the file that will be mounted into the container.
+
+You must specify an `environment` or a `file`, not both.
 
 ### Task groups
 
