@@ -21,7 +21,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"git.pulcy.com/pulcy/deployit/jobs"
+	"github.com/pulcy/deployit/jobs"
 )
 
 var (

@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.pulcy.com/pulcy/deployit/units"
+	"github.com/pulcy/deployit/units"
 )
 
 const (

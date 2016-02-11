@@ -23,8 +23,8 @@ import (
 	"github.com/kardianos/osext"
 	"github.com/spf13/pflag"
 
-	fg "git.pulcy.com/pulcy/deployit/flags"
-	"git.pulcy.com/pulcy/deployit/jobs"
+	fg "github.com/pulcy/deployit/flags"
+	"github.com/pulcy/deployit/jobs"
 )
 
 func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {

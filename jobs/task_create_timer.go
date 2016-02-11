@@ -17,7 +17,7 @@ package jobs
 import (
 	"strconv"
 
-	"git.pulcy.com/pulcy/deployit/units"
+	"github.com/pulcy/deployit/units"
 )
 
 // createTimerUnit

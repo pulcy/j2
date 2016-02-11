@@ -25,7 +25,7 @@ import (
 
 	"github.com/juju/errgo"
 
-	fg "git.pulcy.com/pulcy/deployit/flags"
+	fg "github.com/pulcy/deployit/flags"
 )
 
 const (

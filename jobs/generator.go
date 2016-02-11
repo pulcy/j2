@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"git.pulcy.com/pulcy/deployit/units"
+	"github.com/pulcy/deployit/units"
 )
 
 type Generator struct {
