@@ -21,7 +21,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pulcy/deployit/jobs"
+	"github.com/pulcy/j2/jobs"
 )
 
 var (
@@ -34,7 +34,7 @@ var (
 
 var (
 	cmdMain = &cobra.Command{
-		Use:              "deployit",
+		Use:              "j2",
 		Run:              showUsage,
 		PersistentPreRun: loadDefaults,
 	}

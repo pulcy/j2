@@ -27,9 +27,9 @@ import (
 
 	"github.com/kr/pretty"
 
-	fg "github.com/pulcy/deployit/flags"
-	"github.com/pulcy/deployit/jobs"
-	"github.com/pulcy/deployit/units"
+	fg "github.com/pulcy/j2/flags"
+	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/units"
 )
 
 const (

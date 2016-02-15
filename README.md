@@ -1,6 +1,6 @@
-# Deployit
+# J2
 
-`deployit` is the pulcy service deployment tool.
+`j2` is the pulcy service deployment tool.
 It takes a job description as input and generates (fleet) unit files for all tasks in the given job.
 The unit files will be pushed onto a CoreOS cluster.
 
@@ -9,13 +9,13 @@ The unit files will be pushed onto a CoreOS cluster.
 To create/update a [job](#job-specification) on a [cluster](#cluster-specification), run:
 
 ```
-deployit run -j <jobpath> -c <clusterpath> [-o <optionspath]
+j2 run -j <jobpath> -c <clusterpath> [-o <optionspath]
 ```
 
 To completely remove a job from a cluster, run:
 
 ```
-deployit destroy -j <jobpath> -c <clusterpath>
+j2 destroy -j <jobpath> -c <clusterpath>
 ```
 
 ## Job specification

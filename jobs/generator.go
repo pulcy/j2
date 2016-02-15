@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pulcy/deployit/units"
+	"github.com/pulcy/j2/units"
 )
 
 type Generator struct {
@@ -36,7 +36,7 @@ type Images struct {
 }
 
 func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint) *Generator {
-	tmpDir, err := ioutil.TempDir("", "deployit")
+	tmpDir, err := ioutil.TempDir("", "j2")
 	if err != nil {
 		panic(err.Error())
 	}

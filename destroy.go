@@ -19,9 +19,9 @@ import (
 	"strings"
 	"time"
 
-	fg "github.com/pulcy/deployit/flags"
-	"github.com/pulcy/deployit/fleet"
-	"github.com/pulcy/deployit/jobs"
+	fg "github.com/pulcy/j2/flags"
+	"github.com/pulcy/j2/fleet"
+	"github.com/pulcy/j2/jobs"
 
 	"github.com/juju/errgo"
 	"github.com/spf13/cobra"

@@ -26,7 +26,7 @@ import (
 	"github.com/juju/errgo"
 	"github.com/mitchellh/mapstructure"
 
-	fg "github.com/pulcy/deployit/flags"
+	fg "github.com/pulcy/j2/flags"
 )
 
 type parseJobOptions struct {
