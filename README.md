@@ -1,6 +1,6 @@
 # J2
 
-`j2` is the pulcy service deployment tool.
+[`j2`](#why-is-it-called-j2) is the pulcy service deployment tool.
 It takes a job description as input and generates (fleet) unit files for all tasks in the given job.
 The unit files will be pushed onto a CoreOS cluster.
 
@@ -195,3 +195,7 @@ The following keys can be specified on a `cluster`.
 used to deploy units to.
 - `instance-count` - The number of machines in the cluster. If this number is higher than the `count` of a task-group,
 different instances of that task-group will be forced on different machines.
+
+## Why is it called J2?
+
+This tool is named after the famous [J-2](https://en.wikipedia.org/wiki/J-2_%28rocket_engine%29) rocket engine that helped bring man to the moon. It was a predecessor for the RS-25 rocket engine that powered the Space Shuttle and even today it is an inspiration for the J-2X engine intended for NASA's Space Launch System.
