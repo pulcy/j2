@@ -19,7 +19,7 @@ job "base" {
 		}
 
 		task "lb" {
-			image = "pulcy/bleep:0.13.0"
+			image = "pulcy/robin:0.13.1"
 			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "{{private_ipv4}}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
 			volumes-from = "certificates"
 			secret "secret/base/lb/stats-password" {
