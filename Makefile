@@ -44,7 +44,7 @@ $(GOBUILDDIR):
 
 update-vendor:
 	@rm -Rf $(VENDORDIR)
-	@pulcy go vendor -V $(VENDORDIR) \
+	@pulsar go vendor -V $(VENDORDIR) \
 		github.com/spf13/pflag \
 		github.com/spf13/cobra \
 		github.com/juju/errgo \
