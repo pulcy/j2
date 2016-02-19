@@ -62,6 +62,7 @@ job "test" {
 	task "dummy" {
 		count = 3
 		image = "alpine:latest"
+		docker_args = ["--net=host"]
 	}
 
 	task "db" {

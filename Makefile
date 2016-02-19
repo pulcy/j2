@@ -68,7 +68,7 @@ $(BIN): $(GOBUILDDIR) $(SOURCES)
 		go build -a -ldflags "-X main.projectVersion=$(VERSION) -X main.projectBuild=$(COMMIT)" -o /usr/code/$(PROJECT) $(REPOPATH)
 
 run-tests:
-	@make run-test test=./...
+	@make run-test test=$(REPOPATH)/jobs
 
 update-tests:
 	@make run-tests UPDATE-FIXTURES=1
@@ -82,8 +82,9 @@ run-test:
 	    --rm \
 	    -v $(shell pwd):/usr/code \
 	    -e GOPATH=/usr/code/.gobuild \
+		-e GO15VENDOREXPERIMENT=1 \
 		-e TEST_ENV=test-env \
 		-e UPDATE-FIXTURES=$(UPDATE-FIXTURES) \
 	    -w /usr/code \
 		golang:$(GOVERSION) \
-	    go test $(test) -v
+	    go test -v $(test)

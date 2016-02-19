@@ -34,7 +34,8 @@
         "count": 3,
         "tasks": [{
             "name": "dummy",
-            "image": "alpine:latest"
+            "image": "alpine:latest",
+            "docker_args": ["--net=host"]
         }]
     }, {
         "name": "global",
