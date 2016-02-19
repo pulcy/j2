@@ -174,6 +174,7 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, map[stri
 	for _, ln := range t.Links {
 		addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", ln.PrivateDomainName()))
 	}
+	execStart = append(execStart, t.DockerArgs...)
 
 	execStart = append(execStart, image)
 	execStart = append(execStart, t.Args...)

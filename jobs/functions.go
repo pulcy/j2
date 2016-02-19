@@ -58,21 +58,13 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 		"quote":        strconv.Quote,
 		"replace":      strings.Replace,
 		"trim":         strings.TrimSpace,
-		"private_ipv4": jf.getPrivateIPV4,
-		"public_ipv4":  jf.getPublicIPV4,
+		"private_ipv4": func() string { return "${COREOS_PRIVATE_IPV4}" },
+		"public_ipv4":  func() string { return "${COREOS_PUBLIC_IPV4}" },
+		"hostname":     func() string { return "%H" },
+		"machine_id":   func() string { return "%m" },
 		"link_url":     jf.linkURL,
 		"link_tls":     jf.linkTLS,
 	}
-}
-
-// getPrivateIPV4 gets the COREOS_PRIVATE_IPV4 address.
-func (jf *jobFunctions) getPrivateIPV4() string {
-	return "${COREOS_PRIVATE_IPV4}"
-}
-
-// getPublicIPV4 gets the COREOS_PUBLIC_IPV4 address.
-func (jf *jobFunctions) getPublicIPV4() string {
-	return "${COREOS_PUBLIC_IPV4}"
 }
 
 // getEnv loads an environment value and returns an error if it is empty.

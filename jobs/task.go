@@ -60,6 +60,7 @@ type Task struct {
 	Links            []LinkName        `json:"links,omitempty"`
 	Secrets          []Secret          `json:"secrets,omitempty"`
 	Constraints      Constraints       `json:"constraints,omitempty"`
+	DockerArgs       []string          `json:"docker_args,omitempty" mapstructure:"docker_args,omitempty"`
 }
 
 // Check for errors
