@@ -102,7 +102,7 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		return nil, maskAny(err)
 	}
 
-	if err := t.setupMainConstraints(main); err != nil {
+	if err := t.setupConstraints(main); err != nil {
 		return nil, maskAny(err)
 	}
 
@@ -212,8 +212,8 @@ func (t *Task) createMainRequires(ctx generatorContext) ([]string, error) {
 	return requires, nil
 }
 
-// setupMainConstraints creates constraint keys for the `X-Fleet` section for the main unit
-func (t *Task) setupMainConstraints(unit *units.Unit) error {
+// setupConstraints creates constraint keys for the `X-Fleet` section for the main unit
+func (t *Task) setupConstraints(unit *units.Unit) error {
 	constraints := t.group.job.Constraints.Merge(t.group.Constraints).Merge(t.Constraints)
 
 	metadata := []string{}

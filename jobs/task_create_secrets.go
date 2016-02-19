@@ -136,6 +136,10 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 	// After=...
 	unit.ExecOptions.After(commonAfter...)
 
+	if err := t.setupConstraints(unit); err != nil {
+		return nil, maskAny(err)
+	}
+
 	return unit, nil
 }
 
