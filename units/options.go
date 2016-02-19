@@ -54,7 +54,7 @@ func NewExecOptions(start ...string) *execOptions {
 		RemainsAfterExit:        false,
 		Restart:                 "on-failure",
 		RestartSec:              1,
-		StartLimitInterval:      "300s",
+		StartLimitInterval:      "60s",
 		StartLimitBurst:         3,
 		TimeoutStartSec:         0,
 		ContainerTimeoutStopSec: 10,

@@ -55,6 +55,9 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	switch t.Type {
 	case "oneshot":
 		main.ExecOptions.IsOneshot = true
+		main.ExecOptions.Restart = "on-failure"
+	default:
+		main.ExecOptions.Restart = "always"
 	}
 	//main.FleetOptions.IsGlobal = ds.global
 	main.ExecOptions.ExecStartPre = []string{
