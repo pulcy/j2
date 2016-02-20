@@ -13,10 +13,11 @@ StartLimitBurst=3
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
 Environment="A00=-e SERVICE_NAME=test-global-global"
+Environment="A01=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull alpine:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-global-global
 ExecStartPre=-/usr/bin/docker rm -f test-global-global
-ExecStart=/usr/bin/docker run --rm --name test-global-global -P $A00 alpine:latest
+ExecStart=/usr/bin/docker run --rm --name test-global-global -P $A00 $A01 alpine:latest
 ExecStop=-/usr/bin/docker stop -t 10 test-global-global
 ExecStopPost=-/usr/bin/docker rm -f test-global-global
 

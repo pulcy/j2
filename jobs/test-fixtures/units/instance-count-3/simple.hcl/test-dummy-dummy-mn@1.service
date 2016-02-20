@@ -13,10 +13,11 @@ StartLimitBurst=3
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
 Environment="A00=-e SERVICE_NAME=test-dummy-dummy"
+Environment="A01=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull alpine:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-dummy-dummy-1
 ExecStartPre=-/usr/bin/docker rm -f test-dummy-dummy-1
-ExecStart=/usr/bin/docker run --rm --name test-dummy-dummy-1 -P $A00 --net=host alpine:latest
+ExecStart=/usr/bin/docker run --rm --name test-dummy-dummy-1 -P $A00 $A01 --net=host alpine:latest
 ExecStop=-/usr/bin/docker stop -t 10 test-dummy-dummy-1
 ExecStopPost=-/usr/bin/docker rm -f test-dummy-dummy-1
 
