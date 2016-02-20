@@ -61,10 +61,15 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 				"-v", "${VOLCLS}",
 				"-v", "${VOLMAC}",
 				"--env-file", "/etc/pulcy/vault.env",
+			}
+			for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.ClusterDockerLoggingArgs) {
+				addArg(arg, &cmd)
+			}
+			cmd = append(cmd,
 				ctx.Images.VaultMonkey,
 				"extract",
 				"file",
-			}
+			)
 			addArg("--target "+targetPath, &cmd)
 			addArg("--job-id "+jobID, &cmd)
 			addArg(secret.VaultPath(), &cmd)
@@ -84,10 +89,15 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 			"-v", "${VOLCLS}",
 			"-v", "${VOLMAC}",
 			"--env-file", "/etc/pulcy/vault.env",
+		}
+		for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.ClusterDockerLoggingArgs) {
+			addArg(arg, &cmd)
+		}
+		cmd = append(cmd,
 			ctx.Images.VaultMonkey,
 			"extract",
 			"env",
-		}
+		)
 		addArg("--target "+targetPath, &cmd)
 		addArg("--job-id "+jobID, &cmd)
 		for _, envPath := range envPaths {

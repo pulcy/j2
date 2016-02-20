@@ -80,8 +80,8 @@ func (j *Job) Validate() error {
 	return nil
 }
 
-func (j *Job) Generate(groups []TaskGroupName, currentScalingGroup uint) *Generator {
-	return newGenerator(j, groups, currentScalingGroup)
+func (j *Job) Generate(groups []TaskGroupName, currentScalingGroup uint, clusterDockerLoggingArgs []string) *Generator {
+	return newGenerator(j, groups, currentScalingGroup, clusterDockerLoggingArgs)
 }
 
 func (j *Job) MaxCount() uint {

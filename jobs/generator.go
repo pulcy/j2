@@ -23,19 +23,20 @@ import (
 )
 
 type Generator struct {
-	job                 *Job
-	groups              []TaskGroupName
-	files               []string
-	unitNames           []string
-	tmpDir              string
-	currentScalingGroup uint
+	job                      *Job
+	groups                   []TaskGroupName
+	files                    []string
+	unitNames                []string
+	tmpDir                   string
+	currentScalingGroup      uint
+	clusterDockerLoggingArgs []string
 }
 
 type Images struct {
 	VaultMonkey string // Docker image name of vault-monkey
 }
 
-func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint) *Generator {
+func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint, clusterDockerLoggingArgs []string) *Generator {
 	tmpDir, err := ioutil.TempDir("", "j2")
 	if err != nil {
 		panic(err.Error())
@@ -45,6 +46,7 @@ func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint) *G
 		groups:              groups,
 		currentScalingGroup: currentScalingGroup,
 		tmpDir:              tmpDir,
+		clusterDockerLoggingArgs: clusterDockerLoggingArgs,
 	}
 }
 
@@ -52,6 +54,7 @@ type generatorContext struct {
 	ScalingGroup  uint
 	InstanceCount int
 	Images
+	ClusterDockerLoggingArgs []string
 }
 
 func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instanceCount int) error {
@@ -71,6 +74,7 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 				ScalingGroup:  scalingGroup,
 				InstanceCount: instanceCount,
 				Images:        images,
+				ClusterDockerLoggingArgs: g.clusterDockerLoggingArgs,
 			}
 			unitChains, err := tg.createUnits(genCtx)
 			if err != nil {

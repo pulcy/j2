@@ -38,6 +38,8 @@ type Cluster struct {
 	Tunnel string `mapstructure:"tunnel,omitempty"`
 	// Size of the cluster (in instances==machines)
 	InstanceCount int `mapstructure:"instance-count,omitempty"`
+	// Arguments to add to the docker command for logging
+	DockerLoggingArgs []string `mapstructure:"docker-log-args,omitempty"`
 
 	DefaultOptions Options `mapstructure:"default-options,omitempty"`
 }

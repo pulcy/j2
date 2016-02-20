@@ -60,7 +60,8 @@ type Task struct {
 	Links            []LinkName        `json:"links,omitempty"`
 	Secrets          []Secret          `json:"secrets,omitempty"`
 	Constraints      Constraints       `json:"constraints,omitempty"`
-	DockerArgs       []string          `json:"docker_args,omitempty" mapstructure:"docker_args,omitempty"`
+	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
+	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`
 }
 
 // Check for errors
@@ -114,6 +115,9 @@ func (t Task) Validate() error {
 		}
 	}
 	if err := t.Constraints.Validate(); err != nil {
+		return maskAny(err)
+	}
+	if err := t.LogDriver.Validate(); err != nil {
 		return maskAny(err)
 	}
 	return nil

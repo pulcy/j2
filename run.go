@@ -65,7 +65,7 @@ func runRun(cmd *cobra.Command, args []string) {
 	}
 
 	groups := groups(&runFlags.Flags)
-	generator := job.Generate(groups, runFlags.ScalingGroup)
+	generator := job.Generate(groups, runFlags.ScalingGroup, cluster.DockerLoggingArgs)
 	assert(generator.WriteTmpFiles(ctx, images, cluster.InstanceCount))
 
 	if runFlags.DryRun {
@@ -74,7 +74,7 @@ func runRun(cmd *cobra.Command, args []string) {
 		location := cluster.Stack
 		count := job.MaxCount()
 		updateScalingGroups(&runFlags.ScalingGroup, count, location, func(runUpdate runUpdateCallback) {
-			generator := job.Generate(groups, runFlags.ScalingGroup)
+			generator := job.Generate(groups, runFlags.ScalingGroup, cluster.DockerLoggingArgs)
 
 			assert(generator.WriteTmpFiles(ctx, images, cluster.InstanceCount))
 
