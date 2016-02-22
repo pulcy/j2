@@ -16,6 +16,7 @@ package jobs
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/juju/errgo"
@@ -162,7 +163,13 @@ func (t *Task) fullName() string {
 
 // privateDomainName returns the DNS name (in the private namespace) for the given task.
 func (t *Task) privateDomainName() string {
-	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name)
+	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name, "")
+	return ln.PrivateDomainName()
+}
+
+// instanceSpecificPrivateDomainName returns the DNS name (in the private namespace) for an instance of the given task.
+func (t *Task) instanceSpecificPrivateDomainName(scalingGroup uint) string {
+	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name, InstanceName(strconv.Itoa(int(scalingGroup))))
 	return ln.PrivateDomainName()
 }
 

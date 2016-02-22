@@ -30,10 +30,11 @@ type PublicFrontEnd struct {
 
 // PrivateFrontEnd contains a specification of a private HTTP(S) frontend.
 type PrivateFrontEnd struct {
-	Port   int    `json:"port,omitempty" mapstructure:"port,omitempty"`
-	Users  []User `json:"users,omitempty"`
-	Weight int    `json:"weight,omitempty" mapstructure:"weight,omitempty"`
-	Mode   string `json:"mode,omitempty" mapstructure:"mode,omitempty"`
+	Port             int    `json:"port,omitempty" mapstructure:"port,omitempty"`
+	Users            []User `json:"users,omitempty"`
+	Weight           int    `json:"weight,omitempty" mapstructure:"weight,omitempty"`
+	Mode             string `json:"mode,omitempty" mapstructure:"mode,omitempty"`
+	RegisterInstance bool   `json:"register-instance,omitempty" mapstructure:"register-instance,omitempty"`
 }
 
 // User contains a user name+password who has access to a frontend
