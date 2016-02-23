@@ -187,6 +187,18 @@ cluster "production" {
     stack = "production"
     instance-count = 3
 
+    docker {
+        log-args = ["--log-driver=fluentd", "--log-opt fluentd-address=127.0.0.1:24284"]
+    }
+
+    fleet {
+        after = [
+            "gluon.service",
+            "loggly-fluentd-fluentd-mn.service"
+        ]
+        wants = "loggly-fluentd-fluentd-mn.service"
+    }
+
     default-options {
         "force-ssl" = "true"
     }
