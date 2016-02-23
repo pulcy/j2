@@ -42,11 +42,19 @@ type Images struct {
 	VaultMonkey string // Docker image name of vault-monkey
 }
 
-func newGenerator(job *Job, config GeneratorConfig) *Generator {
-	tmpDir, err := ioutil.TempDir("", "j2")
+var (
+	tmpDir string
+)
+
+func init() {
+	var err error
+	tmpDir, err = ioutil.TempDir("", "j2")
 	if err != nil {
 		panic(err.Error())
 	}
+}
+
+func newGenerator(job *Job, config GeneratorConfig) *Generator {
 	return &Generator{
 		job:             job,
 		GeneratorConfig: config,

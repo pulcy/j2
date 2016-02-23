@@ -24,9 +24,9 @@ import (
 	"github.com/juju/errgo"
 	"github.com/spf13/cobra"
 
+	"github.com/pulcy/j2/deployment"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/fleet"
-	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/units"
 )
 
@@ -40,6 +40,15 @@ var (
 	runFlags struct {
 		fg.Flags
 	}
+	renderContext = units.RenderContext{
+		ProjectName:    projectName,
+		ProjectVersion: projectVersion,
+		ProjectBuild:   projectBuild,
+	}
+	deploymentDeps = deployment.DeploymentDependencies{
+		Confirm:  confirm,
+		Verbosef: Verbosef,
+	}
 )
 
 func init() {
@@ -47,12 +56,6 @@ func init() {
 }
 
 func runRun(cmd *cobra.Command, args []string) {
-	ctx := units.RenderContext{
-		ProjectName:    cmdMain.Use,
-		ProjectVersion: projectVersion,
-		ProjectBuild:   projectBuild,
-	}
-
 	deploymentDefaults(cmd.Flags(), &runFlags.Flags, args)
 	runValidators(&runFlags.Flags)
 
@@ -65,32 +68,18 @@ func runRun(cmd *cobra.Command, args []string) {
 		Exitf("Cannot load job: %v\n", err)
 	}
 
-	generatorConfig := jobs.GeneratorConfig{
-		Groups:              groups(&runFlags.Flags),
-		CurrentScalingGroup: runFlags.ScalingGroup,
-		DockerOptions:       cluster.DockerOptions,
-		FleetOptions:        cluster.FleetOptions,
+	delays := deployment.DeploymentDelays{
+		StopDelay:    runFlags.StopDelay,
+		DestroyDelay: runFlags.DestroyDelay,
+		SliceDelay:   runFlags.SliceDelay,
 	}
-	generator := job.Generate(generatorConfig)
-	assert(generator.WriteTmpFiles(ctx, images, cluster.InstanceCount))
+	d := deployment.NewDeployment(*job, *cluster, groups(&runFlags.Flags),
+		deployment.ScalingGroupSelection(runFlags.ScalingGroup), runFlags.Force, delays, renderContext, images)
 
 	if runFlags.DryRun {
-		confirm(fmt.Sprintf("remove tmp files from %s ?", generator.TmpDir()))
+		assert(d.DryRun(deploymentDeps))
 	} else {
-		location := cluster.Stack
-		count := job.MaxCount()
-		updateScalingGroups(&runFlags.ScalingGroup, count, location, func(runUpdate runUpdateCallback) {
-			generatorConfig.CurrentScalingGroup = runFlags.ScalingGroup
-			generator := job.Generate(generatorConfig)
-
-			assert(generator.WriteTmpFiles(ctx, images, cluster.InstanceCount))
-
-			unitNames := generator.UnitNames()
-			fileNames := generator.FileNames()
-
-			runUpdate(cluster.Stack, cluster.Tunnel, unitNames, fileNames, runFlags.StopDelay, runFlags.DestroyDelay, runFlags.Force)
-			assert(generator.RemoveTmpFiles())
-		}, runFlags.SliceDelay, runFlags.Force)
+		assert(d.Run(deploymentDeps))
 	}
 }
 

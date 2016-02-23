@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/pulcy/j2/cluster"
+	"github.com/pulcy/j2/deployment"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/fleet"
 	"github.com/pulcy/j2/jobs"
@@ -52,17 +53,18 @@ func destroyRun(cmd *cobra.Command, args []string) {
 	}
 	destroyValidators(&destroyFlags.Flags, *cluster)
 
-	f := fleet.NewTunnel(cluster.Tunnel)
-	list, err := f.List()
-	assert(err)
-
-	unitNames := selectUnits(list, &destroyFlags.Flags)
-	if len(unitNames) == 0 {
-		fmt.Printf("No units on the cluster match the given arguments\n")
-	} else {
-		assert(confirmDestroy(destroyFlags.Force, cluster.Stack, unitNames))
-		assert(destroyUnits(cluster.Stack, f, unitNames, destroyFlags.StopDelay))
+	job := jobs.Job{
+		Name: jobs.JobName(destroyFlags.JobPath),
 	}
+	delays := deployment.DeploymentDelays{
+		StopDelay:    destroyFlags.StopDelay,
+		DestroyDelay: destroyFlags.DestroyDelay,
+		SliceDelay:   destroyFlags.SliceDelay,
+	}
+	d := deployment.NewDeployment(job, *cluster, groups(&destroyFlags.Flags),
+		deployment.ScalingGroupSelection(destroyFlags.ScalingGroup), destroyFlags.Force, delays, renderContext, images)
+
+	assert(d.Destroy(deploymentDeps))
 }
 
 func destroyValidators(f *fg.Flags, cluster cluster.Cluster) {
