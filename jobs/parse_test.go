@@ -68,7 +68,6 @@ func TestParse(t *testing.T) {
 			"secret.hcl",
 			false,
 			[]string{
-				"secrets-env_secrets-env_secrets-sc@1.service",
 				"secrets-env_secrets-env_secrets-mn@1.service",
 			},
 		},

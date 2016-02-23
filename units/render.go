@@ -124,9 +124,12 @@ func (u *Unit) Render(ctx RenderContext) string {
 		fmt.Sprintf("[X-%s]", ctx.ProjectName),
 		fmt.Sprintf("GeneratedBy=\"%s %s, build %s\"", ctx.ProjectName, ctx.ProjectVersion, ctx.ProjectBuild),
 	)
+	projectSettingsLines := []string{}
 	for k, v := range u.projectSettings {
-		lines = append(lines, fmt.Sprintf("%s=%s", k, strconv.Quote(v)))
+		projectSettingsLines = append(projectSettingsLines, fmt.Sprintf("%s=%s", k, strconv.Quote(v)))
 	}
+	sort.Strings(projectSettingsLines)
+	lines = append(lines, projectSettingsLines...)
 	lines = append(lines, "")
 
 	return strings.Join(lines, "\n")
