@@ -16,6 +16,8 @@ package jobs
 
 import (
 	"fmt"
+
+	"github.com/pulcy/j2/cluster"
 )
 
 type LogDriver string
@@ -39,10 +41,10 @@ func (lg LogDriver) Validate() error {
 
 // CreateDockerLogArgs creates a series of command line arguments for the given
 // log driver, based on the given cluster.
-func (lg LogDriver) CreateDockerLogArgs(clusterDockerLoggingArgs []string) []string {
+func (lg LogDriver) CreateDockerLogArgs(dockerOptions cluster.DockerOptions) []string {
 	switch lg {
 	case "": // Default from cluster
-		return clusterDockerLoggingArgs
+		return dockerOptions.LoggingArgs
 	case "none":
 		return nil
 	default:

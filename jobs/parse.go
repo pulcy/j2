@@ -24,10 +24,10 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/hcl/hcl/token"
 	"github.com/juju/errgo"
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
+	"github.com/pulcy/j2/util"
 )
 
 type parseJobOptions struct {
@@ -108,7 +108,7 @@ func (j *Job) parse(list *ast.ObjectList) error {
 	obj := list.Items[0]
 
 	// Decode the object
-	if err := decode(obj.Val, []string{"group", "task", "constraint"}, nil, j); err != nil {
+	if err := util.Decode(obj.Val, []string{"group", "task", "constraint"}, nil, j); err != nil {
 		return maskAny(err)
 	}
 
@@ -206,7 +206,7 @@ func (tg *TaskGroup) parse(obj *ast.ObjectType) error {
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
 	}
-	if err := decode(obj, []string{"task", "constraint"}, defaultValues, tg); err != nil {
+	if err := util.Decode(obj, []string{"task", "constraint"}, defaultValues, tg); err != nil {
 		return maskAny(err)
 	}
 
@@ -285,7 +285,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
 	}
-	if err := decode(obj, excludedKeys, defaultValues, t); err != nil {
+	if err := util.Decode(obj, excludedKeys, defaultValues, t); err != nil {
 		return maskAny(err)
 	}
 
@@ -309,7 +309,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 	// If we have env, then parse them
 	if o := obj.List.Filter("env"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {
-			if err := decode(o.Val, nil, nil, &t.Environment); err != nil {
+			if err := util.Decode(o.Val, nil, nil, &t.Environment); err != nil {
 				return maskAny(err)
 			}
 		}
@@ -317,7 +317,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 
 	// Parse volumes
 	if o := obj.List.Filter("volumes"); len(o.Items) > 0 {
-		list, err := parseStringList(o, fmt.Sprintf("volumes of task %s", t.Name))
+		list, err := util.ParseStringList(o, fmt.Sprintf("volumes of task %s", t.Name))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -326,7 +326,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 
 	// Parse volumes-from
 	if o := obj.List.Filter("volumes-from"); len(o.Items) > 0 {
-		list, err := parseStringList(o, fmt.Sprintf("volumes-from of task %s", t.Name))
+		list, err := util.ParseStringList(o, fmt.Sprintf("volumes-from of task %s", t.Name))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -337,7 +337,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 
 	// Parse capabilities
 	if o := obj.List.Filter("capabilities"); len(o.Items) > 0 {
-		list, err := parseStringList(o, fmt.Sprintf("capabilities of task %s", t.Name))
+		list, err := util.ParseStringList(o, fmt.Sprintf("capabilities of task %s", t.Name))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -346,7 +346,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 
 	// Parse links
 	if o := obj.List.Filter("links"); len(o.Items) > 0 {
-		list, err := parseStringList(o, fmt.Sprintf("links of task %s", t.Name))
+		list, err := util.ParseStringList(o, fmt.Sprintf("links of task %s", t.Name))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -426,7 +426,7 @@ func (f *PublicFrontEnd) parse(obj *ast.ObjectType) error {
 	excludedKeys := []string{
 		"user",
 	}
-	if err := decode(obj, excludedKeys, nil, f); err != nil {
+	if err := util.Decode(obj, excludedKeys, nil, f); err != nil {
 		return maskAny(err)
 	}
 	if o := obj.List.Filter("user"); len(o.Items) > 0 {
@@ -456,7 +456,7 @@ func (f *PrivateFrontEnd) parse(obj *ast.ObjectType) error {
 	defaultValues := map[string]interface{}{
 		"port": 80,
 	}
-	if err := decode(obj, excludedKeys, defaultValues, f); err != nil {
+	if err := util.Decode(obj, excludedKeys, defaultValues, f); err != nil {
 		return maskAny(err)
 	}
 	if o := obj.List.Filter("user"); len(o.Items) > 0 {
@@ -480,7 +480,7 @@ func (f *PrivateFrontEnd) parse(obj *ast.ObjectType) error {
 // parse a constraint
 func (c *Constraint) parse(obj *ast.ObjectType) error {
 	// Build the constraint
-	if err := decode(obj, nil, nil, c); err != nil {
+	if err := util.Decode(obj, nil, nil, c); err != nil {
 		return maskAny(err)
 	}
 	return nil
@@ -489,7 +489,7 @@ func (c *Constraint) parse(obj *ast.ObjectType) error {
 // parse a secret
 func (s *Secret) parse(obj *ast.ObjectType) error {
 	// Build the secret
-	if err := decode(obj, nil, nil, s); err != nil {
+	if err := util.Decode(obj, nil, nil, s); err != nil {
 		return maskAny(err)
 	}
 
@@ -499,56 +499,9 @@ func (s *Secret) parse(obj *ast.ObjectType) error {
 // parse a user
 func (u *User) parse(obj *ast.ObjectType) error {
 	// Build the secret
-	if err := decode(obj, nil, nil, u); err != nil {
+	if err := util.Decode(obj, nil, nil, u); err != nil {
 		return maskAny(err)
 	}
 
 	return nil
-}
-
-func parseStringList(o *ast.ObjectList, context string) ([]string, error) {
-	result := []string{}
-	for _, o := range o.Elem().Items {
-		if olit, ok := o.Val.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
-			result = append(result, olit.Token.Value().(string))
-		} else if list, ok := o.Val.(*ast.ListType); ok {
-			for _, n := range list.List {
-				if olit, ok := n.(*ast.LiteralType); ok && olit.Token.Type == token.STRING {
-					result = append(result, olit.Token.Value().(string))
-				} else {
-					return nil, maskAny(errgo.WithCausef(nil, ValidationError, "element of %s is not a string but %v", context, n))
-				}
-			}
-		} else {
-			return nil, maskAny(errgo.WithCausef(nil, ValidationError, "%s is not a string or array", context))
-		}
-	}
-	return result, nil
-}
-
-// Decode from object to data structure using `mapstructure`
-func decode(obj ast.Node, excludeKeys []string, defaultValues map[string]interface{}, data interface{}) error {
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, obj); err != nil {
-		return maskAny(err)
-	}
-	for _, key := range excludeKeys {
-		delete(m, key)
-	}
-	for k, v := range defaultValues {
-		if _, ok := m[k]; !ok {
-			m[k] = v
-		}
-	}
-	decoderConfig := &mapstructure.DecoderConfig{
-		ErrorUnused:      true,
-		WeaklyTypedInput: true,
-		Metadata:         nil,
-		Result:           data,
-	}
-	decoder, err := mapstructure.NewDecoder(decoderConfig)
-	if err != nil {
-		return maskAny(err)
-	}
-	return maskAny(decoder.Decode(m))
 }

@@ -16,12 +16,8 @@ package cluster
 
 import (
 	"fmt"
-	"io/ioutil"
 
-	"github.com/hashicorp/hcl"
-	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/juju/errgo"
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/pulcy/j2/flags"
 )
@@ -40,8 +36,9 @@ type Cluster struct {
 	Tunnel string `mapstructure:"tunnel,omitempty"`
 	// Size of the cluster (in instances==machines)
 	InstanceCount int `mapstructure:"instance-count,omitempty"`
-	// Arguments to add to the docker command for logging
-	DockerLoggingArgs []string `mapstructure:"docker-log-args,omitempty"`
+
+	// Docker options
+	DockerOptions DockerOptions
 
 	DefaultOptions flags.Options `mapstructure:"default-options,omitempty"`
 }
@@ -62,6 +59,9 @@ func (c Cluster) validate() error {
 	} else if c.InstanceCount < 0 {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "InstanceCount negative"))
 	}
+	if err := c.DockerOptions.validate(); err != nil {
+		return maskAny(err)
+	}
 	return nil
 }
 
@@ -72,80 +72,4 @@ func (c *Cluster) setDefaults() {
 	if c.InstanceCount == 0 {
 		c.InstanceCount = defaultInstanceCount
 	}
-}
-
-// ParseClusterFromFile reads a cluster from file
-func ParseClusterFromFile(path string) (*Cluster, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, maskAny(err)
-	}
-	// Parse the input
-	root, err := hcl.Parse(string(data))
-	if err != nil {
-		return nil, maskAny(err)
-	}
-	// Top-level item should be a list
-	list, ok := root.Node.(*ast.ObjectList)
-	if !ok {
-		return nil, errgo.New("error parsing: root should be an object")
-	}
-	matches := list.Filter("cluster")
-	if len(matches.Items) == 0 {
-		return nil, errgo.New("'cluster' stanza not found")
-	}
-
-	// Parse hcl into Cluster
-	cluster := &Cluster{}
-	if err := cluster.parse(matches); err != nil {
-		return nil, maskAny(err)
-	}
-	cluster.setDefaults()
-
-	// Validate the cluster
-	if err := cluster.validate(); err != nil {
-		return nil, maskAny(err)
-	}
-
-	return cluster, nil
-}
-
-func (c *Cluster) parse(list *ast.ObjectList) error {
-	list = list.Children()
-	if len(list.Items) != 1 {
-		return errgo.New("only one 'cluster' block allowed")
-	}
-	obj := list.Items[0]
-	ot, ok := obj.Val.(*ast.ObjectType)
-	if !ok {
-		return errgo.New("cluster is expected to be an ObjectType")
-	}
-	c.Stack = obj.Keys[0].Token.Value().(string)
-
-	// Decode the full thing into a map[string]interface for ease
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
-		return maskAny(err)
-	}
-	delete(m, "default-options")
-
-	// Decode the rest
-	if err := mapstructure.WeakDecode(m, c); err != nil {
-		return maskAny(err)
-	}
-
-	if o := ot.List.Filter("default-options"); len(o.Items) > 0 {
-		for _, o := range o.Elem().Items {
-			var m map[string]string
-			if err := hcl.DecodeObject(&m, o.Val); err != nil {
-				return maskAny(err)
-			}
-			// Merge key/value pairs into myself
-			for k, v := range m {
-				c.DefaultOptions.SetKV(k, v)
-			}
-		}
-	}
-
-	return nil
 }

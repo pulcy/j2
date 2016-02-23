@@ -19,34 +19,41 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/units"
 )
 
+type GeneratorConfig struct {
+	Groups              []TaskGroupName
+	CurrentScalingGroup uint
+	DockerOptions       cluster.DockerOptions
+}
+
 type Generator struct {
-	job                      *Job
-	groups                   []TaskGroupName
-	files                    []string
-	unitNames                []string
-	tmpDir                   string
-	currentScalingGroup      uint
-	clusterDockerLoggingArgs []string
+	job                 *Job
+	groups              []TaskGroupName
+	files               []string
+	unitNames           []string
+	tmpDir              string
+	currentScalingGroup uint
+	dockerOptions       cluster.DockerOptions
 }
 
 type Images struct {
 	VaultMonkey string // Docker image name of vault-monkey
 }
 
-func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint, clusterDockerLoggingArgs []string) *Generator {
+func newGenerator(job *Job, config GeneratorConfig) *Generator {
 	tmpDir, err := ioutil.TempDir("", "j2")
 	if err != nil {
 		panic(err.Error())
 	}
 	return &Generator{
 		job:                 job,
-		groups:              groups,
-		currentScalingGroup: currentScalingGroup,
+		groups:              config.Groups,
+		currentScalingGroup: config.CurrentScalingGroup,
 		tmpDir:              tmpDir,
-		clusterDockerLoggingArgs: clusterDockerLoggingArgs,
+		dockerOptions:       config.DockerOptions,
 	}
 }
 
@@ -54,7 +61,7 @@ type generatorContext struct {
 	ScalingGroup  uint
 	InstanceCount int
 	Images
-	ClusterDockerLoggingArgs []string
+	DockerOptions cluster.DockerOptions
 }
 
 func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instanceCount int) error {
@@ -74,7 +81,7 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 				ScalingGroup:  scalingGroup,
 				InstanceCount: instanceCount,
 				Images:        images,
-				ClusterDockerLoggingArgs: g.clusterDockerLoggingArgs,
+				DockerOptions: g.dockerOptions,
 			}
 			unitChains, err := tg.createUnits(genCtx)
 			if err != nil {
