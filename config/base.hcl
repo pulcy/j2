@@ -10,6 +10,7 @@ job "base" {
 
 	group "load_balancer" {
 		global = true
+		count = 2 // This splits the instances of the tasks up into 2 groups, 50% of the machines get one group, the other 50% the rest.
 
 		task "certificates" {
 			type = "oneshot"

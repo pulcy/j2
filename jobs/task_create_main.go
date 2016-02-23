@@ -43,7 +43,7 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		FullName:     t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
 		Description:  t.unitDescription("Main", ctx.ScalingGroup),
 		Type:         "service",
-		Scalable:     t.group.IsScalable(),
+		Scalable_:    true, //t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
 		ExecOptions:  units.NewExecOptions(),
 		FleetOptions: units.NewFleetOptions(),
@@ -90,8 +90,20 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
 	)
 	main.FleetOptions.IsGlobal = t.group.Global
-	if t.group.IsScalable() && ctx.InstanceCount > 1 {
-		main.FleetOptions.Conflicts(t.unitName(unitKindMain, "*") + ".service")
+	if ctx.InstanceCount > 1 {
+		if t.group.Global {
+			if t.group.Count > 1 {
+				// Setup metadata constraint such that instances are only scheduled on some machines
+				if int(t.group.Count) > len(ctx.FleetOptions.GlobalInstanceConstraints) {
+					// Group count to high
+					return nil, maskAny(errgo.WithCausef(nil, ValidationError, "Group count (%d) higher than #global instance constraints (%d)", t.group.Count, len(ctx.FleetOptions.GlobalInstanceConstraints)))
+				}
+				constraint := ctx.FleetOptions.GlobalInstanceConstraints[ctx.ScalingGroup-1]
+				main.FleetOptions.MachineMetadata(constraint)
+			}
+		} else {
+			main.FleetOptions.Conflicts(t.unitName(unitKindMain, "*") + ".service")
+		}
 	}
 
 	// Service dependencies

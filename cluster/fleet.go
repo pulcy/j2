@@ -22,9 +22,20 @@ type FleetOptions struct {
 	Wants []string
 	// A list of unit names to add to the `Requires` setting of all generated units
 	Requires []string
+
+	GlobalInstanceConstraints []string
 }
 
 // validate checks the values in the given cluster
 func (o FleetOptions) validate() error {
 	return nil
+}
+
+func (o *FleetOptions) setDefaults() {
+	if len(o.GlobalInstanceConstraints) == 0 {
+		o.GlobalInstanceConstraints = []string{
+			"odd=true",
+			"even=true",
+		}
+	}
 }

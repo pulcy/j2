@@ -30,7 +30,7 @@ func (t *Task) createTimerUnit(ctx generatorContext) (*units.Unit, error) {
 		FullName:     t.unitName(unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))) + ".timer",
 		Description:  t.unitDescription("Timer", ctx.ScalingGroup),
 		Type:         "timer",
-		Scalable:     t.group.IsScalable(),
+		Scalable_:    false, //    t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
 		ExecOptions:  units.NewExecOptions(),
 		FleetOptions: units.NewFleetOptions(),

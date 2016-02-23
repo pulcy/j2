@@ -167,7 +167,7 @@ func (t *Task) instanceSpecificPrivateDomainName(scalingGroup uint) string {
 // unitName returns the name of the systemd unit for this task.
 func (t *Task) unitName(kind string, scalingGroup string) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1) + kind
-	if !t.group.IsScalable() {
+	if t.group.Global && t.group.Count == 1 {
 		return base
 	}
 	return fmt.Sprintf("%s@%s", base, scalingGroup)
@@ -185,7 +185,7 @@ func (t *Task) unitDescription(prefix string, scalingGroup uint) string {
 // containerName returns the name of the docker contained used for this task.
 func (t *Task) containerName(scalingGroup uint) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
-	if !t.group.IsScalable() {
+	if t.group.Global {
 		return base
 	}
 	return fmt.Sprintf("%s-%v", base, scalingGroup)

@@ -75,4 +75,5 @@ func (c *Cluster) setDefaults() {
 	if c.InstanceCount == 0 {
 		c.InstanceCount = defaultInstanceCount
 	}
+	c.FleetOptions.setDefaults()
 }

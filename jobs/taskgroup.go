@@ -74,8 +74,8 @@ func (tg *TaskGroup) Validate() error {
 	if err := tg.Name.Validate(); err != nil {
 		return maskAny(err)
 	}
-	if tg.Count == 0 {
-		return maskAny(errgo.WithCausef(nil, ValidationError, "group %s count 0", tg.Name))
+	if tg.Count <= 0 {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "group %s count <= 0", tg.Name))
 	}
 	if len(tg.Tasks) == 0 {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "group %s has no tasks", tg.Name))
@@ -109,20 +109,14 @@ func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
 
 // Is this group scalable?
 // That mean "not global"
-func (tg *TaskGroup) IsScalable() bool {
+/*func (tg *TaskGroup) IsScalable() bool {
 	return !tg.Global
-}
+}*/
 
 // createUnits creates all units needed to run this taskgroup.
 func (tg *TaskGroup) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
-	if tg.Global {
-		if ctx.ScalingGroup != 1 {
-			return nil, nil
-		}
-	} else {
-		if ctx.ScalingGroup > tg.Count {
-			return nil, nil
-		}
+	if ctx.ScalingGroup > tg.Count {
+		return nil, nil
 	}
 
 	// Create all units for my tasks
