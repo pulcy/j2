@@ -67,7 +67,8 @@ The following keys can be specified on a `task`.
   mapped into the port namespace of the machine on which the container is scheduled.
   Each port entry must be a valid docker port specification.
   Note that `ports` are not often used. In most cases you'll use a `frontend` or `private-frontend`.
-- `links` - Contains a list of task names that this task will link to through a docker link. Each name must be a fully qualified task name (job.group.task).
+- `links` - Contains a list of task names that this task will be able to access through their private frontends.
+Each name must be a fully qualified task name (job.group.task).
 - `capabilities` - Contains a list of Linux capabilities to add to the container. (See `docker run --cap-add`)
 - `constraint` - See [Constraints](#constraints)
 - `http-check-path` - Contains an HTTP path for the load-balancer to call when checking the status of this task.
