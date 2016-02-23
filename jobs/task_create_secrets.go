@@ -55,18 +55,18 @@ func (t *Task) createSecretsExecStartPre(env map[string]string, ctx generatorCon
 				"/usr/bin/docker",
 				"run",
 				"--rm",
-				fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)),
-				"-v", secretsRootVol,
-				"-v", vaultCrtVol,
-				"-v", clusterIdVol,
-				"-v", machineIdVol,
-				"--env-file", "/etc/pulcy/vault.env",
 			}
+			addArg(fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)), &cmd, env)
+			addArg("-v "+secretsRootVol, &cmd, env)
+			addArg("-v "+vaultCrtVol, &cmd, env)
+			addArg("-v "+clusterIdVol, &cmd, env)
+			addArg("-v "+machineIdVol, &cmd, env)
+			addArg("--env-file /etc/pulcy/vault.env", &cmd, env)
 			for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
 				addArg(arg, &cmd, env)
 			}
+			addArg(ctx.Images.VaultMonkey, &cmd, env)
 			cmd = append(cmd,
-				ctx.Images.VaultMonkey,
 				"extract",
 				"file",
 			)
@@ -84,18 +84,18 @@ func (t *Task) createSecretsExecStartPre(env map[string]string, ctx generatorCon
 			"/usr/bin/docker",
 			"run",
 			"--rm",
-			fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)),
-			"-v", secretsRootVol,
-			"-v", vaultCrtVol,
-			"-v", clusterIdVol,
-			"-v", machineIdVol,
-			"--env-file", "/etc/pulcy/vault.env",
 		}
+		addArg(fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)), &cmd, env)
+		addArg("-v "+secretsRootVol, &cmd, env)
+		addArg("-v "+vaultCrtVol, &cmd, env)
+		addArg("-v "+clusterIdVol, &cmd, env)
+		addArg("-v "+machineIdVol, &cmd, env)
+		addArg("--env-file /etc/pulcy/vault.env", &cmd, env)
 		for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
 			addArg(arg, &cmd, env)
 		}
+		addArg(ctx.Images.VaultMonkey, &cmd, env)
 		cmd = append(cmd,
-			ctx.Images.VaultMonkey,
 			"extract",
 			"env",
 		)
