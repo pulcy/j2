@@ -274,6 +274,11 @@ func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) e
 		Service:       t.serviceName(),
 		HttpCheckPath: t.HttpCheckPath,
 	}
+	instanceKey := fmt.Sprintf("/pulcy/frontend/%s-%d-inst", t.serviceName(), ctx.ScalingGroup)
+	instanceRecord := frontendRecord{
+		Service:       fmt.Sprintf("%s-%d", t.serviceName(), ctx.ScalingGroup),
+		HttpCheckPath: t.HttpCheckPath,
+	}
 
 	for _, fr := range t.PublicFrontEnds {
 		selRecord := frontendSelectorRecord{
@@ -297,12 +302,32 @@ func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) e
 		}
 		selRecord.addUsers(fr.Users)
 		record.Selectors = append(record.Selectors, selRecord)
+
+		if fr.RegisterInstance {
+			instanceSelRecord := selRecord
+			instanceSelRecord.Domain = t.instanceSpecificPrivateDomainName(ctx.ScalingGroup)
+			instanceRecord.Selectors = append(instanceRecord.Selectors, instanceSelRecord)
+		}
 	}
+
+	if len(instanceRecord.Selectors) > 0 {
+		if err := t.addFrontEndRegistrationRecord(main, instanceKey, instanceRecord, "FrontEndRegistration-i"); err != nil {
+			return maskAny(err)
+		}
+	}
+	if err := t.addFrontEndRegistrationRecord(main, key, record, "FrontEndRegistration"); err != nil {
+		return maskAny(err)
+	}
+
+	return nil
+}
+
+func (t *Task) addFrontEndRegistrationRecord(main *units.Unit, key string, record frontendRecord, projectSettingKey string) error {
 	json, err := json.Marshal(&record)
 	if err != nil {
 		return maskAny(err)
 	}
-	main.ProjectSetting("FrontEndRegistration", key+"="+string(json))
+	main.ProjectSetting(projectSettingKey, key+"="+string(json))
 	main.ExecOptions.ExecStartPost = append(main.ExecOptions.ExecStartPost,
 		fmt.Sprintf("/bin/sh -c 'echo %s | base64 -d | /usr/bin/etcdctl set %s'", base64.StdEncoding.EncodeToString(json), key),
 	)

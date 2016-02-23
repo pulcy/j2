@@ -11,7 +11,8 @@
             "name": "couchdb",
             "image": "couchdb:latest",
             "private-frontends": [{
-                "port": 5984
+                "port": 5984,
+                "register-instance": true
             }]
         }]
     }, {

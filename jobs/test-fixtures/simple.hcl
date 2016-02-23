@@ -84,6 +84,7 @@ job "test" {
 		image = "couchdb:latest"
 		private-frontend {
 			port = 5984
+			register-instance = true
 		}
 	}
 

@@ -96,6 +96,8 @@ The following keys can be specified on a private frontend.
 - `mode` - Specifies the mode the load-balancer will be configured for for this frontend. Mode can be `http` (default) or `tcp`.
 Frontends using `tcp` mode will offer TCP over TLS connections, using SNI to identify the correct task to forward the request to.
 The connection from the load-balancer to the task will use TCP only.
+- `register-instance` - If set, instances of this task will also be registered in the load-balancer under an instance specific
+name. This enables access to individual instances, in addition to load-balanced access to all instances of a task.
 
 #### Secrets
 
