@@ -18,7 +18,7 @@ ExecStartPre=/usr/bin/docker pull couchdb:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-couchdb-couchdb-1
 ExecStartPre=-/usr/bin/docker rm -f test-couchdb-couchdb-1
 ExecStart=/usr/bin/docker run --rm --name test-couchdb-couchdb-1 -P $A00 $A01 couchdb:latest
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3QuY291Y2hkYi5jb3VjaGRiQDEucHJpdmF0ZSIsInBvcnQiOjU5ODQsInByaXZhdGUiOnRydWV9XSwic2VydmljZSI6InRlc3QtY291Y2hkYi1jb3VjaGRiLTEifQ== | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-couchdb-couchdb-1-inst'
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3QuY291Y2hkYi5jb3VjaGRiLjEucHJpdmF0ZSIsInBvcnQiOjU5ODQsInByaXZhdGUiOnRydWV9XSwic2VydmljZSI6InRlc3QtY291Y2hkYi1jb3VjaGRiLTEifQ== | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-couchdb-couchdb-1-inst'
 ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3QuY291Y2hkYi5jb3VjaGRiLnByaXZhdGUiLCJwb3J0Ijo1OTg0LCJwcml2YXRlIjp0cnVlfV0sInNlcnZpY2UiOiJ0ZXN0LWNvdWNoZGItY291Y2hkYiJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-couchdb-couchdb-1'
 ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-couchdb-couchdb-1
 ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-couchdb-couchdb-1-inst
@@ -30,5 +30,5 @@ MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration-i="/pulcy/frontend/test-couchdb-couchdb-1-inst={\"selectors\":[{\"domain\":\"test.couchdb.couchdb@1.private\",\"port\":5984,\"private\":true}],\"service\":\"test-couchdb-couchdb-1\"}"
+FrontEndRegistration-i="/pulcy/frontend/test-couchdb-couchdb-1-inst={\"selectors\":[{\"domain\":\"test.couchdb.couchdb.1.private\",\"port\":5984,\"private\":true}],\"service\":\"test-couchdb-couchdb-1\"}"
 FrontEndRegistration="/pulcy/frontend/test-couchdb-couchdb-1={\"selectors\":[{\"domain\":\"test.couchdb.couchdb.private\",\"port\":5984,\"private\":true}],\"service\":\"test-couchdb-couchdb\"}"
