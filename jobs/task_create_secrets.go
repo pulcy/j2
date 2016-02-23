@@ -152,6 +152,8 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 		return nil, maskAny(err)
 	}
 
+	t.AddFleetOptions(ctx.FleetOptions, unit)
+
 	return unit, nil
 }
 

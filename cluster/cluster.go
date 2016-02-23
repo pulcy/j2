@@ -40,6 +40,9 @@ type Cluster struct {
 	// Docker options
 	DockerOptions DockerOptions
 
+	// Fleet options
+	FleetOptions FleetOptions
+
 	DefaultOptions flags.Options `mapstructure:"default-options,omitempty"`
 }
 

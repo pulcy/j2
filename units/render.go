@@ -32,8 +32,8 @@ func (u *Unit) Render(ctx RenderContext) string {
 		"[Unit]",
 		"Description=" + u.Description,
 	}
-	if u.ExecOptions.Wants != "" {
-		lines = append(lines, "Wants="+u.ExecOptions.Wants)
+	for _, x := range u.ExecOptions.wants {
+		lines = append(lines, "Wants="+x)
 	}
 	for _, x := range u.ExecOptions.Requires {
 		lines = append(lines, "Requires="+x)

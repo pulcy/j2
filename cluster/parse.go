@@ -75,6 +75,7 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 	excludeList := []string{
 		"default-options",
 		"docker",
+		"fleet",
 	}
 	if err := util.Decode(obj.Val, excludeList, nil, c); err != nil {
 		return maskAny(err)
@@ -102,6 +103,19 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 		}
 	}
 
+	// If we have fleet object, parse it
+	if o := listVal.Filter("fleet"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				if err := c.FleetOptions.parse(obj, *c); err != nil {
+					return maskAny(err)
+				}
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "fleet of cluster '%s' is not an object", c.Stack))
+			}
+		}
+	}
+
 	// Parse default-options
 	if o := listVal.Filter("default-options"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {
@@ -119,13 +133,13 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 	return nil
 }
 
-// parse a secret
-func (do *DockerOptions) parse(obj *ast.ObjectType, c Cluster) error {
+// parse a DockerOptions
+func (options *DockerOptions) parse(obj *ast.ObjectType, c Cluster) error {
 	// Parse the object
 	excludeList := []string{
 		"log-args",
 	}
-	if err := util.Decode(obj, excludeList, nil, do); err != nil {
+	if err := util.Decode(obj, excludeList, nil, options); err != nil {
 		return maskAny(err)
 	}
 	// Parse log-args
@@ -134,7 +148,46 @@ func (do *DockerOptions) parse(obj *ast.ObjectType, c Cluster) error {
 		if err != nil {
 			return maskAny(err)
 		}
-		do.LoggingArgs = append(do.LoggingArgs, list...)
+		options.LoggingArgs = append(options.LoggingArgs, list...)
+	}
+
+	return nil
+}
+
+// parse a FleetOptions
+func (options *FleetOptions) parse(obj *ast.ObjectType, c Cluster) error {
+	// Parse the object
+	excludeList := []string{
+		"after",
+		"wants",
+		"requires",
+	}
+	if err := util.Decode(obj, excludeList, nil, options); err != nil {
+		return maskAny(err)
+	}
+	// Parse after
+	if o := obj.List.Filter("after"); len(o.Items) > 0 {
+		list, err := util.ParseStringList(o, fmt.Sprintf("after of cluster '%s'", c.Stack))
+		if err != nil {
+			return maskAny(err)
+		}
+		options.After = list
+	}
+	// Parse wants
+	if o := obj.List.Filter("wants"); len(o.Items) > 0 {
+		list, err := util.ParseStringList(o, fmt.Sprintf("wants of cluster '%s'", c.Stack))
+		if err != nil {
+			return maskAny(err)
+		}
+		options.Wants = list
+	}
+	// Parse requires
+	if o := obj.List.Filter("requires"); len(o.Items) > 0 {
+		list, err := util.ParseStringList(o, fmt.Sprintf("requires of cluster '%s'", c.Stack))
+		if err != nil {
+			return maskAny(err)
+		}
+		options.Requires = list
 	}
 
 	return nil

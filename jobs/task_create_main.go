@@ -109,6 +109,8 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		return nil, maskAny(err)
 	}
 
+	t.AddFleetOptions(ctx.FleetOptions, main)
+
 	return main, nil
 }
 

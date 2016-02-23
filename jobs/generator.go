@@ -27,16 +27,15 @@ type GeneratorConfig struct {
 	Groups              []TaskGroupName
 	CurrentScalingGroup uint
 	DockerOptions       cluster.DockerOptions
+	FleetOptions        cluster.FleetOptions
 }
 
 type Generator struct {
-	job                 *Job
-	groups              []TaskGroupName
-	files               []string
-	unitNames           []string
-	tmpDir              string
-	currentScalingGroup uint
-	dockerOptions       cluster.DockerOptions
+	job *Job
+	GeneratorConfig
+	files     []string
+	unitNames []string
+	tmpDir    string
 }
 
 type Images struct {
@@ -49,11 +48,9 @@ func newGenerator(job *Job, config GeneratorConfig) *Generator {
 		panic(err.Error())
 	}
 	return &Generator{
-		job:                 job,
-		groups:              config.Groups,
-		currentScalingGroup: config.CurrentScalingGroup,
-		tmpDir:              tmpDir,
-		dockerOptions:       config.DockerOptions,
+		job:             job,
+		GeneratorConfig: config,
+		tmpDir:          tmpDir,
 	}
 }
 
@@ -62,6 +59,7 @@ type generatorContext struct {
 	InstanceCount int
 	Images
 	DockerOptions cluster.DockerOptions
+	FleetOptions  cluster.FleetOptions
 }
 
 func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instanceCount int) error {
@@ -69,7 +67,7 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 	unitNames := []string{}
 	maxCount := g.job.MaxCount()
 	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
-		if g.currentScalingGroup != 0 && g.currentScalingGroup != scalingGroup {
+		if g.CurrentScalingGroup != 0 && g.CurrentScalingGroup != scalingGroup {
 			continue
 		}
 		for _, tg := range g.job.Groups {
@@ -81,7 +79,8 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 				ScalingGroup:  scalingGroup,
 				InstanceCount: instanceCount,
 				Images:        images,
-				DockerOptions: g.dockerOptions,
+				DockerOptions: g.DockerOptions,
+				FleetOptions:  g.FleetOptions,
 			}
 			unitChains, err := tg.createUnits(genCtx)
 			if err != nil {
@@ -132,11 +131,11 @@ func (g *Generator) TmpDir() string {
 
 // Should the group with given name be generated?
 func (g *Generator) include(groupName TaskGroupName) bool {
-	if len(g.groups) == 0 {
+	if len(g.Groups) == 0 {
 		// include all
 		return true
 	}
-	for _, n := range g.groups {
+	for _, n := range g.Groups {
 		if n == groupName {
 			return true
 		}

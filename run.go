@@ -69,6 +69,7 @@ func runRun(cmd *cobra.Command, args []string) {
 		Groups:              groups(&runFlags.Flags),
 		CurrentScalingGroup: runFlags.ScalingGroup,
 		DockerOptions:       cluster.DockerOptions,
+		FleetOptions:        cluster.FleetOptions,
 	}
 	generator := job.Generate(generatorConfig)
 	assert(generator.WriteTmpFiles(ctx, images, cluster.InstanceCount))
