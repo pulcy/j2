@@ -37,10 +37,6 @@ var (
 func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	name := t.containerName(ctx.ScalingGroup)
 	image := t.Image.String()
-	execStart, env, err := t.createMainDockerCmdLine(ctx)
-	if err != nil {
-		return nil, maskAny(err)
-	}
 
 	main := &units.Unit{
 		Name:         t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))),
@@ -49,9 +45,14 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		Type:         "service",
 		Scalable:     t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  units.NewExecOptions(execStart...),
+		ExecOptions:  units.NewExecOptions(),
 		FleetOptions: units.NewFleetOptions(),
 	}
+	execStart, err := t.createMainDockerCmdLine(main.ExecOptions.Environment, ctx)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	main.ExecOptions.ExecStart = strings.Join(execStart, " ")
 	switch t.Type {
 	case "oneshot":
 		main.ExecOptions.IsOneshot = true
@@ -62,16 +63,24 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	//main.FleetOptions.IsGlobal = ds.global
 	main.ExecOptions.ExecStartPre = []string{
 		fmt.Sprintf("/usr/bin/docker pull %s", image),
+	}
+
+	// Add secret extraction commands
+	secretsCmds, err := t.createSecretsExecStartPre(main.ExecOptions.Environment, ctx)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, secretsCmds...)
+
+	// Add commands to stop & cleanup existing docker containers
+	main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre,
 		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", t.containerName(ctx.ScalingGroup)),
-	}
+	)
 	for _, v := range t.Volumes {
 		dir := strings.Split(v, ":")
 		mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s'", dir[0], dir[0])
 		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
-	}
-	for k, v := range env {
-		main.ExecOptions.Environment[k] = v
 	}
 
 	main.ExecOptions.ExecStop = append(main.ExecOptions.ExecStop,
@@ -116,7 +125,7 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 
 // createMainDockerCmdLine creates the `ExecStart` line for
 // the main unit.
-func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, map[string]string, error) {
+func (t *Task) createMainDockerCmdLine(env map[string]string, ctx generatorContext) ([]string, error) {
 	serviceName := t.serviceName()
 	image := t.Image.String()
 	execStart := []string{
@@ -125,41 +134,31 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, map[stri
 		"--rm",
 		fmt.Sprintf("--name %s", t.containerName(ctx.ScalingGroup)),
 	}
-	env := make(map[string]string)
-	addArg := func(arg string) {
-		if strings.Contains(arg, "$") {
-			execStart = append(execStart, arg)
-		} else {
-			key := fmt.Sprintf("A%02d", len(env))
-			env[key] = arg
-			execStart = append(execStart, fmt.Sprintf("$%s", key))
-		}
-	}
 	if len(t.Ports) > 0 {
 		for _, p := range t.Ports {
-			addArg(fmt.Sprintf("-p %s", p))
+			addArg(fmt.Sprintf("-p %s", p), &execStart, env)
 		}
 	} else {
 		execStart = append(execStart, "-P")
 	}
 	for _, v := range t.Volumes {
-		addArg(fmt.Sprintf("-v %s", v))
+		addArg(fmt.Sprintf("-v %s", v), &execStart, env)
 	}
 	for _, secret := range t.Secrets {
 		if ok, path := secret.TargetFile(); ok {
 			hostPath, err := t.secretFilePath(ctx.ScalingGroup, secret)
 			if err != nil {
-				return nil, nil, maskAny(err)
+				return nil, maskAny(err)
 			}
-			addArg(fmt.Sprintf("-v %s:%s:ro", hostPath, path))
+			addArg(fmt.Sprintf("-v %s:%s:ro", hostPath, path), &execStart, env)
 		}
 	}
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
 		if err != nil {
-			return nil, nil, maskAny(err)
+			return nil, maskAny(err)
 		}
-		addArg(fmt.Sprintf("--volumes-from %s", other.containerName(ctx.ScalingGroup)))
+		addArg(fmt.Sprintf("--volumes-from %s", other.containerName(ctx.ScalingGroup)), &execStart, env)
 	}
 	envKeys := []string{}
 	for k := range t.Environment {
@@ -167,27 +166,27 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, map[stri
 	}
 	sort.Strings(envKeys)
 	for _, k := range envKeys {
-		addArg("-e " + strconv.Quote(fmt.Sprintf("%s=%s", k, t.Environment[k])))
+		addArg("-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, t.Environment[k])), &execStart, env)
 	}
 	if t.hasEnvironmentSecrets() {
-		addArg("--env-file=" + t.secretEnvironmentPath(ctx.ScalingGroup))
+		addArg("--env-file="+t.secretEnvironmentPath(ctx.ScalingGroup), &execStart, env)
 	}
-	addArg(fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
+	addArg(fmt.Sprintf("-e SERVICE_NAME=%s", serviceName), &execStart, env) // Support registrator
 	for _, cap := range t.Capabilities {
-		addArg("--cap-add " + cap)
+		addArg("--cap-add "+cap, &execStart, env)
 	}
 	for _, ln := range t.Links {
-		addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", ln.PrivateDomainName()))
+		addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", ln.PrivateDomainName()), &execStart, env)
 	}
 	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
-		addArg(arg)
+		addArg(arg, &execStart, env)
 	}
 	execStart = append(execStart, t.DockerArgs...)
 
 	execStart = append(execStart, image)
 	execStart = append(execStart, t.Args...)
 
-	return execStart, env, nil
+	return execStart, nil
 }
 
 // createMainAfter creates the `After=` sequence for the main unit

@@ -127,14 +127,6 @@ func (t Task) Validate() error {
 func (t *Task) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
 	mainChain := units.UnitChain{}
 
-	if len(t.Secrets) > 0 {
-		unit, err := t.createSecretsUnit(ctx)
-		if err != nil {
-			return nil, maskAny(err)
-		}
-		mainChain = append(mainChain, unit)
-	}
-
 	main, err := t.createMainUnit(ctx)
 	if err != nil {
 		return nil, maskAny(err)

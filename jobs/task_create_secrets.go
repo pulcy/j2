@@ -17,10 +17,7 @@ package jobs
 import (
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
-
-	"github.com/pulcy/j2/units"
 )
 
 const (
@@ -28,22 +25,24 @@ const (
 )
 
 // createSecretsUnit creates a unit used to extract secrets from vault
-func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
+func (t *Task) createSecretsExecStartPre(env map[string]string, ctx generatorContext) ([]string, error) {
+	if len(t.Secrets) == 0 {
+		// No secrets to extract
+		return nil, nil
+	}
 	// Create all secret extraction commands
 	jobID := t.group.job.ID
 	if jobID == "" {
 		return nil, maskAny(fmt.Errorf("job ID missing for job %s with secrets", t.group.job.Name))
 	}
-	env := make(map[string]string)
-	addArg := func(arg string, cmd *[]string) {
-		if strings.Contains(arg, "$") {
-			*cmd = append(*cmd, arg)
-		} else {
-			key := fmt.Sprintf("A%02d", len(env))
-			env[key] = arg
-			*cmd = append(*cmd, fmt.Sprintf("$%s", key))
-		}
-	}
+
+	// Prepare volume paths
+	secretsRoot := t.secretsRootPath(ctx.ScalingGroup)
+	secretsRootVol := fmt.Sprintf("%s:%s", secretsRoot, secretsRoot)
+	vaultCrtVol := "/etc/pulcy/vault.crt:/etc/pulcy/vault.crt:ro"
+	clusterIdVol := "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro"
+	machineIdVol := "/etc/machine-id:/etc/machine-id:ro"
+
 	cmds := [][]string{}
 	envPaths := []string{}
 	for _, secret := range t.Secrets {
@@ -57,23 +56,23 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 				"run",
 				"--rm",
 				fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)),
-				"-v", "${SCROOT}",
-				"-v", "${VOLCRT}",
-				"-v", "${VOLCLS}",
-				"-v", "${VOLMAC}",
+				"-v", secretsRootVol,
+				"-v", vaultCrtVol,
+				"-v", clusterIdVol,
+				"-v", machineIdVol,
 				"--env-file", "/etc/pulcy/vault.env",
 			}
 			for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
-				addArg(arg, &cmd)
+				addArg(arg, &cmd, env)
 			}
 			cmd = append(cmd,
 				ctx.Images.VaultMonkey,
 				"extract",
 				"file",
 			)
-			addArg("--target "+targetPath, &cmd)
-			addArg("--job-id "+jobID, &cmd)
-			addArg(secret.VaultPath(), &cmd)
+			addArg("--target "+targetPath, &cmd, env)
+			addArg("--job-id "+jobID, &cmd, env)
+			addArg(secret.VaultPath(), &cmd, env)
 			cmds = append(cmds, cmd)
 		} else if ok, environmentKey := secret.TargetEnviroment(); ok {
 			envPaths = append(envPaths, fmt.Sprintf("%s=%s", environmentKey, secret.VaultPath()))
@@ -86,75 +85,38 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 			"run",
 			"--rm",
 			fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)),
-			"-v", "${SCROOT}",
-			"-v", "${VOLCRT}",
-			"-v", "${VOLCLS}",
-			"-v", "${VOLMAC}",
+			"-v", secretsRootVol,
+			"-v", vaultCrtVol,
+			"-v", clusterIdVol,
+			"-v", machineIdVol,
 			"--env-file", "/etc/pulcy/vault.env",
 		}
 		for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
-			addArg(arg, &cmd)
+			addArg(arg, &cmd, env)
 		}
 		cmd = append(cmd,
 			ctx.Images.VaultMonkey,
 			"extract",
 			"env",
 		)
-		addArg("--target "+targetPath, &cmd)
-		addArg("--job-id "+jobID, &cmd)
+		addArg("--target "+targetPath, &cmd, env)
+		addArg("--job-id "+jobID, &cmd, env)
 		for _, envPath := range envPaths {
-			addArg(envPath, &cmd)
+			addArg(envPath, &cmd, env)
 		}
 		cmds = append(cmds, cmd)
 	}
 
-	// Use last comand as ExecStart
-	execStart := cmds[len(cmds)-1]
-	unit := &units.Unit{
-		Name:         t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))),
-		FullName:     t.unitName(unitKindSecrets, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
-		Description:  t.unitDescription("Secrets", ctx.ScalingGroup),
-		Type:         "service",
-		Scalable:     t.group.IsScalable(),
-		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  units.NewExecOptions(execStart...),
-		FleetOptions: units.NewFleetOptions(),
-	}
-	secretsRoot := t.secretsRootPath(ctx.ScalingGroup)
-	unit.ExecOptions.Environment["SCROOT"] = fmt.Sprintf("%s:%s", secretsRoot, secretsRoot)
-	unit.ExecOptions.Environment["VOLCRT"] = "/etc/pulcy/vault.crt:/etc/pulcy/vault.crt:ro"
-	unit.ExecOptions.Environment["VOLCLS"] = "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro"
-	unit.ExecOptions.Environment["VOLMAC"] = "/etc/machine-id:/etc/machine-id:ro"
-	for k, v := range env {
-		unit.ExecOptions.Environment[k] = v
-	}
-
-	unit.ExecOptions.IsOneshot = true
-	unit.ExecOptions.ExecStartPre = append(unit.ExecOptions.ExecStartPre,
+	// Create ExecStartPre result
+	result := []string{
 		fmt.Sprintf("/usr/bin/mkdir -p %s", secretsRoot),
 		fmt.Sprintf("/usr/bin/docker pull %s", ctx.Images.VaultMonkey),
-	)
-	if len(cmds) > 1 {
-		// Use all but last as ExecStartPre commands
-		for _, cmd := range cmds[:len(cmds)-1] {
-			unit.ExecOptions.ExecStartPre = append(unit.ExecOptions.ExecStartPre, strings.Join(cmd, " "))
-		}
 	}
-	unit.FleetOptions.IsGlobal = t.group.Global
-
-	// Service dependencies
-	// Requires=
-	unit.ExecOptions.Require(commonRequires...)
-	// After=...
-	unit.ExecOptions.After(commonAfter...)
-
-	if err := t.setupConstraints(unit); err != nil {
-		return nil, maskAny(err)
+	for _, cmd := range cmds {
+		result = append(result, strings.Join(cmd, " "))
 	}
 
-	t.AddFleetOptions(ctx.FleetOptions, unit)
-
-	return unit, nil
+	return result, nil
 }
 
 // secretsRootPath returns the path of the root directory that will contain secret files for the given task.
