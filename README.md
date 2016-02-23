@@ -221,6 +221,11 @@ This list is filtered such that units originating from the same job are excluded
 This list is filtered such that units originating from the same job are excluded.
 - `fleet.requires` - A list of unit names to add to the [Requires](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Requires=) setting of each unit.
 This list is filtered such that units originating from the same job are excluded.
+- `fleet.global-instance-constraints` - A list of metadata constraints. One of them is added to an instance of a global
+unit with a `count` higher than 1.
+For example with `global-instance-constraints = ["global=1", "global=2"]` instance 1 will get `global=1` and instance 2
+will get `global=2` as metadata. You can choose how to spread these metadata's across the machines of the cluster, but make
+sure that every machine has `global=1` OR `global=2` in its metadata and not both.
 
 ## Why is it called J2?
 

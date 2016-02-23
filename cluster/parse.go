@@ -161,6 +161,7 @@ func (options *FleetOptions) parse(obj *ast.ObjectType, c Cluster) error {
 		"after",
 		"wants",
 		"requires",
+		"global-instance-constraints",
 	}
 	if err := util.Decode(obj, excludeList, nil, options); err != nil {
 		return maskAny(err)
@@ -188,6 +189,15 @@ func (options *FleetOptions) parse(obj *ast.ObjectType, c Cluster) error {
 			return maskAny(err)
 		}
 		options.Requires = list
+	}
+
+	// Parse global-instance-constraints
+	if o := obj.List.Filter("global-instance-constraints"); len(o.Items) > 0 {
+		list, err := util.ParseStringList(o, fmt.Sprintf("global-instance-constraints of cluster '%s'", c.Stack))
+		if err != nil {
+			return maskAny(err)
+		}
+		options.GlobalInstanceConstraints = list
 	}
 
 	return nil
