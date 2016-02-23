@@ -46,7 +46,7 @@ func (ln LinkName) String() string {
 
 // PrivateDomainName returns the DNS name (in the private namespace) for the given link name.
 func (ln LinkName) PrivateDomainName() string {
-	return fmt.Sprintf("%s.private", ln.String())
+	return fmt.Sprintf("%s.private", strings.Replace(ln.String(), "@", ".", -1))
 }
 
 // Validate checks if a link name follows a valid format
