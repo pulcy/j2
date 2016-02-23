@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package flags
+package cluster
 
 import (
 	"fmt"
@@ -22,6 +22,8 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/juju/errgo"
 	"github.com/mitchellh/mapstructure"
+
+	"github.com/pulcy/j2/flags"
 )
 
 const (
@@ -41,7 +43,7 @@ type Cluster struct {
 	// Arguments to add to the docker command for logging
 	DockerLoggingArgs []string `mapstructure:"docker-log-args,omitempty"`
 
-	DefaultOptions Options `mapstructure:"default-options,omitempty"`
+	DefaultOptions flags.Options `mapstructure:"default-options,omitempty"`
 }
 
 // validate checks the values in the given cluster
@@ -140,7 +142,7 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 			}
 			// Merge key/value pairs into myself
 			for k, v := range m {
-				c.DefaultOptions.set(k, v)
+				c.DefaultOptions.SetKV(k, v)
 			}
 		}
 	}

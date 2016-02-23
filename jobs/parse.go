@@ -26,11 +26,12 @@ import (
 	"github.com/juju/errgo"
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 )
 
 type parseJobOptions struct {
-	Cluster fg.Cluster
+	Cluster cluster.Cluster
 }
 
 // ParseJob takes input from a given reader and parses it into a Job.
@@ -81,7 +82,7 @@ func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error
 }
 
 // ParseJobFromFile reads a job from file
-func ParseJobFromFile(path string, cluster fg.Cluster, options fg.Options) (*Job, error) {
+func ParseJobFromFile(path string, cluster cluster.Cluster, options fg.Options) (*Job, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, maskAny(err)
