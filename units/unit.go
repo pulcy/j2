@@ -19,7 +19,7 @@ type Unit struct {
 	FullName        string // e.g. "foo@1.service"
 	Type            string "service|socket|timer"
 	Description     string
-	Scalable        bool
+	Scalable_       bool
 	ScalingGroup    uint
 	ExecOptions     *execOptions
 	FleetOptions    *fleetOptions
