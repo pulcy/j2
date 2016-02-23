@@ -25,6 +25,7 @@ import (
 
 	"github.com/juju/errgo"
 
+	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 )
 
@@ -36,11 +37,11 @@ const (
 type jobFunctions struct {
 	jobPath string
 	options fg.Options
-	cluster fg.Cluster
+	cluster cluster.Cluster
 }
 
 // newJobFunctions creates a new instance of jobFunctions
-func newJobFunctions(jobPath string, cluster fg.Cluster, options fg.Options) *jobFunctions {
+func newJobFunctions(jobPath string, cluster cluster.Cluster, options fg.Options) *jobFunctions {
 	absJobPath, _ := filepath.Abs(jobPath)
 	return &jobFunctions{
 		jobPath: absJobPath,

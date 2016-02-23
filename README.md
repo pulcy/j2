@@ -75,6 +75,8 @@ Each name must be a fully qualified task name (job.group.task).
 - `frontend` - Contains a public load-balancer registration. This configures the load-balancer to forward certain requests from the public network interface(s) of the cluster to this task. See [Frontends](#frontends).
 - `private-frontend` - Contains a private load-balancer registration. This configures the load-balancer to forward certain requests from the private network interface(s) of the cluster to this task. See [Frontends](#frontends).
 - `secret` - Contains a specification for a secret value to be fetched and mapped into the container. See [Secret](#secrets).
+- `log-driver` - Specifies the log-driver to use in docker. This can be "" (default) or "none". If not equal to "none",
+the `log-args` or the `docker` settings in the [cluster](#cluster-specification) are used.
 
 #### Frontends
 
@@ -185,6 +187,18 @@ cluster "production" {
     stack = "production"
     instance-count = 3
 
+    docker {
+        log-args = ["--log-driver=fluentd", "--log-opt fluentd-address=127.0.0.1:24284"]
+    }
+
+    fleet {
+        after = [
+            "gluon.service",
+            "loggly-fluentd-fluentd-mn.service"
+        ]
+        wants = "loggly-fluentd-fluentd-mn.service"
+    }
+
     default-options {
         "force-ssl" = "true"
     }
@@ -198,6 +212,15 @@ The following keys can be specified on a `cluster`.
 used to deploy units to.
 - `instance-count` - The number of machines in the cluster. If this number is higher than the `count` of a task-group,
 different instances of that task-group will be forced on different machines.
+- `docker` - A set of options applied to all docker commands generated for jobs on this cluster.
+- `docker.log-args` - Docker command line arguments related to logging. Uses when `log-driver` is not equal to `none`.
+- `fleet` - A set of options applied to all fleet units generated for jobs on this cluster.
+- `fleet.after` - A list of unit names to add to the [After](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#After=) setting of each unit.
+This list is filtered such that units originating from the same job are excluded.
+- `fleet.wants` - A list of unit names to add to the [Wants](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Wants=) setting of each unit.
+This list is filtered such that units originating from the same job are excluded.
+- `fleet.requires` - A list of unit names to add to the [Requires](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Requires=) setting of each unit.
+This list is filtered such that units originating from the same job are excluded.
 
 ## Why is it called J2?
 

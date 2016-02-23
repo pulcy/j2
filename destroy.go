@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/fleet"
 	"github.com/pulcy/j2/jobs"
@@ -64,7 +65,7 @@ func destroyRun(cmd *cobra.Command, args []string) {
 	}
 }
 
-func destroyValidators(f *fg.Flags, cluster fg.Cluster) {
+func destroyValidators(f *fg.Flags, cluster cluster.Cluster) {
 	j, err := loadJob(f, cluster)
 	if err == nil {
 		f.JobPath = j.Name.String()

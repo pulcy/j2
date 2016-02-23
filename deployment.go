@@ -23,6 +23,7 @@ import (
 	"github.com/kardianos/osext"
 	"github.com/spf13/pflag"
 
+	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
 )
@@ -80,7 +81,7 @@ func groups(f *fg.Flags) []jobs.TaskGroupName {
 }
 
 // loadJob loads the a job from the given flags.
-func loadJob(f *fg.Flags, cluster fg.Cluster) (*jobs.Job, error) {
+func loadJob(f *fg.Flags, cluster cluster.Cluster) (*jobs.Job, error) {
 	if f.JobPath == "" {
 		return nil, maskAny(errgo.New("--job missing"))
 	}
@@ -96,7 +97,7 @@ func loadJob(f *fg.Flags, cluster fg.Cluster) (*jobs.Job, error) {
 }
 
 // loadCluster loads a cluster description from the given flags.
-func loadCluster(f *fg.Flags) (*fg.Cluster, error) {
+func loadCluster(f *fg.Flags) (*cluster.Cluster, error) {
 	if f.ClusterPath == "" {
 		return nil, maskAny(errgo.New("--cluster missing"))
 	}
@@ -108,7 +109,7 @@ func loadCluster(f *fg.Flags) (*fg.Cluster, error) {
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	cluster, err := fg.ParseClusterFromFile(path)
+	cluster, err := cluster.ParseClusterFromFile(path)
 	if err != nil {
 		return nil, maskAny(err)
 	}

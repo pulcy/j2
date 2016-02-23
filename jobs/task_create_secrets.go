@@ -63,7 +63,7 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 				"-v", "${VOLMAC}",
 				"--env-file", "/etc/pulcy/vault.env",
 			}
-			for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.ClusterDockerLoggingArgs) {
+			for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
 				addArg(arg, &cmd)
 			}
 			cmd = append(cmd,
@@ -92,7 +92,7 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 			"-v", "${VOLMAC}",
 			"--env-file", "/etc/pulcy/vault.env",
 		}
-		for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.ClusterDockerLoggingArgs) {
+		for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
 			addArg(arg, &cmd)
 		}
 		cmd = append(cmd,
@@ -151,6 +151,8 @@ func (t *Task) createSecretsUnit(ctx generatorContext) (*units.Unit, error) {
 	if err := t.setupConstraints(unit); err != nil {
 		return nil, maskAny(err)
 	}
+
+	t.AddFleetOptions(ctx.FleetOptions, unit)
 
 	return unit, nil
 }

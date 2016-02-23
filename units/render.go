@@ -32,16 +32,16 @@ func (u *Unit) Render(ctx RenderContext) string {
 		"[Unit]",
 		"Description=" + u.Description,
 	}
-	if u.ExecOptions.Wants != "" {
-		lines = append(lines, "Wants="+u.ExecOptions.Wants)
+	for _, x := range distinct(u.ExecOptions.wants) {
+		lines = append(lines, "Wants="+x)
 	}
-	for _, x := range u.ExecOptions.Requires {
+	for _, x := range distinct(u.ExecOptions.Requires) {
 		lines = append(lines, "Requires="+x)
 	}
-	for _, x := range u.ExecOptions.BindsTos {
+	for _, x := range distinct(u.ExecOptions.BindsTos) {
 		lines = append(lines, "BindsTo="+x)
 	}
-	for _, x := range u.ExecOptions.after {
+	for _, x := range distinct(u.ExecOptions.after) {
 		lines = append(lines, "After="+x)
 	}
 	lines = append(lines, "")
@@ -106,7 +106,7 @@ func (u *Unit) Render(ctx RenderContext) string {
 	if u.FleetOptions.IsGlobal {
 		lines = append(lines, "Global=true")
 	}
-	for _, x := range u.FleetOptions.ConflictsWith {
+	for _, x := range distinct(u.FleetOptions.ConflictsWith) {
 		lines = append(lines, "Conflicts="+x)
 	}
 	if u.FleetOptions.MachineOf != "" {
@@ -115,7 +115,7 @@ func (u *Unit) Render(ctx RenderContext) string {
 	if u.FleetOptions.MachineID != "" {
 		lines = append(lines, "MachineID="+u.FleetOptions.MachineID)
 	}
-	for _, x := range u.FleetOptions.Metadata {
+	for _, x := range distinct(u.FleetOptions.Metadata) {
 		lines = append(lines, "MachineMetadata="+x)
 	}
 	lines = append(lines, "")
@@ -130,4 +130,18 @@ func (u *Unit) Render(ctx RenderContext) string {
 	lines = append(lines, "")
 
 	return strings.Join(lines, "\n")
+}
+
+// distinct returns a list with all distinct values of the given list
+func distinct(list []string) []string {
+	result := []string{}
+	seen := make(map[string]struct{})
+	for _, x := range list {
+		if _, ok := seen[x]; ok {
+			continue
+		}
+		result = append(result, x)
+		seen[x] = struct{}{}
+	}
+	return result
 }

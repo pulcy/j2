@@ -53,7 +53,7 @@ func (o *Options) Set(raw string) error {
 	parts := strings.SplitN(raw, "=", 2)
 	if len(parts) == 2 {
 		// Normal key=value
-		o.set(parts[0], parts[1])
+		o.SetKV(parts[0], parts[1])
 		return nil
 	}
 
@@ -66,7 +66,7 @@ func (o *Options) Set(raw string) error {
 	return nil
 }
 
-func (o *Options) set(key, value string) {
+func (o *Options) SetKV(key, value string) {
 	if o.options == nil {
 		o.options = make(map[string]string)
 	}
@@ -100,7 +100,7 @@ func (o *Options) parseFile(path string) error {
 
 	// Merge key/value pairs into myself
 	for k, v := range m {
-		o.set(k, v)
+		o.SetKV(k, v)
 	}
 
 	return nil

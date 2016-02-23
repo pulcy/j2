@@ -26,6 +26,7 @@ import (
 
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/fleet"
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/units"
 )
 
@@ -64,8 +65,13 @@ func runRun(cmd *cobra.Command, args []string) {
 		Exitf("Cannot load job: %v\n", err)
 	}
 
-	groups := groups(&runFlags.Flags)
-	generator := job.Generate(groups, runFlags.ScalingGroup, cluster.DockerLoggingArgs)
+	generatorConfig := jobs.GeneratorConfig{
+		Groups:              groups(&runFlags.Flags),
+		CurrentScalingGroup: runFlags.ScalingGroup,
+		DockerOptions:       cluster.DockerOptions,
+		FleetOptions:        cluster.FleetOptions,
+	}
+	generator := job.Generate(generatorConfig)
 	assert(generator.WriteTmpFiles(ctx, images, cluster.InstanceCount))
 
 	if runFlags.DryRun {
@@ -74,7 +80,8 @@ func runRun(cmd *cobra.Command, args []string) {
 		location := cluster.Stack
 		count := job.MaxCount()
 		updateScalingGroups(&runFlags.ScalingGroup, count, location, func(runUpdate runUpdateCallback) {
-			generator := job.Generate(groups, runFlags.ScalingGroup, cluster.DockerLoggingArgs)
+			generatorConfig.CurrentScalingGroup = runFlags.ScalingGroup
+			generator := job.Generate(generatorConfig)
 
 			assert(generator.WriteTmpFiles(ctx, images, cluster.InstanceCount))
 

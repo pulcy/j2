@@ -38,7 +38,7 @@ type execOptions struct {
 	ExecStop                []string
 	ExecStopPost            []string
 	BindsTos                []string
-	Wants                   string
+	wants                   []string
 	after                   []string
 	Requires                []string
 
@@ -86,6 +86,10 @@ func (e *execOptions) After(after ...string) {
 
 func (e *execOptions) Require(require ...string) {
 	e.Requires = append(e.Requires, require...)
+}
+
+func (e *execOptions) Want(want ...string) {
+	e.wants = append(e.wants, want...)
 }
 
 type fleetOptions struct {

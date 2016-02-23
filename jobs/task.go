@@ -33,7 +33,6 @@ const (
 var (
 	commonAfter = []string{
 		"docker.service",
-		"yard.service",
 	}
 	commonRequires = []string{
 		"docker.service",

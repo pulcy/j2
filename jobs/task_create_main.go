@@ -109,6 +109,8 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 		return nil, maskAny(err)
 	}
 
+	t.AddFleetOptions(ctx.FleetOptions, main)
+
 	return main, nil
 }
 
@@ -177,7 +179,7 @@ func (t *Task) createMainDockerCmdLine(ctx generatorContext) ([]string, map[stri
 	for _, ln := range t.Links {
 		addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", ln.PrivateDomainName()))
 	}
-	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.ClusterDockerLoggingArgs) {
+	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
 		addArg(arg)
 	}
 	execStart = append(execStart, t.DockerArgs...)

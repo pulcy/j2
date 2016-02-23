@@ -19,34 +19,38 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/units"
 )
 
+type GeneratorConfig struct {
+	Groups              []TaskGroupName
+	CurrentScalingGroup uint
+	DockerOptions       cluster.DockerOptions
+	FleetOptions        cluster.FleetOptions
+}
+
 type Generator struct {
-	job                      *Job
-	groups                   []TaskGroupName
-	files                    []string
-	unitNames                []string
-	tmpDir                   string
-	currentScalingGroup      uint
-	clusterDockerLoggingArgs []string
+	job *Job
+	GeneratorConfig
+	files     []string
+	unitNames []string
+	tmpDir    string
 }
 
 type Images struct {
 	VaultMonkey string // Docker image name of vault-monkey
 }
 
-func newGenerator(job *Job, groups []TaskGroupName, currentScalingGroup uint, clusterDockerLoggingArgs []string) *Generator {
+func newGenerator(job *Job, config GeneratorConfig) *Generator {
 	tmpDir, err := ioutil.TempDir("", "j2")
 	if err != nil {
 		panic(err.Error())
 	}
 	return &Generator{
-		job:                 job,
-		groups:              groups,
-		currentScalingGroup: currentScalingGroup,
-		tmpDir:              tmpDir,
-		clusterDockerLoggingArgs: clusterDockerLoggingArgs,
+		job:             job,
+		GeneratorConfig: config,
+		tmpDir:          tmpDir,
 	}
 }
 
@@ -54,7 +58,8 @@ type generatorContext struct {
 	ScalingGroup  uint
 	InstanceCount int
 	Images
-	ClusterDockerLoggingArgs []string
+	DockerOptions cluster.DockerOptions
+	FleetOptions  cluster.FleetOptions
 }
 
 func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instanceCount int) error {
@@ -62,7 +67,7 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 	unitNames := []string{}
 	maxCount := g.job.MaxCount()
 	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
-		if g.currentScalingGroup != 0 && g.currentScalingGroup != scalingGroup {
+		if g.CurrentScalingGroup != 0 && g.CurrentScalingGroup != scalingGroup {
 			continue
 		}
 		for _, tg := range g.job.Groups {
@@ -74,7 +79,8 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 				ScalingGroup:  scalingGroup,
 				InstanceCount: instanceCount,
 				Images:        images,
-				ClusterDockerLoggingArgs: g.clusterDockerLoggingArgs,
+				DockerOptions: g.DockerOptions,
+				FleetOptions:  g.FleetOptions,
 			}
 			unitChains, err := tg.createUnits(genCtx)
 			if err != nil {
@@ -125,11 +131,11 @@ func (g *Generator) TmpDir() string {
 
 // Should the group with given name be generated?
 func (g *Generator) include(groupName TaskGroupName) bool {
-	if len(g.groups) == 0 {
+	if len(g.Groups) == 0 {
 		// include all
 		return true
 	}
-	for _, n := range g.groups {
+	for _, n := range g.Groups {
 		if n == groupName {
 			return true
 		}

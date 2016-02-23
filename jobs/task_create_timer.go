@@ -38,5 +38,7 @@ func (t *Task) createTimerUnit(ctx generatorContext) (*units.Unit, error) {
 	unit.ExecOptions.OnCalendar = t.Timer
 	unit.ExecOptions.Unit = t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
 
+	t.AddFleetOptions(ctx.FleetOptions, unit)
+
 	return unit, nil
 }
