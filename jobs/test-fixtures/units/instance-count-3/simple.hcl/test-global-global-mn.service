@@ -1,9 +1,7 @@
 [Unit]
 Description=Main unit for test/global/global [global]
 Requires=docker.service
-Requires=docker.service
 After=docker.service
-After=yard.service
 
 [Service]
 Restart=always
