@@ -27,6 +27,7 @@ import (
 
 	"github.com/kr/pretty"
 
+	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/units"
@@ -83,7 +84,7 @@ func TestParse(t *testing.T) {
 		options := fg.Options{}
 		options.Set("option1=value1")
 		options.Set("option2=value2")
-		cluster := fg.Cluster{
+		cluster := cluster.Cluster{
 			Domain:        "test.com",
 			Stack:         "stack",
 			InstanceCount: 3,
@@ -120,7 +121,15 @@ func TestParse(t *testing.T) {
 
 func testUnits(t *testing.T, job *jobs.Job, instanceCount int, expectedUnitNames []string, testName string) {
 	jobs.FixedPwhashSalt = "test-salt"
-	generator := job.Generate(nil, 0, []string{"--log-driver=test"})
+	config := jobs.GeneratorConfig{
+		Groups:              nil,
+		CurrentScalingGroup: 0,
+		DockerOptions: cluster.DockerOptions{
+			LoggingArgs: []string{"--log-driver=test"},
+		},
+		FleetOptions: cluster.FleetOptions{},
+	}
+	generator := job.Generate(config)
 	ctx := units.RenderContext{
 		ProjectName:    "testproject",
 		ProjectVersion: "test-version",
