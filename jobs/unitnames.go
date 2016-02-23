@@ -19,22 +19,65 @@ import (
 	"strings"
 )
 
+var (
+	unitSuffixes = []string{".service", ".timer"}
+)
+
 func IsUnitForJob(unitName string, jobName JobName) bool {
 	prefix := fmt.Sprintf("%s-", jobName)
-	return strings.HasPrefix(unitName, prefix) && strings.HasSuffix(unitName, ".service")
+	if !strings.HasPrefix(unitName, prefix) {
+		return false
+	}
+	found, _ := hasUnitSuffix(unitName)
+	return found
 }
 
 func IsUnitForTaskGroup(unitName string, jobName JobName, taskGroupName TaskGroupName) bool {
 	prefix := fmt.Sprintf("%s-%s-", jobName, taskGroupName)
-	return strings.HasPrefix(unitName, prefix) && strings.HasSuffix(unitName, ".service")
+	if !strings.HasPrefix(unitName, prefix) {
+		return false
+	}
+	found, _ := hasUnitSuffix(unitName)
+	return found
 }
 
 func IsUnitForTask(unitName string, jobName JobName, taskGroupName TaskGroupName, taskName TaskName) bool {
 	prefix := fmt.Sprintf("%s-%s-%s", jobName, taskGroupName, taskName)
-	if strings.HasPrefix(unitName, prefix) && strings.HasSuffix(unitName, ".service") {
-		remainder := unitName[len(prefix):]
-		return strings.HasPrefix(remainder, "@") || strings.HasPrefix(remainder, ".")
-	} else {
+	if !strings.HasPrefix(unitName, prefix) {
 		return false
 	}
+	if found, _ := hasUnitSuffix(unitName); !found {
+		return false
+	}
+	remainder := unitName[len(prefix):]
+	return strings.HasPrefix(remainder, "@") || strings.HasPrefix(remainder, ".")
+}
+
+func IsUnitForScalingGroup(unitName string, jobName JobName, scalingGroup uint) bool {
+	prefix := fmt.Sprintf("%s-", jobName)
+	if !strings.HasPrefix(unitName, prefix) {
+		return false
+	}
+	found, suffix := hasUnitSuffix(unitName)
+	if !found {
+		return false
+	}
+	name := unitName[:len(unitName)-len(suffix)]
+	scalingSuffix := fmt.Sprintf("@%d", scalingGroup)
+	if strings.HasSuffix(name, scalingSuffix) {
+		return true
+	}
+	if scalingGroup == 1 && !strings.Contains(name, "@") {
+		return true
+	}
+	return false
+}
+
+func hasUnitSuffix(unitName string) (bool, string) {
+	for _, suffix := range unitSuffixes {
+		if strings.HasSuffix(unitName, suffix) {
+			return true, suffix
+		}
+	}
+	return false, ""
 }

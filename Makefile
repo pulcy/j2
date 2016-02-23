@@ -53,6 +53,7 @@ update-vendor:
 		github.com/kr/pretty \
 		github.com/kardianos/osext \
 		github.com/nyarla/go-crypt \
+		github.com/ryanuber/columnize \
 		github.com/dchest/uniuri
 
 $(BIN): $(GOBUILDDIR) $(SOURCES)

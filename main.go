@@ -24,6 +24,10 @@ import (
 	"github.com/pulcy/j2/jobs"
 )
 
+const (
+	projectName = "j2"
+)
+
 var (
 	projectVersion = "dev"
 	projectBuild   = "dev"
@@ -34,7 +38,7 @@ var (
 
 var (
 	cmdMain = &cobra.Command{
-		Use:              "j2",
+		Use:              projectName,
 		Run:              showUsage,
 		PersistentPreRun: loadDefaults,
 	}
