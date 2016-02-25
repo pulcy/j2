@@ -66,7 +66,11 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 		notObsoleteUnitNames := selectUnitNames(loadedScalingGroupUnitNames, containsPredicate(sg.unitNames))
 
 		// Select the unit names that are modified and need an update
-		isModifiedPredicate := d.isModifiedPredicate(deps, sg, f)
+		statusMap, err := f.Status()
+		if err != nil {
+			return maskAny(err)
+		}
+		isModifiedPredicate := d.isModifiedOrFailedPredicate(deps, sg, statusMap, f)
 		modifiedUnitNames := selectUnitNames(notObsoleteUnitNames, isModifiedPredicate)
 		unitNamesToDestroy := append(obsoleteUnitNames, modifiedUnitNames...)
 		newUnitNames := selectUnitNames(sg.unitNames, notPredicate(containsPredicate(loadedScalingGroupUnitNames)))
@@ -148,10 +152,15 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 	return nil
 }
 
-// isModifiedPredicate creates a predicate that returns true when the given unit file is modified.
-func (d *Deployment) isModifiedPredicate(deps DeploymentDependencies, sg scalingGroupUnits, f fleet.FleetTunnel) func(string) bool {
+// isModifiedOrFailedPredicate creates a predicate that returns true when the given unit file is modified or its status
+// is failed.
+func (d *Deployment) isModifiedOrFailedPredicate(deps DeploymentDependencies, sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel) func(string) bool {
 	return func(unitName string) bool {
 		if d.force {
+			return true
+		}
+		unitState, found := status.Get(unitName)
+		if unitState == "failed" || !found {
 			return true
 		}
 		cat, err := f.Cat(unitName)

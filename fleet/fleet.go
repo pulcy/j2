@@ -69,6 +69,15 @@ func (f *FleetTunnel) List() ([]string, error) {
 	return strings.Split(strings.TrimSpace(stdOut), "\n"), nil
 }
 
+func (f *FleetTunnel) Status() (StatusMap, error) {
+	stdOut, err := f.exec("list-units", "-fields=unit,active", "-full", "-no-legend")
+	if err != nil {
+		return StatusMap{}, maskAny(err)
+	}
+
+	return newStatusMap(stdOut), nil
+}
+
 func (f *FleetTunnel) Cat(unitName string) (string, error) {
 	stdOut, err := f.exec("cat", unitName)
 	if err != nil {
