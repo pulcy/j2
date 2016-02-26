@@ -24,7 +24,7 @@ import (
 
 // createProxyUnit
 func (t *Task) createProxyUnit(link Link, linkIndex int, ctx generatorContext) (*units.Unit, error) {
-	namePostfix := fmt.Sprintf("-wh%d", linkIndex)
+	namePostfix := fmt.Sprintf("-pr%d", linkIndex)
 	containerName := t.containerName(ctx.ScalingGroup) + namePostfix
 	image := ctx.Images.Wormhole
 

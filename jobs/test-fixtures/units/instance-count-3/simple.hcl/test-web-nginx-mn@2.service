@@ -2,6 +2,7 @@
 Description=Main unit for test/web/nginx [slice 2]
 Requires=docker.service
 Requires=test-web-storage-mn@2.service
+Requires=test-web-nginx-mn@2.service
 After=docker.service
 After=test-web-storage-mn@2.service
 

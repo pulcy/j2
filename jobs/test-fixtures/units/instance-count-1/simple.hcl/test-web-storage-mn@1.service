@@ -1,7 +1,9 @@
 [Unit]
 Description=Main unit for test/web/storage [slice 1]
 Requires=docker.service
+Requires=test-web-storage-pr0@1.service
 After=docker.service
+After=test-web-storage-pr0@1.service
 
 [Service]
 Restart=always
@@ -11,15 +13,17 @@ StartLimitBurst=3
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
 Environment="A00=-e SERVICE_NAME=test-web-storage"
-Environment="A01=--log-driver=test"
+Environment="A01=--link test-web-storage-1-pr0:job.redis.master.private"
+Environment="A02=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull mystorage:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-storage-1
 ExecStartPre=-/usr/bin/docker rm -f test-web-storage-1
-ExecStart=/usr/bin/docker run --rm --name test-web-storage-1 -P $A00 $A01 mystorage:latest
+ExecStart=/usr/bin/docker run --rm --name test-web-storage-1 -P $A00 $A01 $A02 mystorage:latest
 ExecStop=-/usr/bin/docker stop -t 10 test-web-storage-1
 ExecStopPost=-/usr/bin/docker rm -f test-web-storage-1
 
 [X-Fleet]
+MachineOf=test-web-storage-pr0@1.service
 MachineOf=test-web-backup-mn@1.service
 MachineID=123456789
 MachineMetadata="web=true" "core=true"

@@ -35,7 +35,6 @@ type Generator struct {
 	GeneratorConfig
 	files     []string
 	unitNames []string
-	tmpDir    string
 }
 
 type Images struct {
@@ -59,7 +58,6 @@ func newGenerator(job *Job, config GeneratorConfig) *Generator {
 	return &Generator{
 		job:             job,
 		GeneratorConfig: config,
-		tmpDir:          tmpDir,
 	}
 }
 
@@ -75,6 +73,9 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 	files := []string{}
 	unitNames := []string{}
 	maxCount := g.job.MaxCount()
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+		return maskAny(err)
+	}
 	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
 		if g.CurrentScalingGroup != 0 && g.CurrentScalingGroup != scalingGroup {
 			continue
@@ -99,7 +100,7 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 				for _, unit := range chain {
 					content := unit.Render(ctx)
 					unitName := unit.FullName
-					path := filepath.Join(g.tmpDir, unitName)
+					path := filepath.Join(tmpDir, unitName)
 					err := ioutil.WriteFile(path, []byte(content), 0666)
 					if err != nil {
 						return maskAny(err)
@@ -122,7 +123,7 @@ func (g *Generator) RemoveTmpFiles() error {
 			return maskAny(err)
 		}
 	}
-	os.Remove(g.tmpDir) // If this fails we don't care
+	os.Remove(tmpDir) // If this fails we don't care
 	return nil
 }
 
@@ -135,7 +136,7 @@ func (g *Generator) UnitNames() []string {
 }
 
 func (g *Generator) TmpDir() string {
-	return g.tmpDir
+	return tmpDir
 }
 
 // Should the group with given name be generated?

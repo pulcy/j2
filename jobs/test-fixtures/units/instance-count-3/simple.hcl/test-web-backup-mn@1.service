@@ -1,6 +1,7 @@
 [Unit]
 Description=Main unit for test/web/backup [slice 1]
 Requires=docker.service
+Requires=test-web-backup-mn@1.service
 After=docker.service
 
 [Service]

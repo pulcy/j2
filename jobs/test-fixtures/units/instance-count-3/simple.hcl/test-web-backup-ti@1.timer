@@ -1,5 +1,6 @@
 [Unit]
 Description=Timer unit for test/web/backup [slice 1]
+Requires=test-web-backup-ti@1.timer
 
 [Timer]
 OnCalendar=hourly

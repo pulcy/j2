@@ -193,7 +193,7 @@ func (t *Task) createMainDockerCmdLine(env map[string]string, ctx generatorConte
 		if l.Type.IsHTTP() {
 			addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", targetName), &execStart, env)
 		} else {
-			linkContainerName := fmt.Sprintf("%s-wh%d", t.containerName(ctx.ScalingGroup), tcpLinkIndex)
+			linkContainerName := fmt.Sprintf("%s-pr%d", t.containerName(ctx.ScalingGroup), tcpLinkIndex)
 			addArg(fmt.Sprintf("--link %s:%s", linkContainerName, targetName), &execStart, env)
 			tcpLinkIndex++
 		}

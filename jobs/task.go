@@ -26,7 +26,7 @@ import (
 
 const (
 	unitKindMain  = "-mn"
-	unitKindProxy = "-wh"
+	unitKindProxy = "-pr"
 	unitKindTimer = "-ti"
 )
 
