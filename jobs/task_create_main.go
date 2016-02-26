@@ -187,13 +187,15 @@ func (t *Task) createMainDockerCmdLine(env map[string]string, ctx generatorConte
 	for _, cap := range t.Capabilities {
 		addArg("--cap-add "+cap, &execStart, env)
 	}
+	tcpLinkIndex := 0
 	for _, l := range t.Links {
 		targetName := l.Target.PrivateDomainName()
 		if l.Type.IsHTTP() {
 			addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", targetName), &execStart, env)
 		} else {
-			linkContainerName := fmt.Sprintf("%s-wh", t.containerName(ctx.ScalingGroup))
+			linkContainerName := fmt.Sprintf("%s-wh%d", t.containerName(ctx.ScalingGroup), tcpLinkIndex)
 			addArg(fmt.Sprintf("--link %s:%s", linkContainerName, targetName), &execStart, env)
+			tcpLinkIndex++
 		}
 	}
 	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
