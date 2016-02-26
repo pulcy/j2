@@ -28,6 +28,11 @@ func (chain UnitChain) Link() {
 			// Backward requirement and after
 			u.ExecOptions.Require(chain[i-1].FullName)
 			u.ExecOptions.After(chain[i-1].FullName)
+			// machine-of previous unit in chain
+			u.FleetOptions.MachineOf(chain[i-1].FullName)
+		} else if len(chain) > 0 {
+			// require last unit in chain
+			u.ExecOptions.Require(chain[len(chain)-1].FullName)
 		}
 	}
 }

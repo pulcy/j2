@@ -279,6 +279,7 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 		"private-frontend",
 		"capabilities",
 		"links",
+		"link",
 		"secret",
 		"constraint",
 	}
@@ -344,6 +345,22 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 		t.Capabilities = list
 	}
 
+	// Parse link's
+	if o := obj.List.Filter("link"); len(o.Items) > 0 {
+		for _, o := range o.Children().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				l := Link{}
+				if err := l.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				l.Target = LinkName(o.Keys[0].Token.Value().(string)).normalize()
+				t.Links = append(t.Links, l)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "link of task %s is not an object", t.Name))
+			}
+		}
+	}
+
 	// Parse links
 	if o := obj.List.Filter("links"); len(o.Items) > 0 {
 		list, err := util.ParseStringList(o, fmt.Sprintf("links of task %s", t.Name))
@@ -351,7 +368,9 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 			return maskAny(err)
 		}
 		for _, x := range list {
-			t.Links = append(t.Links, LinkName(x).normalize())
+			t.Links = append(t.Links, Link{
+				Target: LinkName(x).normalize(),
+			})
 		}
 	}
 
@@ -498,8 +517,18 @@ func (s *Secret) parse(obj *ast.ObjectType) error {
 
 // parse a user
 func (u *User) parse(obj *ast.ObjectType) error {
-	// Build the secret
+	// Build the user
 	if err := util.Decode(obj, nil, nil, u); err != nil {
+		return maskAny(err)
+	}
+
+	return nil
+}
+
+// parse a link
+func (l *Link) parse(obj *ast.ObjectType) error {
+	// Build the link
+	if err := util.Decode(obj, nil, nil, l); err != nil {
 		return maskAny(err)
 	}
 

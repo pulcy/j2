@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	unitKindMain    = "-mn"
-	unitKindSecrets = "-sc"
-	unitKindTimer   = "-ti"
+	unitKindMain  = "-mn"
+	unitKindProxy = "-wh"
+	unitKindTimer = "-ti"
 )
 
 var (
@@ -57,7 +57,7 @@ type Task struct {
 	PrivateFrontEnds []PrivateFrontEnd `json:"private-frontends,omitempty"`
 	HttpCheckPath    string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
 	Capabilities     []string          `json:"capabilities,omitempty"`
-	Links            []LinkName        `json:"links,omitempty"`
+	Links            []Link            `json:"links,omitempty"`
 	Secrets          []Secret          `json:"secrets,omitempty"`
 	Constraints      Constraints       `json:"constraints,omitempty"`
 	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
@@ -78,8 +78,8 @@ func (t Task) Validate() error {
 			return maskAny(err)
 		}
 	}
-	for _, ln := range t.Links {
-		if err := ln.Validate(); err != nil {
+	for _, l := range t.Links {
+		if err := l.Validate(); err != nil {
 			return maskAny(err)
 		}
 	}
@@ -127,7 +127,21 @@ func (t Task) Validate() error {
 func (t *Task) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
 	mainChain := units.UnitChain{}
 
-	main, err := t.createMainUnit(ctx)
+	proxyUnitNames := []string{}
+	for _, l := range t.Links {
+		if !l.Type.IsTCP() {
+			continue
+		}
+		linkIndex := len(proxyUnitNames)
+		unit, err := t.createProxyUnit(l, linkIndex, ctx)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		proxyUnitNames = append(proxyUnitNames, unit.FullName)
+		mainChain = append(mainChain, unit)
+	}
+
+	main, err := t.createMainUnit(proxyUnitNames, ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}

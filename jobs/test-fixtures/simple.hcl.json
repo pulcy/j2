@@ -89,7 +89,9 @@
                 "opttest2": "value2",
                 "opttestenv": "test-env"
             },
-            "links": ["test.couchdb.couchdb"],
+            "links": [{
+                "target": "test.couchdb.couchdb"
+            }],
             "volumes-from": ["storage"],
             "http-check-path": "/",
             "frontends": [{
@@ -113,7 +115,12 @@
                 "attribute": "node.id",
                 "value": "123456789"
             }],
-            "image": "mystorage:latest"
+            "image": "mystorage:latest",
+            "links": [{
+                "target": "job.redis.master",
+                "type": "tcp",
+                "ports": [6379]
+            }]
         }]
     }]
 }

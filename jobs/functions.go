@@ -64,6 +64,7 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 		"hostname":     func() string { return "%H" },
 		"machine_id":   func() string { return "%m" },
 		"link_url":     jf.linkURL,
+		"link_tcp":     jf.linkTCP,
 		"link_tls":     jf.linkTLS,
 	}
 }
@@ -136,4 +137,13 @@ func (jf *jobFunctions) linkTLS(linkName string) (string, error) {
 		return "", maskAny(err)
 	}
 	return fmt.Sprintf("tls://%s:%d", ln.PrivateDomainName(), privateTcpLoadBalancerPort), nil
+}
+
+// linkTCP creates a tcp URL to the domain name (in private TCP namespace) of the given link
+func (jf *jobFunctions) linkTCP(linkName string, port int) (string, error) {
+	ln := LinkName(linkName)
+	if err := ln.Validate(); err != nil {
+		return "", maskAny(err)
+	}
+	return fmt.Sprintf("tcp://%s:%d", ln.PrivateDomainName(), port), nil
 }

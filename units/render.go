@@ -109,8 +109,8 @@ func (u *Unit) Render(ctx RenderContext) string {
 	for _, x := range distinct(u.FleetOptions.ConflictsWith) {
 		lines = append(lines, "Conflicts="+x)
 	}
-	if u.FleetOptions.MachineOf != "" {
-		lines = append(lines, "MachineOf="+u.FleetOptions.MachineOf)
+	for _, x := range distinct(u.FleetOptions.machineOf) {
+		lines = append(lines, "MachineOf="+x)
 	}
 	if u.FleetOptions.MachineID != "" {
 		lines = append(lines, "MachineID="+u.FleetOptions.MachineID)

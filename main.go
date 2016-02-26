@@ -33,6 +33,7 @@ var (
 	projectBuild   = "dev"
 	images         = jobs.Images{
 		VaultMonkey: "pulcy/vault-monkey:latest",
+		Wormhole:    "pulcy/wormhole:latest",
 	}
 )
 

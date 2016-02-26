@@ -51,6 +51,10 @@ job "test" {
 				attribute = "node.id"
 				value = "123456789"
 			}
+			link "job.redis.master" {
+				type = "tcp"
+				ports = [6379]
+			}
 		}
 		task "backup" {
 			type = "oneshot"

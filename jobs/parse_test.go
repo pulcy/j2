@@ -62,6 +62,8 @@ func TestParse(t *testing.T) {
 				"test-web-nginx-mn@2.service",
 				"test-web-storage-mn@1.service",
 				"test-web-storage-mn@2.service",
+				"test-web-storage-wh0@1.service",
+				"test-web-storage-wh0@2.service",
 			},
 		},
 		{

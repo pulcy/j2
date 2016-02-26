@@ -15,93 +15,27 @@
 package jobs
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/juju/errgo"
 )
 
-// LinkName is a name of a link consisting of:
-// <job>.<task>[@<instance>] or
-// <job>.<taskgroup>.<task>[@instance]
-type LinkName string
-
-// NewLinkName assembles a link name from its elements.
-func NewLinkName(jn JobName, tgn TaskGroupName, tn TaskName, in InstanceName) LinkName {
-	result := fmt.Sprintf("%s.%s.%s", jn, tgn, tn)
-	if !in.IsEmpty() {
-		result = fmt.Sprintf("%s@%s", result, in)
-	}
-	return LinkName(result)
+type Link struct {
+	Target LinkName `json:"target"`
+	Type   LinkType `json:"type,omitempty" mapstructure:"type,omitempty"`
+	Ports  []int    `json:"ports,omitempty" mapstructure:"ports,omitempty"`
 }
 
-// String returns a link name in format <job>.<taskgroup>.<task>
-func (ln LinkName) String() string {
-	jn, tgn, tn, in, err := ln.parse()
-	if err != nil {
-		return ""
+func (l Link) Validate() error {
+	if err := l.Target.Validate(); err != nil {
+		return maskAny(err)
 	}
-	return string(NewLinkName(jn, tgn, tn, in))
-}
-
-// PrivateDomainName returns the DNS name (in the private namespace) for the given link name.
-func (ln LinkName) PrivateDomainName() string {
-	return fmt.Sprintf("%s.private", strings.Replace(ln.String(), "@", ".", -1))
-}
-
-// Validate checks if a link name follows a valid format
-func (ln LinkName) Validate() error {
-	_, _, _, _, err := ln.parse()
-	return maskAny(err)
-}
-
-func (ln LinkName) parse() (JobName, TaskGroupName, TaskName, InstanceName, error) {
-	var instanceName InstanceName
-	parts := strings.Split(string(ln), "@")
-	switch len(parts) {
-	case 1:
-		// Empty instance name
-	case 2:
-		instanceName = InstanceName(parts[1])
-	default:
-		return "", "", "", "", maskAny(errgo.WithCausef(nil, InvalidNameError, "unrecognized link '%s'", string(ln)))
+	if err := l.Type.Validate(); err != nil {
+		return maskAny(err)
 	}
-
-	parts = strings.Split(parts[0], ".")
-	var jobName JobName
-	var taskGroupName TaskGroupName
-	var taskName TaskName
-	switch len(parts) {
-	case 2:
-		jobName = JobName(parts[0])
-		taskGroupName = TaskGroupName(parts[1])
-		taskName = TaskName(parts[1])
-	case 3:
-		jobName = JobName(parts[0])
-		taskGroupName = TaskGroupName(parts[1])
-		taskName = TaskName(parts[2])
-	default:
-		return "", "", "", "", maskAny(errgo.WithCausef(nil, InvalidNameError, "unrecognized link '%s'", string(ln)))
+	if len(l.Ports) == 0 && l.Type.IsTCP() {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "specify at least one port in a tcp link"))
 	}
-	if err := jobName.Validate(); err != nil {
-		return "", "", "", "", maskAny(err)
+	if len(l.Ports) != 0 && !l.Type.IsTCP() {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "ports are not allowed in non-tcp links"))
 	}
-	if err := taskGroupName.Validate(); err != nil {
-		return "", "", "", "", maskAny(err)
-	}
-	if err := taskName.Validate(); err != nil {
-		return "", "", "", "", maskAny(err)
-	}
-	if err := instanceName.Validate(); err != nil {
-		return "", "", "", "", maskAny(err)
-	}
-	return jobName, taskGroupName, taskName, instanceName, nil
-}
-
-func (ln LinkName) normalize() LinkName {
-	jn, tgn, tn, in, err := ln.parse()
-	if err != nil {
-		return ln
-	}
-	return NewLinkName(jn, tgn, tn, in)
+	return nil
 }

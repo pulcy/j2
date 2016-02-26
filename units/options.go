@@ -15,7 +15,6 @@
 package units
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -90,40 +89,4 @@ func (e *execOptions) Require(require ...string) {
 
 func (e *execOptions) Want(want ...string) {
 	e.wants = append(e.wants, want...)
-}
-
-type fleetOptions struct {
-	IsGlobal      bool
-	ConflictsWith []string
-	MachineOf     string
-	MachineID     string
-	Metadata      []string
-}
-
-func NewFleetOptions() *fleetOptions {
-	return &fleetOptions{
-		IsGlobal:      false,
-		ConflictsWith: []string{},
-		Metadata:      []string{},
-	}
-}
-
-func (f *fleetOptions) Conflicts(conflicts string) {
-	f.ConflictsWith = append(f.ConflictsWith, conflicts)
-}
-
-// MachineMetadata adds a new metadata rule to for a service. Since one rule can define
-// exclusive matching condition metadataValues is a variadic argument. See
-// https://coreos.com/docs/launching-containers/launching/fleet-unit-files/#user-defined-requirements
-// for more information on fleet's behaviour.
-func (f *fleetOptions) MachineMetadata(metadataValues ...string) {
-	if len(metadataValues) > 0 {
-		// Strings have to be concatenated as double quote encapsulated strings for fleet
-		metadataRule := fmt.Sprintf("\"%s\"", strings.Join(metadataValues, "\" \""))
-		f.Metadata = append(f.Metadata, metadataRule)
-	}
-}
-
-func (f *fleetOptions) Global() {
-	f.IsGlobal = true
 }

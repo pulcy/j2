@@ -34,7 +34,7 @@ var (
 )
 
 // createMainUnit
-func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
+func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*units.Unit, error) {
 	name := t.containerName(ctx.ScalingGroup)
 	image := t.Image.String()
 
@@ -109,14 +109,14 @@ func (t *Task) createMainUnit(ctx generatorContext) (*units.Unit, error) {
 	// Service dependencies
 	// Requires=
 	//main.ExecOptions.Require("flanneld.service")
-	if requires, err := t.createMainRequires(ctx); err != nil {
+	if requires, err := t.createMainRequires(proxyUnitNames, ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		main.ExecOptions.Require(requires...)
 	}
 	main.ExecOptions.Require("docker.service")
 	// After=...
-	if after, err := t.createMainAfter(ctx); err != nil {
+	if after, err := t.createMainAfter(proxyUnitNames, ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		main.ExecOptions.After(after...)
@@ -187,8 +187,14 @@ func (t *Task) createMainDockerCmdLine(env map[string]string, ctx generatorConte
 	for _, cap := range t.Capabilities {
 		addArg("--cap-add "+cap, &execStart, env)
 	}
-	for _, ln := range t.Links {
-		addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", ln.PrivateDomainName()), &execStart, env)
+	for _, l := range t.Links {
+		targetName := l.Target.PrivateDomainName()
+		if l.Type.IsHTTP() {
+			addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", targetName), &execStart, env)
+		} else {
+			linkContainerName := fmt.Sprintf("%s-wh", t.containerName(ctx.ScalingGroup))
+			addArg(fmt.Sprintf("--link %s:%s", linkContainerName, targetName), &execStart, env)
+		}
 	}
 	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
 		addArg(arg, &execStart, env)
@@ -202,8 +208,9 @@ func (t *Task) createMainDockerCmdLine(env map[string]string, ctx generatorConte
 }
 
 // createMainAfter creates the `After=` sequence for the main unit
-func (t *Task) createMainAfter(ctx generatorContext) ([]string, error) {
+func (t *Task) createMainAfter(proxyUnitNames []string, ctx generatorContext) ([]string, error) {
 	after := append([]string{}, commonAfter...)
+	after = append(after, proxyUnitNames...)
 
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
@@ -217,8 +224,9 @@ func (t *Task) createMainAfter(ctx generatorContext) ([]string, error) {
 }
 
 // createMainRequires creates the `Requires=` sequence for the main unit
-func (t *Task) createMainRequires(ctx generatorContext) ([]string, error) {
+func (t *Task) createMainRequires(proxyUnitNames []string, ctx generatorContext) ([]string, error) {
 	requires := append([]string{}, commonRequires...)
+	requires = append(requires, proxyUnitNames...)
 
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
