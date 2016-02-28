@@ -89,21 +89,9 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 	main.ExecOptions.ExecStopPost = append(main.ExecOptions.ExecStopPost,
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
 	)
-	main.FleetOptions.IsGlobal = t.group.Global
-	if ctx.InstanceCount > 1 {
-		if t.group.Global {
-			if t.group.Count > 1 {
-				// Setup metadata constraint such that instances are only scheduled on some machines
-				if int(t.group.Count) > len(ctx.FleetOptions.GlobalInstanceConstraints) {
-					// Group count to high
-					return nil, maskAny(errgo.WithCausef(nil, ValidationError, "Group count (%d) higher than #global instance constraints (%d)", t.group.Count, len(ctx.FleetOptions.GlobalInstanceConstraints)))
-				}
-				constraint := ctx.FleetOptions.GlobalInstanceConstraints[ctx.ScalingGroup-1]
-				main.FleetOptions.MachineMetadata(constraint)
-			}
-		} else {
-			main.FleetOptions.Conflicts(t.unitName(unitKindMain, "*") + ".service")
-		}
+
+	if err := t.setupInstanceConstraints(main, unitKindMain, ctx); err != nil {
+		return nil, maskAny(err)
 	}
 
 	// Service dependencies
@@ -239,6 +227,26 @@ func (t *Task) createMainRequires(proxyUnitNames []string, ctx generatorContext)
 	}
 
 	return requires, nil
+}
+
+func (t *Task) setupInstanceConstraints(unit *units.Unit, unitKind string, ctx generatorContext) error {
+	unit.FleetOptions.IsGlobal = t.group.Global
+	if ctx.InstanceCount > 1 {
+		if t.group.Global {
+			if t.group.Count > 1 {
+				// Setup metadata constraint such that instances are only scheduled on some machines
+				if int(t.group.Count) > len(ctx.FleetOptions.GlobalInstanceConstraints) {
+					// Group count to high
+					return maskAny(errgo.WithCausef(nil, ValidationError, "Group count (%d) higher than #global instance constraints (%d)", t.group.Count, len(ctx.FleetOptions.GlobalInstanceConstraints)))
+				}
+				constraint := ctx.FleetOptions.GlobalInstanceConstraints[ctx.ScalingGroup-1]
+				unit.FleetOptions.MachineMetadata(constraint)
+			}
+		} else {
+			unit.FleetOptions.Conflicts(t.unitName(unitKind, "*") + ".service")
+		}
+	}
+	return nil
 }
 
 // setupConstraints creates constraint keys for the `X-Fleet` section for the main unit

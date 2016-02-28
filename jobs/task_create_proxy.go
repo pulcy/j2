@@ -24,7 +24,7 @@ import (
 
 // createProxyUnit
 func (t *Task) createProxyUnit(link Link, linkIndex int, ctx generatorContext) (*units.Unit, error) {
-	namePostfix := fmt.Sprintf("-pr%d", linkIndex)
+	namePostfix := fmt.Sprintf("%s%d", unitKindProxy, linkIndex)
 	containerName := t.containerName(ctx.ScalingGroup) + namePostfix
 	image := ctx.Images.Wormhole
 
@@ -61,7 +61,9 @@ func (t *Task) createProxyUnit(link Link, linkIndex int, ctx generatorContext) (
 	unit.ExecOptions.ExecStopPost = append(unit.ExecOptions.ExecStopPost,
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", containerName),
 	)
-	unit.FleetOptions.IsGlobal = t.group.Global
+	if err := t.setupInstanceConstraints(unit, namePostfix, ctx); err != nil {
+		return nil, maskAny(err)
+	}
 
 	// Service dependencies
 	if requires, err := t.createProxyRequires(ctx); err != nil {
