@@ -15,7 +15,7 @@
 package fleet
 
 import (
-	"fmt"
+	_ "fmt"
 	"strings"
 )
 
@@ -30,20 +30,33 @@ func (s StatusMap) Get(unitName string) (string, bool) {
 	return "", false
 }
 
-func newStatusMap(lineUnitsOutput string) StatusMap {
+func newStatusMap(listUnitsOutput string) StatusMap {
+	//fmt.Printf("Fleet Status:\n%s\n", listUnitsOutput)
 	s := StatusMap{
 		state: make(map[string]string),
 	}
-	for _, line := range strings.Split(lineUnitsOutput, "\n") {
-		line = strings.TrimSpace(line)
-		line = strings.Replace(line, "\t", " ", -1)
-		line = strings.Replace(line, "  ", " ", -1)
-		parts := strings.Split(line, " ")
-		fmt.Sprintf("parts=%#v\n", parts)
+	for _, line := range strings.Split(listUnitsOutput, "\n") {
+		parts := splitStatusLine(line)
+		//fmt.Printf("parts=%#v\n", parts)
 		if len(parts) != 2 {
 			continue
 		}
 		s.state[parts[0]] = parts[1]
 	}
 	return s
+}
+
+func splitStatusLine(line string) []string {
+	line = strings.TrimSpace(line)
+	line = strings.Replace(line, "\t", " ", -1)
+	parts := strings.Split(line, " ")
+
+	result := []string{}
+	for _, x := range parts {
+		x = strings.TrimSpace(x)
+		if x != "" {
+			result = append(result, x)
+		}
+	}
+	return result
 }

@@ -70,9 +70,11 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 		if err != nil {
 			return maskAny(err)
 		}
-		isModifiedPredicate := d.isModifiedOrFailedPredicate(deps, sg, statusMap, f)
+		isModifiedPredicate := d.isModifiedPredicate(deps, sg, statusMap, f)
 		modifiedUnitNames := selectUnitNames(notObsoleteUnitNames, isModifiedPredicate)
-		unitNamesToDestroy := append(obsoleteUnitNames, modifiedUnitNames...)
+		isFailedPredicate := d.isFailedPredicate(deps, sg, statusMap, f)
+		failedUnitNames := selectUnitNames(notObsoleteUnitNames, isFailedPredicate)
+		unitNamesToDestroy := append(append(obsoleteUnitNames, modifiedUnitNames...), failedUnitNames...)
 		newUnitNames := selectUnitNames(sg.unitNames, notPredicate(containsPredicate(loadedScalingGroupUnitNames)))
 
 		// Are there any changes?
@@ -84,6 +86,7 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 			changes := []string{"# Unit | Action"}
 			changes = append(changes, formatChanges("# ", obsoleteUnitNames, "Remove (is obsolete) !!!")...)
 			changes = append(changes, formatChanges("# ", modifiedUnitNames, "Update")...)
+			changes = append(changes, formatChanges("# ", failedUnitNames, "Failed state")...)
 			changes = append(changes, formatChanges("# ", newUnitNames, "Create")...)
 			sort.Strings(changes[1:])
 			formattedChanges := strings.Replace(columnize.SimpleFormat(changes), "#", " ", -1)
@@ -152,28 +155,39 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 	return nil
 }
 
-// isModifiedOrFailedPredicate creates a predicate that returns true when the given unit file is modified or its status
-// is failed.
-func (d *Deployment) isModifiedOrFailedPredicate(deps DeploymentDependencies, sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel) func(string) bool {
+// isFailedPredicate creates a predicate that returns true when the given unit file is in the failed status.
+func (d *Deployment) isFailedPredicate(deps DeploymentDependencies, sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel) func(string) bool {
+	return func(unitName string) bool {
+		unitState, found := status.Get(unitName)
+		if !found {
+			deps.Verbosef("Unit '%s' is not found\n", unitName)
+			return true
+		}
+		if unitState == "failed" {
+			deps.Verbosef("Unit '%s' is in failed state\n", unitName)
+			return true
+		}
+		return false
+	}
+}
+
+// isModifiedPredicate creates a predicate that returns true when the given unit file is modified
+func (d *Deployment) isModifiedPredicate(deps DeploymentDependencies, sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel) func(string) bool {
 	return func(unitName string) bool {
 		if d.force {
 			return true
 		}
-		unitState, found := status.Get(unitName)
-		if unitState == "failed" || !found {
-			return true
-		}
 		cat, err := f.Cat(unitName)
 		if err != nil {
-			fmt.Printf("Failed to cat '%s': %#v\n", unitName, err)
+			deps.Verbosef("Failed to cat '%s': %#v\n", unitName, err)
 			return true // Assume it is modified
 		}
 		newCat, err := readUnit(unitName, sg.fileNames)
 		if err != nil {
-			fmt.Printf("Failed to read new '%s' unit: %#v\n", unitName, err)
+			deps.Verbosef("Failed to read new '%s' unit: %#v\n", unitName, err)
 			return true // Assume it is modified
 		}
-		if !compareUnitContent(cat, newCat) {
+		if !compareUnitContent(deps, unitName, cat, newCat) {
 			return true
 		}
 		deps.Verbosef("Unit '%s' has not changed\n", unitName)
@@ -195,13 +209,25 @@ func readUnit(unitName string, files []string) (string, error) {
 	return "", nil // This will ensure that the unit is considered different
 }
 
-func compareUnitContent(a, b string) bool {
-	a = normalizeUnitContent(a)
-	b = normalizeUnitContent(b)
-	return a == b
+func compareUnitContent(deps DeploymentDependencies, unitName, a, b string) bool {
+	linesA := normalizeUnitContent(a)
+	linesB := normalizeUnitContent(b)
+
+	if len(linesA) != len(linesB) {
+		deps.Verbosef("Length differs in %s\n", unitName)
+		return false
+	}
+	for i, la := range linesA {
+		lb := linesB[i]
+		if la != lb {
+			deps.Verbosef("Line %d in %s differs\n>>>> %s\n<<<< %s\n", i, unitName, la, lb)
+			return false
+		}
+	}
+	return true
 }
 
-func normalizeUnitContent(content string) string {
+func normalizeUnitContent(content string) []string {
 	lines := strings.Split(content, "\n")
 	result := []string{}
 	for _, line := range lines {
@@ -210,7 +236,7 @@ func normalizeUnitContent(content string) string {
 			result = append(result, line)
 		}
 	}
-	return strings.Join(result, "\n")
+	return result
 }
 
 func launchUnits(deps DeploymentDependencies, f fleet.FleetTunnel, files []string) error {
