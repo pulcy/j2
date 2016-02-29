@@ -131,6 +131,7 @@ func testUnits(t *testing.T, job *jobs.Job, instanceCount int, expectedUnitNames
 		FleetOptions: cluster.FleetOptions{},
 	}
 	generator := job.Generate(config)
+	generator.NewTmpDir()
 	ctx := units.RenderContext{
 		ProjectName:    "testproject",
 		ProjectVersion: "test-version",
