@@ -20,13 +20,15 @@ import (
 
 // globals
 const (
-	defaultJobPath        = ""
-	defaultClusterPath    = ""
-	defaultTunnelOverride = ""
-	defaultForce          = false
-	defaultDryRun         = false
-	defaultScalingGroup   = uint(0) // all
-	defaultLocal          = false
+	defaultJobPath         = ""
+	defaultClusterPath     = ""
+	defaultTunnelOverride  = ""
+	defaultForce           = false
+	defaultDryRun          = false
+	defaultScalingGroup    = uint(0) // all
+	defaultLocal           = false
+	defaultGithubTokenPath = "~/.pulcy/github-token"
+	defaultLogLevel        = "info"
 )
 
 var (

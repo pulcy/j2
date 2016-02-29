@@ -24,10 +24,12 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/hcl/hcl/token"
 	"github.com/juju/errgo"
+	"github.com/op/go-logging"
 
 	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/util"
+	"github.com/pulcy/j2/vault"
 )
 
 type parseJobOptions struct {
@@ -91,12 +93,13 @@ func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error
 }
 
 // ParseJobFromFile reads a job from file
-func ParseJobFromFile(path string, cluster cluster.Cluster, options fg.Options) (*Job, error) {
+func ParseJobFromFile(path string, cluster cluster.Cluster, options fg.Options,
+	log *logging.Logger, vaultConfig vault.VaultConfig, ghLoginData vault.GithubLoginData) (*Job, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	jf := newJobFunctions(path, cluster, options)
+	jf := newJobFunctions(path, cluster, options, log, vaultConfig, ghLoginData)
 	opts := parseJobOptions{
 		Cluster: cluster,
 	}

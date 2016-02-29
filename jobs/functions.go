@@ -25,8 +25,10 @@ import (
 
 	"github.com/juju/errgo"
 
+	"github.com/op/go-logging"
 	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
+	"github.com/pulcy/j2/vault"
 )
 
 const (
@@ -38,15 +40,22 @@ type jobFunctions struct {
 	jobPath string
 	options fg.Options
 	cluster cluster.Cluster
+	log     *logging.Logger
+	vault.VaultConfig
+	vault.GithubLoginData
 }
 
 // newJobFunctions creates a new instance of jobFunctions
-func newJobFunctions(jobPath string, cluster cluster.Cluster, options fg.Options) *jobFunctions {
+func newJobFunctions(jobPath string, cluster cluster.Cluster, options fg.Options,
+	log *logging.Logger, vaultConfig vault.VaultConfig, ghLoginData vault.GithubLoginData) *jobFunctions {
 	absJobPath, _ := filepath.Abs(jobPath)
 	return &jobFunctions{
-		jobPath: absJobPath,
-		options: options,
-		cluster: cluster,
+		jobPath:         absJobPath,
+		options:         options,
+		cluster:         cluster,
+		VaultConfig:     vaultConfig,
+		GithubLoginData: ghLoginData,
+		log:             log,
 	}
 }
 
@@ -66,6 +75,7 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 		"link_url":     jf.linkURL,
 		"link_tcp":     jf.linkTCP,
 		"link_tls":     jf.linkTLS,
+		"secret":       jf.vaultExtract,
 	}
 }
 
@@ -146,4 +156,20 @@ func (jf *jobFunctions) linkTCP(linkName string, port int) (string, error) {
 		return "", maskAny(err)
 	}
 	return fmt.Sprintf("tcp://%s:%d", ln.PrivateDomainName(), port), nil
+}
+
+// vaultExtract extracts a value out of the current Vault.
+func (jf *jobFunctions) vaultExtract(vaultPath string) (string, error) {
+	vault, err := vault.NewVault(jf.VaultConfig, jf.log)
+	if err != nil {
+		return "", maskAny(err)
+	}
+	if err := vault.GithubLogin(jf.GithubLoginData); err != nil {
+		return "", maskAny(err)
+	}
+	secret, err := vault.Extract(vaultPath, "value")
+	if err != nil {
+		return "", maskAny(err)
+	}
+	return secret, nil
 }

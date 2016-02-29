@@ -50,9 +50,12 @@ update-vendor:
 		github.com/juju/errgo \
 		github.com/mitchellh/mapstructure \
 		github.com/hashicorp/hcl \
+		github.com/hashicorp/vault/api \
 		github.com/kr/pretty \
 		github.com/kardianos/osext \
+		github.com/mitchellh/go-homedir \
 		github.com/nyarla/go-crypt \
+		github.com/op/go-logging \
 		github.com/ryanuber/columnize \
 		github.com/dchest/uniuri
 
