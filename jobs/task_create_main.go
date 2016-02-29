@@ -15,22 +15,14 @@
 package jobs
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/dchest/uniuri"
 	"github.com/juju/errgo"
-	"github.com/nyarla/go-crypt"
 
 	"github.com/pulcy/j2/units"
-)
-
-var (
-	FixedPwhashSalt string // If set, this salt will be used for all pwhash's (only used for testing)
 )
 
 // createMainUnit
@@ -271,115 +263,4 @@ func (t *Task) setupConstraints(unit *units.Unit) error {
 	unit.FleetOptions.MachineMetadata(metadata...)
 
 	return nil
-}
-
-type frontendRecord struct {
-	Selectors     []frontendSelectorRecord `json:"selectors"`
-	Service       string                   `json:"service,omitempty"`
-	Mode          string                   `json:"mode,omitempty"` // http|tcp
-	HttpCheckPath string                   `json:"http-check-path,omitempty"`
-}
-
-type frontendSelectorRecord struct {
-	Weight     int          `json:"weight,omitempty"`
-	Domain     string       `json:"domain,omitempty"`
-	PathPrefix string       `json:"path-prefix,omitempty"`
-	SslCert    string       `json:"ssl-cert,omitempty"`
-	Port       int          `json:"port,omitempty"`
-	Private    bool         `json:"private,omitempty"`
-	Users      []userRecord `json:"users,omitempty"`
-}
-
-type userRecord struct {
-	Name         string `json:"user"`
-	PasswordHash string `json:"pwhash"`
-}
-
-// addFrontEndRegistration adds registration code for frontends to the given units
-func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) error {
-	if len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
-		return nil
-	}
-	key := fmt.Sprintf("/pulcy/frontend/%s-%d", t.serviceName(), ctx.ScalingGroup)
-	record := frontendRecord{
-		Service:       t.serviceName(),
-		HttpCheckPath: t.HttpCheckPath,
-	}
-	instanceKey := fmt.Sprintf("/pulcy/frontend/%s-%d-inst", t.serviceName(), ctx.ScalingGroup)
-	instanceRecord := frontendRecord{
-		Service:       fmt.Sprintf("%s-%d", t.serviceName(), ctx.ScalingGroup),
-		HttpCheckPath: t.HttpCheckPath,
-	}
-
-	for _, fr := range t.PublicFrontEnds {
-		selRecord := frontendSelectorRecord{
-			Weight:     fr.Weight,
-			Domain:     fr.Domain,
-			PathPrefix: fr.PathPrefix,
-			SslCert:    fr.SslCert,
-			Port:       fr.Port,
-		}
-		selRecord.addUsers(fr.Users)
-		record.Selectors = append(record.Selectors, selRecord)
-	}
-	for _, fr := range t.PrivateFrontEnds {
-		if fr.Mode == "tcp" {
-			record.Mode = "tcp"
-		}
-		selRecord := frontendSelectorRecord{
-			Domain:  t.privateDomainName(),
-			Port:    fr.Port,
-			Private: true,
-		}
-		selRecord.addUsers(fr.Users)
-		record.Selectors = append(record.Selectors, selRecord)
-
-		if fr.RegisterInstance {
-			instanceSelRecord := selRecord
-			instanceSelRecord.Domain = t.instanceSpecificPrivateDomainName(ctx.ScalingGroup)
-			instanceRecord.Selectors = append(instanceRecord.Selectors, instanceSelRecord)
-		}
-	}
-
-	if len(instanceRecord.Selectors) > 0 {
-		if err := t.addFrontEndRegistrationRecord(main, instanceKey, instanceRecord, "FrontEndRegistration-i"); err != nil {
-			return maskAny(err)
-		}
-	}
-	if err := t.addFrontEndRegistrationRecord(main, key, record, "FrontEndRegistration"); err != nil {
-		return maskAny(err)
-	}
-
-	return nil
-}
-
-func (t *Task) addFrontEndRegistrationRecord(main *units.Unit, key string, record frontendRecord, projectSettingKey string) error {
-	json, err := json.Marshal(&record)
-	if err != nil {
-		return maskAny(err)
-	}
-	main.ProjectSetting(projectSettingKey, key+"="+string(json))
-	main.ExecOptions.ExecStartPost = append(main.ExecOptions.ExecStartPost,
-		fmt.Sprintf("/bin/sh -c 'echo %s | base64 -d | /usr/bin/etcdctl set %s'", base64.StdEncoding.EncodeToString(json), key),
-	)
-	main.ExecOptions.ExecStop = append(
-		[]string{fmt.Sprintf("-/usr/bin/etcdctl rm %s", key)},
-		main.ExecOptions.ExecStop...,
-	)
-	return nil
-}
-
-// addUsers adds the given users to the selector record, while encrypting the passwords.
-func (selRecord *frontendSelectorRecord) addUsers(users []User) {
-	for _, u := range users {
-		salt := FixedPwhashSalt
-		if salt == "" {
-			salt = uniuri.New()
-		}
-		userRec := userRecord{
-			Name:         u.Name,
-			PasswordHash: crypt.Crypt(u.Password, salt),
-		}
-		selRecord.Users = append(selRecord.Users, userRec)
-	}
 }
