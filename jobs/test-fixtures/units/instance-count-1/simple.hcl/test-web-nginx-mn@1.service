@@ -36,6 +36,7 @@ ExecStopPost=-/usr/bin/docker rm -f test-web-nginx-1
 
 [X-Fleet]
 MachineOf=test-web-backup-mn@1.service
+MachineID=123456789
 MachineMetadata="web=true" "core=true"
 
 [X-testproject]
