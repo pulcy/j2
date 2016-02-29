@@ -41,6 +41,14 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.DurationVar(&f.DestroyDelay, "destroy-delay", defaultDestroyDelay, "Time between destroy and re-create")
 	fs.DurationVar(&f.SliceDelay, "slice-delay", defaultSliceDelay, "Time between update of scaling slices")
 	fs.VarP(&f.Options, "option", "o", "Set an option (key=value)")
+
+	f.VaultCACert = os.Getenv("VAULT_CACERT")
+	f.VaultCAPath = os.Getenv("VAULT_CAPATH")
+	fs.StringVar(&f.VaultAddr, "vault-addr", "", "URL of the vault (defaults to VAULT_ADDR environment variable)")
+	fs.StringVar(&f.VaultCACert, "vault-cacert", f.VaultCACert, "Path to a PEM-encoded CA cert file to use to verify the Vault server SSL certificate")
+	fs.StringVar(&f.VaultCAPath, "vault-capath", f.VaultCAPath, "Path to a directory of PEM-encoded CA cert files to verify the Vault server SSL certificate")
+	fs.StringVarP(&f.GithubToken, "github-token", "G", "", "Personal github token for secret logins")
+	fs.StringVar(&f.GithubTokenPath, "github-token-path", defaultGithubTokenPath, "Path of a file containing your github token")
 }
 
 func deploymentDefaults(fs *pflag.FlagSet, f *fg.Flags, args []string) {
@@ -89,7 +97,7 @@ func loadJob(f *fg.Flags, cluster cluster.Cluster) (*jobs.Job, error) {
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	job, err := jobs.ParseJobFromFile(path, cluster, f.Options)
+	job, err := jobs.ParseJobFromFile(path, cluster, f.Options, log, f.VaultConfig, f.GithubLoginData)
 	if err != nil {
 		return nil, maskAny(err)
 	}

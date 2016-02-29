@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/op/go-logging"
 	"github.com/spf13/cobra"
 
 	"github.com/pulcy/j2/jobs"
@@ -41,17 +42,21 @@ var (
 	cmdMain = &cobra.Command{
 		Use:              projectName,
 		Run:              showUsage,
-		PersistentPreRun: loadDefaults,
+		PersistentPreRun: func(*cobra.Command, []string) { setLogLevel(globalFlags.logLevel) },
 	}
 	globalFlags struct {
-		debug   bool
-		verbose bool
+		debug    bool
+		verbose  bool
+		logLevel string
 	}
+	log *logging.Logger
 )
 
 func init() {
+	log = logging.MustGetLogger(projectName)
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.debug, "debug", "D", false, "Print debug output")
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.verbose, "verbose", "v", false, "Print verbose output")
+	cmdMain.PersistentFlags().StringVar(&globalFlags.logLevel, "log-level", defaultLogLevel, "Log level (debug|info|warning|error)")
 }
 
 func main() {
@@ -63,9 +68,6 @@ func main() {
 
 func showUsage(cmd *cobra.Command, args []string) {
 	cmd.Usage()
-}
-
-func loadDefaults(cmd *cobra.Command, args []string) {
 }
 
 func confirm(question string) error {
@@ -100,4 +102,12 @@ func assert(err error) {
 	if err != nil {
 		Exitf("Assertion failed: %#v", err)
 	}
+}
+
+func setLogLevel(logLevel string) {
+	level, err := logging.LogLevel(logLevel)
+	if err != nil {
+		Exitf("Invalid log-level '%s': %#v", logLevel, err)
+	}
+	logging.SetLevel(level, projectName)
 }

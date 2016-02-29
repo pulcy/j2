@@ -16,6 +16,8 @@ package flags
 
 import (
 	"time"
+
+	"github.com/pulcy/j2/vault"
 )
 
 type Flags struct {
@@ -32,4 +34,7 @@ type Flags struct {
 	DestroyDelay   time.Duration
 	SliceDelay     time.Duration
 	Options        Options
+
+	vault.VaultConfig
+	vault.GithubLoginData
 }
