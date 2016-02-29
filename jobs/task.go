@@ -40,10 +40,8 @@ var (
 )
 
 type Task struct {
-	Name   TaskName   `json:"name", maspstructure:"-"`
-	group  *TaskGroup `json:"-", mapstructure:"-"`
-	Count  uint       `json:"-"` // This value is used during parsing only
-	Global bool       `json:"-"` // This value is used during parsing only
+	Name  TaskName   `json:"name", maspstructure:"-"`
+	group *TaskGroup `json:"-", mapstructure:"-"`
 
 	Type             TaskType          `json:"type,omitempty" mapstructure:"type,omitempty"`
 	Timer            string            `json:"timer,omitempty" mapstructure:"timer,omitempty"`
@@ -59,7 +57,6 @@ type Task struct {
 	Capabilities     []string          `json:"capabilities,omitempty"`
 	Links            []Link            `json:"links,omitempty"`
 	Secrets          []Secret          `json:"secrets,omitempty"`
-	Constraints      Constraints       `json:"constraints,omitempty"`
 	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
 	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`
 }
@@ -113,9 +110,6 @@ func (t Task) Validate() error {
 		if t.Type != "oneshot" {
 			return maskAny(errgo.WithCausef(nil, ValidationError, "timer only valid in combination with oneshot (in '%s')", t.Name))
 		}
-	}
-	if err := t.Constraints.Validate(); err != nil {
-		return maskAny(err)
 	}
 	if err := t.LogDriver.Validate(); err != nil {
 		return maskAny(err)

@@ -131,6 +131,7 @@ func testUnits(t *testing.T, job *jobs.Job, instanceCount int, expectedUnitNames
 		FleetOptions: cluster.FleetOptions{},
 	}
 	generator := job.Generate(config)
+	generator.NewTmpDir()
 	ctx := units.RenderContext{
 		ProjectName:    "testproject",
 		ProjectVersion: "test-version",
@@ -189,7 +190,7 @@ func compareUnitFiles(t *testing.T, fileNames []string, fixtureDir string) {
 			}
 		} else {
 			// Compare
-			cmd := exec.Command("diff", fn, fixturePath)
+			cmd := exec.Command("diff", fixturePath, fn)
 			if output, err := cmd.Output(); err != nil {
 				errors = append(errors, fmt.Sprintf("File '%s' is different:\n%s", fixturePath, string(output)))
 			}

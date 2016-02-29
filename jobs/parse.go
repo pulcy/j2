@@ -34,6 +34,15 @@ type parseJobOptions struct {
 	Cluster cluster.Cluster
 }
 
+type parseTask struct {
+	Task        `mapstructure:",squash"`
+	Count       uint        `json:"-"` // This value is used during parsing only
+	Global      bool        `json:"-"` // This value is used during parsing only
+	Constraints Constraints `json:"constraints,omitempty"`
+}
+
+type parseTaskList []*parseTask
+
 // ParseJob takes input from a given reader and parses it into a Job.
 func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error) {
 	// Create a template, add the function map, and parse the text.
@@ -124,17 +133,18 @@ func (j *Job) parse(list *ast.ObjectList) error {
 
 	// If we have tasks outside, do those
 	if o := listVal.Filter("task"); len(o.Items) > 0 {
-		tmp := &TaskGroup{}
-		if err := tmp.parseTasks(o); err != nil {
+		tmp := parseTaskList{}
+		if err := tmp.parseTasks(o, true); err != nil {
 			return err
 		}
 
-		for _, t := range tmp.Tasks {
+		for _, t := range tmp {
 			tg := &TaskGroup{
-				Name:   TaskGroupName(t.Name),
-				Count:  t.Count,
-				Global: t.Global,
-				Tasks:  []*Task{t},
+				Name:        TaskGroupName(t.Name),
+				Count:       t.Count,
+				Global:      t.Global,
+				Constraints: t.Constraints,
+				Tasks:       []*Task{&t.Task},
 			}
 			j.Groups = append(j.Groups, tg)
 		}
@@ -212,7 +222,11 @@ func (tg *TaskGroup) parse(obj *ast.ObjectType) error {
 
 	// Parse tasks
 	if o := obj.List.Filter("task"); len(o.Items) > 0 {
-		if err := tg.parseTasks(o); err != nil {
+		tmp := parseTaskList{}
+		if err := tmp.parseTasks(o, false); err != nil {
+			return maskAny(err)
+		}
+		if err := tg.addAll(tmp); err != nil {
 			return maskAny(err)
 		}
 	}
@@ -235,8 +249,20 @@ func (tg *TaskGroup) parse(obj *ast.ObjectType) error {
 	return nil
 }
 
+func (tg *TaskGroup) addAll(tasks parseTaskList) error {
+	for _, t := range tasks {
+		tg.Tasks = append(tg.Tasks, &t.Task)
+		var err error
+		tg.Constraints, err = tg.Constraints.Add(t.Constraints)
+		if err != nil {
+			return maskAny(err)
+		}
+	}
+	return nil
+}
+
 // parse a list of tasks
-func (tg *TaskGroup) parseTasks(list *ast.ObjectList) error {
+func (tasks *parseTaskList) parseTasks(list *ast.ObjectList, anonymousGroup bool) error {
 	list = list.Children()
 	if len(list.Items) == 0 {
 		return nil
@@ -252,23 +278,23 @@ func (tg *TaskGroup) parseTasks(list *ast.ObjectList) error {
 		seen[n] = struct{}{}
 		obj, ok := item.Val.(*ast.ObjectType)
 		if !ok {
-			return fmt.Errorf("task '%s': should be an object", tg.Name)
+			return fmt.Errorf("task '%s': should be an object", n)
 		}
 
-		t := &Task{}
+		t := &parseTask{}
 		t.Name = TaskName(n)
-		if err := t.parse(obj); err != nil {
+		if err := t.parse(obj, anonymousGroup); err != nil {
 			return maskAny(err)
 		}
 
-		tg.Tasks = append(tg.Tasks, t)
+		*tasks = append(*tasks, t)
 	}
 
 	return nil
 }
 
 // parse a task
-func (t *Task) parse(obj *ast.ObjectType) error {
+func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 	// Build the task
 	excludedKeys := []string{
 		"env",
@@ -288,6 +314,14 @@ func (t *Task) parse(obj *ast.ObjectType) error {
 	}
 	if err := util.Decode(obj, excludedKeys, defaultValues, t); err != nil {
 		return maskAny(err)
+	}
+	if !anonymousGroup {
+		if t.Count != defaultCount {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "count is not allowed in of task %s", t.Name))
+		}
+		if t.Global {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "global is not allowed in of task %s", t.Name))
+		}
 	}
 
 	if o := obj.List.Filter("image"); len(o.Items) > 0 {

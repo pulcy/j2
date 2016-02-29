@@ -18,6 +18,7 @@ ExecStop=-/usr/bin/docker stop -t 10 test-web-backup-1
 ExecStopPost=-/usr/bin/docker rm -f test-web-backup-1
 
 [X-Fleet]
+MachineID=123456789
 MachineMetadata="web=true" "core=true"
 
 [X-testproject]

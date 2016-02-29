@@ -69,6 +69,16 @@ type generatorContext struct {
 	FleetOptions  cluster.FleetOptions
 }
 
+// NewTmpDir sets up a new temporary directory for the generated files.
+// Used for testing only.
+func (g *Generator) NewTmpDir() {
+	var err error
+	tmpDir, err = ioutil.TempDir("", "j2")
+	if err != nil {
+		panic(err.Error())
+	}
+}
+
 func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instanceCount int) error {
 	files := []string{}
 	unitNames := []string{}
