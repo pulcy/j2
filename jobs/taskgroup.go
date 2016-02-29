@@ -67,6 +67,7 @@ func (tg *TaskGroup) link() {
 		v.group = tg
 	}
 	sort.Sort(tg.Tasks)
+	sort.Sort(tg.Constraints)
 }
 
 // Check for configuration errors

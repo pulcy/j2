@@ -53,6 +53,7 @@ func (j *Job) link() {
 		tg.link()
 	}
 	sort.Sort(j.Groups)
+	sort.Sort(j.Constraints)
 }
 
 // Check for errors

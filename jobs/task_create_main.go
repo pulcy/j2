@@ -251,7 +251,7 @@ func (t *Task) setupInstanceConstraints(unit *units.Unit, unitKind string, ctx g
 
 // setupConstraints creates constraint keys for the `X-Fleet` section for the main unit
 func (t *Task) setupConstraints(unit *units.Unit) error {
-	constraints := t.group.job.Constraints.Merge(t.group.Constraints).Merge(t.Constraints)
+	constraints := t.group.job.Constraints.Merge(t.group.Constraints)
 
 	metadata := []string{}
 	for _, c := range constraints {

@@ -63,6 +63,9 @@
         "constraints": [{
             "attribute": "meta.web",
             "value": "true"
+        }, {
+            "attribute": "node.id",
+            "value": "123456789"
         }],
         "tasks": [{
             "name": "backup",
@@ -111,10 +114,6 @@
             }]
         }, {
             "name": "storage",
-            "constraints": [{
-                "attribute": "node.id",
-                "value": "123456789"
-            }],
             "image": "mystorage:latest",
             "links": [{
                 "target": "job.redis.master",
