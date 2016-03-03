@@ -55,7 +55,7 @@ type Task struct {
 	PrivateFrontEnds []PrivateFrontEnd `json:"private-frontends,omitempty"`
 	HttpCheckPath    string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
 	Capabilities     []string          `json:"capabilities,omitempty"`
-	Links            []Link            `json:"links,omitempty"`
+	Links            Links             `json:"links,omitempty"`
 	Secrets          []Secret          `json:"secrets,omitempty"`
 	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
 	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`

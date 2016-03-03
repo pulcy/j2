@@ -81,7 +81,7 @@
                 "ls",
                 "-al",
                 "--db",
-                "http://test.couchdb.couchdb.private:81"
+                "http://test.db.db.private:81"
             ],
             "environment": {
                 "key": "123",
@@ -104,7 +104,7 @@
                 "containername": "test-web-nginx-%i"
             },
             "links": [{
-                "target": "test.couchdb.couchdb"
+                "target": "test.db.db"
             }],
             "volumes-from": ["storage"],
             "http-check-path": "/",

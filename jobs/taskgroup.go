@@ -38,6 +38,7 @@ type TaskGroupName string
 func (tgn TaskGroupName) String() string {
 	return string(tgn)
 }
+
 func (tgn TaskGroupName) Validate() error {
 	if !taskGroupNamePattern.MatchString(string(tgn)) {
 		return maskAny(errgo.WithCausef(nil, InvalidNameError, "taskgroup name must match '%s', got '%s'", taskGroupNamePattern, tgn))

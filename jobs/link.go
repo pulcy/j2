@@ -15,6 +15,8 @@
 package jobs
 
 import (
+	"reflect"
+
 	"github.com/juju/errgo"
 )
 
@@ -28,6 +30,10 @@ func (l Link) replaceVariables(ctx *variableContext) Link {
 	l.Target = LinkName(ctx.replaceString(string(l.Target)))
 	l.Type = LinkType(ctx.replaceString(string(l.Type)))
 	return l
+}
+
+func (l Link) Equals(other Link) bool {
+	return reflect.DeepEqual(l, other)
 }
 
 func (l Link) Validate() error {
@@ -44,4 +50,15 @@ func (l Link) Validate() error {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "ports are not allowed in non-tcp links"))
 	}
 	return nil
+}
+
+type Links []Link
+
+func (list Links) Add(l Link) Links {
+	for _, x := range list {
+		if x.Equals(l) {
+			return list
+		}
+	}
+	return append(list, l)
 }

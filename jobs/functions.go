@@ -72,9 +72,9 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 		"public_ipv4":  func() string { return "${COREOS_PUBLIC_IPV4}" },
 		"hostname":     func() string { return "%H" },
 		"machine_id":   func() string { return "%m" },
-		"link_url":     jf.linkURL,
-		"link_tcp":     jf.linkTCP,
-		"link_tls":     jf.linkTLS,
+		"link_url":     linkURL,
+		"link_tcp":     linkTCP,
+		"link_tls":     linkTLS,
 		"secret":       jf.vaultExtract,
 	}
 }
@@ -132,7 +132,7 @@ func (jf *jobFunctions) jobDir() string {
 }
 
 // linkURL creates an URL to the domain name (in private namespace) of the given link
-func (jf *jobFunctions) linkURL(linkName string) (string, error) {
+func linkURL(linkName string) (string, error) {
 	ln := LinkName(linkName)
 	if err := ln.Validate(); err != nil {
 		return "", maskAny(err)
@@ -141,7 +141,7 @@ func (jf *jobFunctions) linkURL(linkName string) (string, error) {
 }
 
 // linkTLS creates an URL with `tls` scheme to the domain name (in private TCP namespace) of the given link
-func (jf *jobFunctions) linkTLS(linkName string) (string, error) {
+func linkTLS(linkName string) (string, error) {
 	ln := LinkName(linkName)
 	if err := ln.Validate(); err != nil {
 		return "", maskAny(err)
@@ -150,7 +150,7 @@ func (jf *jobFunctions) linkTLS(linkName string) (string, error) {
 }
 
 // linkTCP creates a tcp URL to the domain name (in private TCP namespace) of the given link
-func (jf *jobFunctions) linkTCP(linkName string, port int) (string, error) {
+func linkTCP(linkName string, port int) (string, error) {
 	ln := LinkName(linkName)
 	if err := ln.Validate(); err != nil {
 		return "", maskAny(err)

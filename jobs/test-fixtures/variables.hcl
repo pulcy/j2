@@ -14,7 +14,7 @@ job "test" {
 		}
 		task "nginx" {
 			image = "alpine:3.2"
-			args = ["ls", "-al", "--db", "{{link_url "test.couchdb"}}"]
+			args = ["ls", "-al", "--db", "${link_url .db}"]
 			volumes-from = "storage"
 			env {
 				name = "ewout"
@@ -36,7 +36,6 @@ job "test" {
 				instancefull = "${instance.full}"
 				containername = "${container}"
 			}
-			links = "test.couchdb"
 			http-check-path = "/"
 			frontend {
 				path-prefix = "/"

@@ -86,19 +86,20 @@ func (ln LinkName) parse() (JobName, TaskGroupName, TaskName, InstanceName, erro
 		taskGroupName = TaskGroupName(parts[1])
 		taskName = TaskName(parts[2])
 	default:
-		return "", "", "", "", maskAny(errgo.WithCausef(nil, InvalidNameError, "unrecognized link '%s'", string(ln)))
+		return jobName, taskGroupName, taskName, instanceName,
+			maskAny(errgo.WithCausef(nil, InvalidNameError, "unrecognized link '%s'", string(ln)))
 	}
 	if err := jobName.Validate(); err != nil {
-		return "", "", "", "", maskAny(err)
+		return jobName, taskGroupName, taskName, instanceName, maskAny(err)
 	}
 	if err := taskGroupName.Validate(); err != nil {
-		return "", "", "", "", maskAny(err)
+		return jobName, taskGroupName, taskName, instanceName, maskAny(err)
 	}
 	if err := taskName.Validate(); err != nil {
-		return "", "", "", "", maskAny(err)
+		return jobName, taskGroupName, taskName, instanceName, maskAny(err)
 	}
 	if err := instanceName.Validate(); err != nil {
-		return "", "", "", "", maskAny(err)
+		return jobName, taskGroupName, taskName, instanceName, maskAny(err)
 	}
 	return jobName, taskGroupName, taskName, instanceName, nil
 }
