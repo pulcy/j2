@@ -15,6 +15,7 @@
 package jobs
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -35,6 +36,7 @@ type Generator struct {
 	GeneratorConfig
 	files     []string
 	unitNames []string
+	tmpDir    string
 }
 
 type Images struct {
@@ -43,12 +45,12 @@ type Images struct {
 }
 
 var (
-	tmpDir string
+	defaultTmpDir string
 )
 
 func init() {
 	var err error
-	tmpDir, err = ioutil.TempDir("", "j2")
+	defaultTmpDir, err = ioutil.TempDir("", "j2")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -58,6 +60,7 @@ func newGenerator(job *Job, config GeneratorConfig) *Generator {
 	return &Generator{
 		job:             job,
 		GeneratorConfig: config,
+		tmpDir:          defaultTmpDir,
 	}
 }
 
@@ -73,7 +76,8 @@ type generatorContext struct {
 // Used for testing only.
 func (g *Generator) NewTmpDir() {
 	var err error
-	tmpDir, err = ioutil.TempDir("", "j2")
+	os.RemoveAll(g.tmpDir)
+	g.tmpDir, err = ioutil.TempDir("", "j2")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -83,7 +87,7 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 	files := []string{}
 	unitNames := []string{}
 	maxCount := g.job.MaxCount()
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+	if err := os.MkdirAll(g.tmpDir, 0755); err != nil {
 		return maskAny(err)
 	}
 	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
@@ -110,8 +114,11 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 				for _, unit := range chain {
 					content := unit.Render(ctx)
 					unitName := unit.FullName
-					path := filepath.Join(tmpDir, unitName)
-					err := ioutil.WriteFile(path, []byte(content), 0666)
+					path := filepath.Join(g.tmpDir, unitName)
+					if _, err := os.Stat(path); err == nil {
+						return maskAny(fmt.Errorf("'%s' already exists"))
+					}
+					err := ioutil.WriteFile(path, []byte(content), 0644)
 					if err != nil {
 						return maskAny(err)
 					}
@@ -133,7 +140,7 @@ func (g *Generator) RemoveTmpFiles() error {
 			return maskAny(err)
 		}
 	}
-	os.Remove(tmpDir) // If this fails we don't care
+	os.Remove(g.tmpDir) // If this fails we don't care
 	return nil
 }
 
@@ -143,10 +150,6 @@ func (g *Generator) FileNames() []string {
 
 func (g *Generator) UnitNames() []string {
 	return g.unitNames
-}
-
-func (g *Generator) TmpDir() string {
-	return tmpDir
 }
 
 // Should the group with given name be generated?

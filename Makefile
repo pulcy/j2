@@ -85,7 +85,6 @@ run-test:
 	    --rm \
 	    -v $(shell pwd):/usr/code \
 	    -e GOPATH=/usr/code/.gobuild \
-		-e GO15VENDOREXPERIMENT=1 \
 		-e TEST_ENV=test-env \
 		-e UPDATE-FIXTURES=$(UPDATE-FIXTURES) \
 	    -w /usr/code \

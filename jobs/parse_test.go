@@ -218,9 +218,25 @@ func compareUnitFiles(t *testing.T, fileNames []string, fixtureDir string) {
 			}
 		} else {
 			// Compare
-			cmd := exec.Command("diff", fixturePath, fn)
-			if output, err := cmd.Output(); err != nil {
-				errors = append(errors, fmt.Sprintf("File '%s' is different:\n%s", fixturePath, string(output)))
+			fixtureRaw, err := ioutil.ReadFile(fixturePath)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Failed to read fixture: %#v", err))
+				continue
+			}
+			fnRaw, err := ioutil.ReadFile(fn)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Failed to read test: %#v", err))
+				continue
+			}
+
+			fixtureContent := strings.TrimSpace(string(fixtureRaw))
+			fnContent := strings.TrimSpace(string(fnRaw))
+
+			if fixtureContent != fnContent {
+				cmd := exec.Command("diff", fixturePath, fn)
+				if output, err := cmd.Output(); err != nil {
+					errors = append(errors, fmt.Sprintf("File '%s' is different:\n%s", fixturePath, string(output)))
+				}
 			}
 		}
 	}
