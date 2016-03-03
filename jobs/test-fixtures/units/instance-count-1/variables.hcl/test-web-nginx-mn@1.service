@@ -1,0 +1,52 @@
+[Unit]
+Description=Main unit for test/web/nginx [slice 1]
+Requires=docker.service
+Requires=test-web-storage-mn@1.service
+After=docker.service
+After=test-web-storage-mn@1.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=--volumes-from test-web-storage-1"
+Environment="A01=-e \"cattest=This is the content of file.txt\""
+Environment="A02=-e \"containername=test-web-nginx-%i\""
+Environment="A03=-e \"envkey=test-env\""
+Environment="A04=-e \"groupfull=test.web\""
+Environment="A05=-e \"groupname=web\""
+Environment="A06=-e \"instancefull=test.web.nginx@%i\""
+Environment="A07=-e \"instancename=%i\""
+Environment="A08=-e \"jobid=1234\""
+Environment="A09=-e \"jobname=test\""
+Environment="A10=-e \"key=123\""
+Environment="A11=-e \"name=ewout\""
+Environment="A12=-e \"opttest1=value1\""
+Environment="A13=-e \"opttest2=value2\""
+Environment="A14=-e \"opttestenv=test-env\""
+Environment="A15=-e \"quotetest=hello\""
+Environment="A16=-e \"replacetest=1.2.3\""
+Environment="A17=-e \"taskfull=test.web.nginx\""
+Environment="A18=-e \"taskname=nginx\""
+Environment="A19=-e SERVICE_NAME=test-web-nginx"
+Environment="A20=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull alpine:3.2
+ExecStartPre=-/usr/bin/docker stop -t 10 test-web-nginx-1
+ExecStartPre=-/usr/bin/docker rm -f test-web-nginx-1
+ExecStart=/usr/bin/docker run --rm --name test-web-nginx-1 -P $A00 $A01 $A02 $A03 $A04 $A05 $A06 $A07 $A08 $A09 $A10 $A11 $A12 $A13 $A14 $A15 $A16 $A17 $A18 $A19 --add-host test.couchdb.couchdb.private:${COREOS_PRIVATE_IPV4} $A20 alpine:3.2 ls -al --db http://test.couchdb.couchdb.private:81
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsid2VpZ2h0IjoxMCwiZG9tYWluIjoiZm9vLmNvbSJ9LHsid2VpZ2h0IjoxMiwiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6IjBiMGdHOGlzcGZEZEEifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx-1'
+ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-web-nginx-1
+ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-1
+ExecStopPost=-/usr/bin/docker rm -f test-web-nginx-1
+
+[X-Fleet]
+MachineOf=test-web-backup-mn@1.service
+MachineID=123456789
+MachineMetadata="web=true" "core=test"
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
+FrontEndRegistration="/pulcy/frontend/test-web-nginx-1={\"selectors\":[{\"path-prefix\":\"/\"},{\"weight\":10,\"domain\":\"foo.com\"},{\"weight\":12,\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\",\"users\":[{\"user\":\"tester\",\"pwhash\":\"0b0gG8ispfDdA\"}]}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"

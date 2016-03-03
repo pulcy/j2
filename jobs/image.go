@@ -58,6 +58,14 @@ type DockerImage struct {
 	Version    string // The version part
 }
 
+func (i DockerImage) replaceVariables(ctx *variableContext) DockerImage {
+	i.Registry = ctx.replaceString(i.Registry)
+	i.Namespace = ctx.replaceString(i.Namespace)
+	i.Repository = ctx.replaceString(i.Repository)
+	i.Version = ctx.replaceString(i.Version)
+	return i
+}
+
 func (img DockerImage) MarshalJSON() ([]byte, error) {
 	return json.Marshal(img.String())
 }

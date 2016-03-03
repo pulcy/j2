@@ -30,6 +30,14 @@ type Secret struct {
 	File        string `json:"file,omitempty" mapstructure:"file"`
 }
 
+func (s Secret) replaceVariables(ctx *variableContext) Secret {
+	s.Path = ctx.replaceString(s.Path)
+	s.Field = ctx.replaceString(s.Field)
+	s.Environment = ctx.replaceString(s.Environment)
+	s.File = ctx.replaceString(s.File)
+	return s
+}
+
 // Validate checks the values of the given secret.
 // If ok, return nil, otherwise returns an error.
 func (s *Secret) Validate() error {

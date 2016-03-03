@@ -24,6 +24,12 @@ type Link struct {
 	Ports  []int    `json:"ports,omitempty" mapstructure:"ports,omitempty"`
 }
 
+func (l Link) replaceVariables(ctx *variableContext) Link {
+	l.Target = LinkName(ctx.replaceString(string(l.Target)))
+	l.Type = LinkType(ctx.replaceString(string(l.Type)))
+	return l
+}
+
 func (l Link) Validate() error {
 	if err := l.Target.Validate(); err != nil {
 		return maskAny(err)

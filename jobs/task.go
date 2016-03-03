@@ -61,6 +61,38 @@ type Task struct {
 	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`
 }
 
+// replaceVariables replaces all known variables in the values of the given task.
+func (t *Task) replaceVariables() error {
+	ctx := NewVariableContext(t.group.job, t.group, t)
+	t.Type = TaskType(ctx.replaceString(string(t.Type)))
+	t.Timer = ctx.replaceString(t.Timer)
+	t.Image = t.Image.replaceVariables(ctx)
+	for i, x := range t.VolumesFrom {
+		t.VolumesFrom[i] = TaskName(ctx.replaceString(string(x)))
+	}
+	t.Volumes = ctx.replaceStringSlice(t.Volumes)
+	t.Args = ctx.replaceStringSlice(t.Args)
+	t.Environment = ctx.replaceStringMap(t.Environment)
+	t.Ports = ctx.replaceStringSlice(t.Ports)
+	for i, x := range t.PublicFrontEnds {
+		t.PublicFrontEnds[i] = x.replaceVariables(ctx)
+	}
+	for i, x := range t.PrivateFrontEnds {
+		t.PrivateFrontEnds[i] = x.replaceVariables(ctx)
+	}
+	t.HttpCheckPath = ctx.replaceString(t.HttpCheckPath)
+	t.Capabilities = ctx.replaceStringSlice(t.Capabilities)
+	for i, x := range t.Links {
+		t.Links[i] = x.replaceVariables(ctx)
+	}
+	for i, x := range t.Secrets {
+		t.Secrets[i] = x.replaceVariables(ctx)
+	}
+	t.DockerArgs = ctx.replaceStringSlice(t.DockerArgs)
+	t.LogDriver = LogDriver(ctx.replaceString(string(t.LogDriver)))
+	return maskAny(ctx.Err())
+}
+
 // Check for errors
 func (t Task) Validate() error {
 	if err := t.Name.Validate(); err != nil {
@@ -192,11 +224,16 @@ func (t *Task) unitDescription(prefix string, scalingGroup uint) string {
 
 // containerName returns the name of the docker contained used for this task.
 func (t *Task) containerName(scalingGroup uint) string {
+	return t.containerNameExt(strconv.Itoa(int(scalingGroup)))
+}
+
+// containerName returns the name of the docker contained used for this task.
+func (t *Task) containerNameExt(instance string) string {
 	base := strings.Replace(t.fullName(), "/", "-", -1)
 	if t.group.Global {
 		return base
 	}
-	return fmt.Sprintf("%s-%v", base, scalingGroup)
+	return fmt.Sprintf("%s-%s", base, instance)
 }
 
 // serviceName returns the name used to register this service.

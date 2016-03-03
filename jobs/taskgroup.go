@@ -70,6 +70,20 @@ func (tg *TaskGroup) link() {
 	sort.Sort(tg.Constraints)
 }
 
+// replaceVariables replaces all known variables in the values of the given group.
+func (tg *TaskGroup) replaceVariables() error {
+	ctx := NewVariableContext(tg.job, tg, nil)
+	for _, x := range tg.Tasks {
+		if err := x.replaceVariables(); err != nil {
+			return maskAny(err)
+		}
+	}
+	for i, x := range tg.Constraints {
+		tg.Constraints[i] = x.replaceVariables(ctx)
+	}
+	return maskAny(ctx.Err())
+}
+
 // Check for configuration errors
 func (tg *TaskGroup) Validate() error {
 	if err := tg.Name.Validate(); err != nil {

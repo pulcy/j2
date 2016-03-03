@@ -1,7 +1,6 @@
 [Unit]
 Description=Main unit for test/couchdb/couchdb [slice 1]
 Requires=docker.service
-Requires=test-couchdb-couchdb-mn@1.service
 After=docker.service
 
 [Service]

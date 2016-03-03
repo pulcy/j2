@@ -1,0 +1,24 @@
+[Unit]
+Description=Main unit for test/web/backup [slice 2]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=test-web-backup"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull mybackup:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 test-web-backup-2
+ExecStartPre=-/usr/bin/docker rm -f test-web-backup-2
+ExecStart=/usr/bin/docker run --rm --name test-web-backup-2 -P $A00 $A01 mybackup:latest
+ExecStop=-/usr/bin/docker stop -t 10 test-web-backup-2
+ExecStopPost=-/usr/bin/docker rm -f test-web-backup-2
+
+[X-Fleet]
+MachineID=123456789
+MachineMetadata="web=true" "core=test"
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

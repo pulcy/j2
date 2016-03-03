@@ -2,7 +2,6 @@
 Description=Main unit for test/web/nginx [slice 1]
 Requires=docker.service
 Requires=test-web-storage-mn@1.service
-Requires=test-web-nginx-mn@1.service
 After=docker.service
 After=test-web-storage-mn@1.service
 
@@ -29,7 +28,7 @@ ExecStartPre=/usr/bin/docker pull alpine:3.2
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-nginx-1
 ExecStartPre=-/usr/bin/docker rm -f test-web-nginx-1
 ExecStart=/usr/bin/docker run --rm --name test-web-nginx-1 -P $A00 $A01 $A02 $A03 $A04 $A05 $A06 $A07 $A08 $A09 $A10 --add-host test.couchdb.couchdb.private:${COREOS_PRIVATE_IPV4} $A11 alpine:3.2 ls -al --db http://test.couchdb.couchdb.private:81
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsid2VpZ2h0IjoxMCwiZG9tYWluIjoiZm9vLmNvbSJ9LHsid2VpZ2h0IjoxMiwiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6InRlUk92WWNUUVNNZ1EifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx-1'
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsid2VpZ2h0IjoxMCwiZG9tYWluIjoiZm9vLmNvbSJ9LHsid2VpZ2h0IjoxMiwiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6IjI0Y21oakY1c2VSemcifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx-1'
 ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-web-nginx-1
 ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-1
 ExecStopPost=-/usr/bin/docker rm -f test-web-nginx-1
@@ -41,4 +40,4 @@ MachineMetadata="web=true" "core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration="/pulcy/frontend/test-web-nginx-1={\"selectors\":[{\"path-prefix\":\"/\"},{\"weight\":10,\"domain\":\"foo.com\"},{\"weight\":12,\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\",\"users\":[{\"user\":\"tester\",\"pwhash\":\"teROvYcTQSMgQ\"}]}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"
+FrontEndRegistration="/pulcy/frontend/test-web-nginx-1={\"selectors\":[{\"path-prefix\":\"/\"},{\"weight\":10,\"domain\":\"foo.com\"},{\"weight\":12,\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\",\"users\":[{\"user\":\"tester\",\"pwhash\":\"24cmhjF5seRzg\"}]}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"

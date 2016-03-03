@@ -1,7 +1,6 @@
 [Unit]
 Description=Main unit for test/registrator/registrator [global]
 Requires=docker.service
-Requires=test-registrator-registrator-mn.service
 After=docker.service
 
 [Service]

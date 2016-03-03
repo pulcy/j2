@@ -43,6 +43,21 @@ type User struct {
 	Password string `json:"password" mapstructure:"password"`
 }
 
+func (u User) replaceVariables(ctx *variableContext) User {
+	u.Name = ctx.replaceString(u.Name)
+	return u
+}
+
+func (f PublicFrontEnd) replaceVariables(ctx *variableContext) PublicFrontEnd {
+	f.Domain = ctx.replaceString(f.Domain)
+	f.PathPrefix = ctx.replaceString(f.PathPrefix)
+	f.SslCert = ctx.replaceString(f.SslCert)
+	for i, x := range f.Users {
+		f.Users[i] = x.replaceVariables(ctx)
+	}
+	return f
+}
+
 // Validate checks the values of the given frontend.
 // If ok, return nil, otherwise returns an error.
 func (f PublicFrontEnd) Validate() error {
@@ -56,6 +71,14 @@ func (f PublicFrontEnd) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (f PrivateFrontEnd) replaceVariables(ctx *variableContext) PrivateFrontEnd {
+	f.Mode = ctx.replaceString(f.Mode)
+	for i, x := range f.Users {
+		f.Users[i] = x.replaceVariables(ctx)
+	}
+	return f
 }
 
 // Validate checks the values of the given frontend.

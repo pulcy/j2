@@ -56,6 +56,20 @@ func (j *Job) link() {
 	sort.Sort(j.Constraints)
 }
 
+// replaceVariables replaces all known variables in the values of the given job.
+func (j *Job) replaceVariables() error {
+	ctx := NewVariableContext(j, nil, nil)
+	for _, x := range j.Groups {
+		if err := x.replaceVariables(); err != nil {
+			return maskAny(err)
+		}
+	}
+	for i, x := range j.Constraints {
+		j.Constraints[i] = x.replaceVariables(ctx)
+	}
+	return maskAny(ctx.Err())
+}
+
 // Check for errors
 func (j *Job) Validate() error {
 	if err := j.Name.Validate(); err != nil {

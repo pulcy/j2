@@ -75,7 +75,7 @@ func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error
 	job := &Job{}
 	matches := list.Filter("job")
 	if len(matches.Items) == 0 {
-		return nil, errgo.New("'job' stanza not found")
+		return nil, maskAny(errgo.WithCausef(nil, ValidationError, "'job' stanza not found"))
 	}
 	if err := job.parse(matches); err != nil {
 		return nil, maskAny(err)
@@ -83,6 +83,11 @@ func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error
 
 	// Link internal structures
 	job.link()
+
+	// Replace variables
+	if err := job.replaceVariables(); err != nil {
+		return nil, maskAny(err)
+	}
 
 	// Validate the job
 	if err := job.Validate(); err != nil {

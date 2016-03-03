@@ -26,11 +26,13 @@ import (
 	"testing"
 
 	"github.com/kr/pretty"
+	"github.com/op/go-logging"
 
 	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/vault"
 )
 
 const (
@@ -78,6 +80,29 @@ func TestParse(t *testing.T) {
 			true,
 			[]string{},
 		},
+		{
+			"variables.hcl",
+			false,
+			[]string{
+				"test-couchdb-couchdb-mn@1.service",
+				"test-db-db-mn@1.service",
+				"test-dummy-dummy-mn@1.service",
+				"test-dummy-dummy-mn@2.service",
+				"test-dummy-dummy-mn@3.service",
+				"test-global-global-mn.service",
+				"test-registrator-registrator-mn.service",
+				"test-web-backup-mn@1.service",
+				"test-web-backup-ti@1.timer",
+				"test-web-backup-mn@2.service",
+				"test-web-backup-ti@2.timer",
+				"test-web-nginx-mn@1.service",
+				"test-web-nginx-mn@2.service",
+				"test-web-storage-mn@1.service",
+				"test-web-storage-mn@2.service",
+				"test-web-storage-pr0@1.service",
+				"test-web-storage-pr0@2.service",
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -90,7 +115,10 @@ func TestParse(t *testing.T) {
 			Stack:         "stack",
 			InstanceCount: 3,
 		}
-		job, err := jobs.ParseJobFromFile(filepath.Join(fixtureDir, tc.Name), cluster, options)
+		log := logging.MustGetLogger("test")
+		vaultConfig := vault.VaultConfig{}
+		ghLoginData := vault.GithubLoginData{}
+		job, err := jobs.ParseJobFromFile(filepath.Join(fixtureDir, tc.Name), cluster, options, log, vaultConfig, ghLoginData)
 		if tc.ErrorExpected {
 			if err == nil {
 				t.Fatalf("Expected error in %s", tc.Name)

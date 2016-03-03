@@ -1,7 +1,6 @@
 [Unit]
 Description=Main unit for test/global/global [global]
 Requires=docker.service
-Requires=test-global-global-mn.service
 After=docker.service
 
 [Service]

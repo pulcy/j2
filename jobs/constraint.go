@@ -31,6 +31,12 @@ type Constraint struct {
 	Value     string `json:"value,omitempty" mapstructure:"value,omitempty"`
 }
 
+func (c Constraint) replaceVariables(ctx *variableContext) Constraint {
+	c.Attribute = ctx.replaceString(c.Attribute)
+	c.Value = ctx.replaceString(c.Value)
+	return c
+}
+
 // Validate checks the values of the given constraint.
 // If ok, return nil, otherwise returns an error.
 func (c Constraint) Validate() error {
