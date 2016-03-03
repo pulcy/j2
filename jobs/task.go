@@ -54,6 +54,7 @@ type Task struct {
 	PublicFrontEnds  []PublicFrontEnd  `json:"frontends,omitempty"`
 	PrivateFrontEnds []PrivateFrontEnd `json:"private-frontends,omitempty"`
 	HttpCheckPath    string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
+	Sticky           bool              `json:"sticky,omitempty" mapstructure:"sticky,omitempty"`
 	Capabilities     []string          `json:"capabilities,omitempty"`
 	Links            Links             `json:"links,omitempty"`
 	Secrets          []Secret          `json:"secrets,omitempty"`
