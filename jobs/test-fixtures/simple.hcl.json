@@ -65,9 +65,9 @@
             "image": "",
             "type": "proxy",
             "target": "test.couchdb.couchdb",
-            "rewrite": {
+            "rewrites": [{
                 "path-prefix": "/_db/foo/app"
-            },
+            }],
             "private-frontends": [{
                 "port": 80
             }]

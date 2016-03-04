@@ -483,14 +483,11 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 	if o := obj.List.Filter("rewrite"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {
 			if obj, ok := o.Val.(*ast.ObjectType); ok {
-				if t.Rewrite != nil {
-					return maskAny(errgo.WithCausef(nil, ValidationError, "multiple rewrite's are not allowed in task %s", t.Name))
-				}
 				r := Rewrite{}
 				if err := r.parse(obj); err != nil {
 					return maskAny(err)
 				}
-				t.Rewrite = &r
+				t.Rewrites = append(t.Rewrites, r)
 			} else {
 				return maskAny(errgo.WithCausef(nil, ValidationError, "rewrite of task %s is not an object", t.Name))
 			}

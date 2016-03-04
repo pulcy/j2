@@ -61,7 +61,7 @@ type Task struct {
 	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
 	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`
 	Target           LinkName          `json:"target,omitempty" mapstructure:"target,omitempty"`
-	Rewrite          *Rewrite          `json:"rewrite,omitempty" mapstructure:"rewrite,omitempty"`
+	Rewrites         []Rewrite         `json:"rewrites,omitempty" mapstructure:"rewrites,omitempty"`
 }
 
 // Link objects just after parsing
