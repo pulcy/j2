@@ -56,9 +56,11 @@ The following keys can be specified on a `task`.
 - `args` - Contains the command line arguments passed during the start of the container.
 - `environment` - Contains zero of more environment variables passed during the start of the container.
 - `image` - Specifies the docker image that will be executed.
-- `type` - The type of a task can be "service" (default) or "oneshot".
+- `type` - The type of a task can be "service" (default), "oneshot" or "proxy".
   Oneshot tasks are supposed to run for a while and then exit.
   Service tasks are supposed to run continuously and will be restarted in case of failure.
+  Proxy tasks do not have a real service to run, instead they provide a virtual
+  service that forwards all requests to another service (optionally with a rewrite rule).
 - `volumes-from` - Contains the name of zero or more other tasks. The volumes used by these other tasks will be
   mounted in the container of this task.
 - `volumes` - Contains a list of zero or more volume mounts for the container.
@@ -77,6 +79,8 @@ Each name must be a fully qualified task name (job.group.task).
 - `secret` - Contains a specification for a secret value to be fetched and mapped into the container. See [Secret](#secrets).
 - `log-driver` - Specifies the log-driver to use in docker. This can be "" (default) or "none". If not equal to "none",
 the `log-args` or the `docker` settings in the [cluster](#cluster-specification) are used.
+- `target` - The name of the task to forward requests to.
+  Only used with `type==proxy`.
 
 #### Frontends
 
