@@ -47,9 +47,16 @@ type Job struct {
 }
 
 // Link objects just after parsing
-func (j *Job) link() {
+func (j *Job) prelink() {
 	for _, tg := range j.Groups {
 		tg.job = j
+		tg.prelink()
+	}
+}
+
+// Link objects just after replacing variables
+func (j *Job) link() {
+	for _, tg := range j.Groups {
 		tg.link()
 	}
 	sort.Sort(j.Groups)

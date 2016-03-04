@@ -60,6 +60,16 @@ type Task struct {
 	Secrets          []Secret          `json:"secrets,omitempty"`
 	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
 	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`
+	Target           LinkName          `json:"target,omitempty" mapstructure:"target,omitempty"`
+	Rewrites         []Rewrite         `json:"rewrites,omitempty" mapstructure:"rewrites,omitempty"`
+}
+
+// Link objects just after parsing
+func (t *Task) link() {
+	t.Target = t.resolveLink(t.Target)
+	for i, l := range t.Links {
+		t.Links[i].Target = t.resolveLink(l.Target)
+	}
 }
 
 // replaceVariables replaces all known variables in the values of the given task.
@@ -91,6 +101,7 @@ func (t *Task) replaceVariables() error {
 	}
 	t.DockerArgs = ctx.replaceStringSlice(t.DockerArgs)
 	t.LogDriver = LogDriver(ctx.replaceString(string(t.LogDriver)))
+	t.Target = LinkName(ctx.replaceString(string(t.Target)))
 	return maskAny(ctx.Err())
 }
 
@@ -146,6 +157,14 @@ func (t Task) Validate() error {
 	}
 	if err := t.LogDriver.Validate(); err != nil {
 		return maskAny(err)
+	}
+	if t.Target != "" {
+		if t.Type != "proxy" {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "target only valid in combination with proxy (in '%s')", t.Name))
+		}
+	}
+	if t.Type == "proxy" && t.Target == "" {
+		return maskAny(errgo.WithCausef(nil, ValidationError, "target must be set with type proxy (in '%s')", t.Name))
 	}
 	return nil
 }
@@ -251,4 +270,22 @@ func (t *Task) hasEnvironmentSecrets() bool {
 		}
 	}
 	return false
+}
+
+// resolveLink resolves the given (partial) linkname in the context of the given task.
+func (t *Task) resolveLink(ln LinkName) LinkName {
+	if ln == "" {
+		return ln
+	}
+	jn, tgn, tn, in, _ := ln.parse()
+	if jn == "" {
+		jn = t.group.job.Name
+	}
+	if tgn == "" {
+		tgn = t.group.Name
+	}
+	if tn == "" {
+		tn = t.Name
+	}
+	return NewLinkName(jn, tgn, tn, in)
 }

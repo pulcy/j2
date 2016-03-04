@@ -99,4 +99,13 @@ job "test" {
 		args = ["etcd://${COREOS_PRIVATE_IPV4}:4001/pulcy"]
 		capabilities = "IPC_LOCK"
 	}
+
+	task "some_proxy" {
+		type = "proxy"
+		target = ".couchdb"
+		rewrite {
+			path-prefix = "/_db/foo/app"
+		}
+		private-frontend { }
+	}
 }

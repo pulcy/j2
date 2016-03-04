@@ -38,13 +38,14 @@ type frontendRecord struct {
 }
 
 type frontendSelectorRecord struct {
-	Weight     int          `json:"weight,omitempty"`
-	Domain     string       `json:"domain,omitempty"`
-	PathPrefix string       `json:"path-prefix,omitempty"`
-	SslCert    string       `json:"ssl-cert,omitempty"`
-	Port       int          `json:"port,omitempty"`
-	Private    bool         `json:"private,omitempty"`
-	Users      []userRecord `json:"users,omitempty"`
+	Weight       int           `json:"weight,omitempty"`
+	Domain       string        `json:"domain,omitempty"`
+	PathPrefix   string        `json:"path-prefix,omitempty"`
+	SslCert      string        `json:"ssl-cert,omitempty"`
+	Port         int           `json:"port,omitempty"`
+	Private      bool          `json:"private,omitempty"`
+	Users        []userRecord  `json:"users,omitempty"`
+	RewriteRules []rewriteRule `json:"rewrite-rules,omitempty"`
 }
 
 type userRecord struct {
@@ -52,31 +53,49 @@ type userRecord struct {
 	PasswordHash string `json:"pwhash"`
 }
 
+type rewriteRule struct {
+	PathPrefix string `json:"path-prefix"`
+}
+
 // addFrontEndRegistration adds registration code for frontends to the given units
 func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) error {
 	if len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
 		return nil
 	}
-	key := fmt.Sprintf("/pulcy/frontend/%s-%d", t.serviceName(), ctx.ScalingGroup)
+	serviceName := t.serviceName()
+	targetServiceName := serviceName
+	if t.Type == "proxy" {
+		targetServiceName = t.Target.etcdServiceName()
+	}
+	key := fmt.Sprintf("/pulcy/frontend/%s-%d", serviceName, ctx.ScalingGroup)
 	record := frontendRecord{
-		Service:       t.serviceName(),
+		Service:       targetServiceName,
 		HttpCheckPath: t.HttpCheckPath,
 		Sticky:        t.Sticky,
 	}
-	instanceKey := fmt.Sprintf("/pulcy/frontend/%s-%d-inst", t.serviceName(), ctx.ScalingGroup)
+	instanceKey := fmt.Sprintf("/pulcy/frontend/%s-%d-inst", serviceName, ctx.ScalingGroup)
 	instanceRecord := frontendRecord{
-		Service:       fmt.Sprintf("%s-%d", t.serviceName(), ctx.ScalingGroup),
+		Service:       fmt.Sprintf("%s-%d", targetServiceName, ctx.ScalingGroup),
 		HttpCheckPath: t.HttpCheckPath,
 		Sticky:        t.Sticky,
+	}
+	var rwRules []rewriteRule
+	if t.Type == "proxy" && len(t.Rewrites) > 0 {
+		for _, rw := range t.Rewrites {
+			rwRules = append(rwRules, rewriteRule{
+				PathPrefix: rw.PathPrefix,
+			})
+		}
 	}
 
 	for _, fr := range t.PublicFrontEnds {
 		selRecord := frontendSelectorRecord{
-			Weight:     fr.Weight,
-			Domain:     fr.Domain,
-			PathPrefix: fr.PathPrefix,
-			SslCert:    fr.SslCert,
-			Port:       fr.Port,
+			Weight:       fr.Weight,
+			Domain:       fr.Domain,
+			PathPrefix:   fr.PathPrefix,
+			SslCert:      fr.SslCert,
+			Port:         fr.Port,
+			RewriteRules: rwRules,
 		}
 		if err := selRecord.addUsers(t, fr.Users); err != nil {
 			return maskAny(err)
@@ -88,9 +107,10 @@ func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) e
 			record.Mode = "tcp"
 		}
 		selRecord := frontendSelectorRecord{
-			Domain:  t.privateDomainName(),
-			Port:    fr.Port,
-			Private: true,
+			Domain:       t.privateDomainName(),
+			Port:         fr.Port,
+			Private:      true,
+			RewriteRules: rwRules,
 		}
 		if err := selRecord.addUsers(t, fr.Users); err != nil {
 			return maskAny(err)

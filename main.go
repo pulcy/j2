@@ -35,6 +35,7 @@ var (
 	images         = jobs.Images{
 		VaultMonkey: "pulcy/vault-monkey:latest",
 		Wormhole:    "pulcy/wormhole:latest",
+		Alpine:      "alpine:3.3",
 	}
 )
 

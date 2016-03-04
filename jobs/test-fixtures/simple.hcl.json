@@ -58,6 +58,21 @@
             "capabilities": ["IPC_LOCK"]
         }]
     }, {
+        "name": "some_proxy",
+        "count": 1,
+        "tasks": [{
+            "name": "some_proxy",
+            "image": "",
+            "type": "proxy",
+            "target": "test.couchdb.couchdb",
+            "rewrites": [{
+                "path-prefix": "/_db/foo/app"
+            }],
+            "private-frontends": [{
+                "port": 80
+            }]
+        }]
+    }, {
         "name": "web",
         "count": 2,
         "constraints": [{

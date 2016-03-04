@@ -82,12 +82,15 @@ func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error
 	}
 
 	// Link internal structures
-	job.link()
+	job.prelink()
 
 	// Replace variables
 	if err := job.replaceVariables(); err != nil {
 		return nil, maskAny(err)
 	}
+
+	// Sort internal structures and make final links
+	job.link()
 
 	// Validate the job
 	if err := job.Validate(); err != nil {
@@ -316,6 +319,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 		"link",
 		"secret",
 		"constraint",
+		"rewrite",
 	}
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
@@ -345,7 +349,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 		} else {
 			return maskAny(errgo.WithCausef(nil, ValidationError, "image for task %s is not a string", t.Name))
 		}
-	} else {
+	} else if t.Type != "proxy" {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "image missing for task %s", t.Name))
 	}
 
@@ -478,6 +482,21 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 		}
 	}
 
+	// Parse rewrites
+	if o := obj.List.Filter("rewrite"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				r := Rewrite{}
+				if err := r.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				t.Rewrites = append(t.Rewrites, r)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "rewrite of task %s is not an object", t.Name))
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -571,6 +590,16 @@ func (u *User) parse(obj *ast.ObjectType) error {
 func (l *Link) parse(obj *ast.ObjectType) error {
 	// Build the link
 	if err := util.Decode(obj, nil, nil, l); err != nil {
+		return maskAny(err)
+	}
+
+	return nil
+}
+
+// parse a rewrite
+func (r *Rewrite) parse(obj *ast.ObjectType) error {
+	// Build the rewrite
+	if err := util.Decode(obj, nil, nil, r); err != nil {
 		return maskAny(err)
 	}
 
