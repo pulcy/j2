@@ -42,6 +42,7 @@ type Generator struct {
 type Images struct {
 	VaultMonkey string // Docker image name of vault-monkey
 	Wormhole    string // Docker image name of wormhole
+	Alpine      string // Docker image name of alpine linux
 }
 
 var (

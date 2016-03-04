@@ -63,9 +63,15 @@ type TaskGroup struct {
 type TaskGroupList []*TaskGroup
 
 // Link objects just after parsing
-func (tg *TaskGroup) link() {
+func (tg *TaskGroup) prelink() {
 	for _, v := range tg.Tasks {
 		v.group = tg
+	}
+}
+
+// Link objects just after replacing variables
+func (tg *TaskGroup) link() {
+	for _, v := range tg.Tasks {
 		v.link()
 	}
 	sort.Sort(tg.Tasks)

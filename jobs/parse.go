@@ -82,12 +82,15 @@ func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error
 	}
 
 	// Link internal structures
-	job.link()
+	job.prelink()
 
 	// Replace variables
 	if err := job.replaceVariables(); err != nil {
 		return nil, maskAny(err)
 	}
+
+	// Sort internal structures and make final links
+	job.link()
 
 	// Validate the job
 	if err := job.Validate(); err != nil {

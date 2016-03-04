@@ -29,6 +29,9 @@ import (
 func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*units.Unit, error) {
 	name := t.containerName(ctx.ScalingGroup)
 	image := t.Image.String()
+	if t.Type == "proxy" {
+		image = ctx.Images.Alpine
+	}
 
 	main := &units.Unit{
 		Name:         t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))),
@@ -40,7 +43,7 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 		ExecOptions:  units.NewExecOptions(),
 		FleetOptions: units.NewFleetOptions(),
 	}
-	execStart, err := t.createMainDockerCmdLine(main.ExecOptions.Environment, ctx)
+	execStart, err := t.createMainDockerCmdLine(image, main.ExecOptions.Environment, ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -50,17 +53,12 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 		main.ExecOptions.IsOneshot = true
 		main.ExecOptions.Restart = "on-failure"
 	case "proxy":
-		main.ExecOptions.IsOneshot = true
-		main.ExecOptions.Restart = "on-failure"
-		main.ExecOptions.ExecStart = "/usr/bin/true"
+		main.ExecOptions.Restart = "always"
 	default:
 		main.ExecOptions.Restart = "always"
 	}
-	//main.FleetOptions.IsGlobal = ds.global
-	if t.Type != "proxy" {
-		main.ExecOptions.ExecStartPre = []string{
-			fmt.Sprintf("/usr/bin/docker pull %s", image),
-		}
+	main.ExecOptions.ExecStartPre = []string{
+		fmt.Sprintf("/usr/bin/docker pull %s", image),
 	}
 
 	// Add secret extraction commands
@@ -71,26 +69,22 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 	main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, secretsCmds...)
 
 	// Add commands to stop & cleanup existing docker containers
-	if t.Type != "proxy" {
-		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre,
-			fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
-			fmt.Sprintf("-/usr/bin/docker rm -f %s", t.containerName(ctx.ScalingGroup)),
-		)
-	}
+	main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre,
+		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
+		fmt.Sprintf("-/usr/bin/docker rm -f %s", t.containerName(ctx.ScalingGroup)),
+	)
 	for _, v := range t.Volumes {
 		dir := strings.Split(v, ":")
 		mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s'", dir[0], dir[0])
 		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
 	}
 
-	if t.Type != "proxy" {
-		main.ExecOptions.ExecStop = append(main.ExecOptions.ExecStop,
-			fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
-		)
-		main.ExecOptions.ExecStopPost = append(main.ExecOptions.ExecStopPost,
-			fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
-		)
-	}
+	main.ExecOptions.ExecStop = append(main.ExecOptions.ExecStop,
+		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
+	)
+	main.ExecOptions.ExecStopPost = append(main.ExecOptions.ExecStopPost,
+		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
+	)
 
 	if err := t.setupInstanceConstraints(main, unitKindMain, ctx); err != nil {
 		return nil, maskAny(err)
@@ -126,9 +120,8 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 
 // createMainDockerCmdLine creates the `ExecStart` line for
 // the main unit.
-func (t *Task) createMainDockerCmdLine(env map[string]string, ctx generatorContext) ([]string, error) {
+func (t *Task) createMainDockerCmdLine(image string, env map[string]string, ctx generatorContext) ([]string, error) {
 	serviceName := t.serviceName()
-	image := t.Image.String()
 	execStart := []string{
 		"/usr/bin/docker",
 		"run",
@@ -193,6 +186,9 @@ func (t *Task) createMainDockerCmdLine(env map[string]string, ctx generatorConte
 	execStart = append(execStart, t.DockerArgs...)
 
 	execStart = append(execStart, image)
+	if t.Type == "proxy" {
+		execStart = append(execStart, "sleep 36500d")
+	}
 	execStart = append(execStart, t.Args...)
 
 	return execStart, nil

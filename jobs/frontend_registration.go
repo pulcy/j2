@@ -63,18 +63,19 @@ func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) e
 		return nil
 	}
 	serviceName := t.serviceName()
+	targetServiceName := serviceName
 	if t.Type == "proxy" {
-		serviceName = t.Target.etcdServiceName()
+		targetServiceName = t.Target.etcdServiceName()
 	}
 	key := fmt.Sprintf("/pulcy/frontend/%s-%d", serviceName, ctx.ScalingGroup)
 	record := frontendRecord{
-		Service:       t.serviceName(),
+		Service:       targetServiceName,
 		HttpCheckPath: t.HttpCheckPath,
 		Sticky:        t.Sticky,
 	}
 	instanceKey := fmt.Sprintf("/pulcy/frontend/%s-%d-inst", serviceName, ctx.ScalingGroup)
 	instanceRecord := frontendRecord{
-		Service:       fmt.Sprintf("%s-%d", serviceName, ctx.ScalingGroup),
+		Service:       fmt.Sprintf("%s-%d", targetServiceName, ctx.ScalingGroup),
 		HttpCheckPath: t.HttpCheckPath,
 		Sticky:        t.Sticky,
 	}
