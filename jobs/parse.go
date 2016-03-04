@@ -316,6 +316,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 		"link",
 		"secret",
 		"constraint",
+		"rewrite",
 	}
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
@@ -345,7 +346,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 		} else {
 			return maskAny(errgo.WithCausef(nil, ValidationError, "image for task %s is not a string", t.Name))
 		}
-	} else {
+	} else if t.Type != "proxy" {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "image missing for task %s", t.Name))
 	}
 
@@ -478,6 +479,24 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 		}
 	}
 
+	// Parse rewrites
+	if o := obj.List.Filter("rewrite"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				if t.Rewrite != nil {
+					return maskAny(errgo.WithCausef(nil, ValidationError, "multiple rewrite's are not allowed in task %s", t.Name))
+				}
+				r := Rewrite{}
+				if err := r.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				t.Rewrite = &r
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "rewrite of task %s is not an object", t.Name))
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -571,6 +590,16 @@ func (u *User) parse(obj *ast.ObjectType) error {
 func (l *Link) parse(obj *ast.ObjectType) error {
 	// Build the link
 	if err := util.Decode(obj, nil, nil, l); err != nil {
+		return maskAny(err)
+	}
+
+	return nil
+}
+
+// parse a rewrite
+func (r *Rewrite) parse(obj *ast.ObjectType) error {
+	// Build the rewrite
+	if err := util.Decode(obj, nil, nil, r); err != nil {
 		return maskAny(err)
 	}
 

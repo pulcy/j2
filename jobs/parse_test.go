@@ -56,6 +56,7 @@ func TestParse(t *testing.T) {
 				"test-dummy-dummy-mn@3.service",
 				"test-global-global-mn.service",
 				"test-registrator-registrator-mn.service",
+				"test-some_proxy-some_proxy-mn@1.service",
 				"test-web-backup-mn@1.service",
 				"test-web-backup-ti@1.timer",
 				"test-web-backup-mn@2.service",

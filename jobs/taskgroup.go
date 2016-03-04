@@ -66,6 +66,7 @@ type TaskGroupList []*TaskGroup
 func (tg *TaskGroup) link() {
 	for _, v := range tg.Tasks {
 		v.group = tg
+		v.link()
 	}
 	sort.Sort(tg.Tasks)
 	sort.Sort(tg.Constraints)

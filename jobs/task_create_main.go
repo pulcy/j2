@@ -49,12 +49,18 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 	case "oneshot":
 		main.ExecOptions.IsOneshot = true
 		main.ExecOptions.Restart = "on-failure"
+	case "proxy":
+		main.ExecOptions.IsOneshot = true
+		main.ExecOptions.Restart = "on-failure"
+		main.ExecOptions.ExecStart = "/usr/bin/true"
 	default:
 		main.ExecOptions.Restart = "always"
 	}
 	//main.FleetOptions.IsGlobal = ds.global
-	main.ExecOptions.ExecStartPre = []string{
-		fmt.Sprintf("/usr/bin/docker pull %s", image),
+	if t.Type != "proxy" {
+		main.ExecOptions.ExecStartPre = []string{
+			fmt.Sprintf("/usr/bin/docker pull %s", image),
+		}
 	}
 
 	// Add secret extraction commands
@@ -65,22 +71,26 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 	main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, secretsCmds...)
 
 	// Add commands to stop & cleanup existing docker containers
-	main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre,
-		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
-		fmt.Sprintf("-/usr/bin/docker rm -f %s", t.containerName(ctx.ScalingGroup)),
-	)
+	if t.Type != "proxy" {
+		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre,
+			fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
+			fmt.Sprintf("-/usr/bin/docker rm -f %s", t.containerName(ctx.ScalingGroup)),
+		)
+	}
 	for _, v := range t.Volumes {
 		dir := strings.Split(v, ":")
 		mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s'", dir[0], dir[0])
 		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
 	}
 
-	main.ExecOptions.ExecStop = append(main.ExecOptions.ExecStop,
-		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
-	)
-	main.ExecOptions.ExecStopPost = append(main.ExecOptions.ExecStopPost,
-		fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
-	)
+	if t.Type != "proxy" {
+		main.ExecOptions.ExecStop = append(main.ExecOptions.ExecStop,
+			fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
+		)
+		main.ExecOptions.ExecStopPost = append(main.ExecOptions.ExecStopPost,
+			fmt.Sprintf("-/usr/bin/docker rm -f %s", name),
+		)
+	}
 
 	if err := t.setupInstanceConstraints(main, unitKindMain, ctx); err != nil {
 		return nil, maskAny(err)
@@ -88,7 +98,6 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 
 	// Service dependencies
 	// Requires=
-	//main.ExecOptions.Require("flanneld.service")
 	if requires, err := t.createMainRequires(proxyUnitNames, ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
