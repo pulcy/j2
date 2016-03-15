@@ -17,7 +17,6 @@ package deployment
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/pulcy/j2/fleet"
 )
@@ -75,8 +74,7 @@ func (d *Deployment) destroyUnits(f fleet.FleetTunnel, units []string) error {
 
 	fmt.Println(out)
 
-	fmt.Printf("Waiting for %s...\n", d.StopDelay)
-	time.Sleep(d.StopDelay)
+	InterruptibleSleep(d.StopDelay, "Waiting for %s...")
 
 	out, err = f.Destroy(units...)
 	if err != nil {

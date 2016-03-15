@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/ryanuber/columnize"
 
@@ -103,8 +102,7 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 				return maskAny(err)
 			}
 
-			fmt.Printf("Waiting for %s...\n", d.DestroyDelay)
-			time.Sleep(d.DestroyDelay)
+			InterruptibleSleep(d.DestroyDelay, "Waiting for %s...")
 		}
 
 		// Now launch everything
@@ -115,8 +113,7 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 		// Wait a bit and ask for confirmation before continuing (only when more groups will follow)
 		if anyModifications && sgIndex+1 < len(d.scalingGroups) {
 			nextScale := d.scalingGroups[sgIndex+1].scalingGroup
-			fmt.Printf("Waiting %s before continuing with scaling group %d of %d...\n", d.SliceDelay, nextScale, maxScale)
-			time.Sleep(d.SliceDelay)
+			InterruptibleSleep(d.SliceDelay, fmt.Sprintf("Waiting %s before continuing with scaling group %d of %d...", "%s", nextScale, maxScale))
 		}
 
 		// Update counters
