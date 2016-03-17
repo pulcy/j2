@@ -29,6 +29,7 @@ var (
 	sleepCond   *sync.Cond
 	stopCounter int32
 	waiting     bool
+	waitID      int32
 )
 
 func init() {
@@ -60,6 +61,7 @@ func init() {
 // InterruptibleSleep holds execution for a given duration, or until an interrupt signal is received.
 func InterruptibleSleep(duration time.Duration, message string) {
 	waiting = true
+	waitID++
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
@@ -83,8 +85,9 @@ func InterruptibleSleep(duration time.Duration, message string) {
 	}()
 
 	go func() {
+		origWaitID := waitID
 		time.Sleep(duration)
-		if waiting {
+		if waiting && origWaitID == waitID {
 			sleepCond.Broadcast()
 		}
 	}()
