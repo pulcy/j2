@@ -14,7 +14,7 @@ job "base" {
 
 		task "certificates" {
 			type = "oneshot"
-			image = "pulcy/pct:0.4.1"
+			image = "pulcy/pct:0.4.2"
 			volumes = "/tmp/base/lb/certs/:/certs/"
 			secret "secret/base/lb/certificates-passphrase" {
                 environment = "PASSPHRASE"
@@ -22,7 +22,7 @@ job "base" {
 		}
 
 		task "lb" {
-			image = "pulcy/robin:0.16.0"
+			image = "pulcy/robin:0.16.1"
 			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "{{private_ipv4}}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
 			volumes = "/tmp/base/lb/certs/:/certs/"
 			secret "secret/base/lb/stats-password" {
@@ -45,7 +45,6 @@ job "base" {
 				"--private-key-path", "/acme/private-key",
 				"--registration-path", "/acme/registration",
 				"--stats-port", "7088",
-				"--stats-ssl-cert", "pulcy.pem",
 				"--force-ssl={{opt "force-ssl"}}",
 				"--private-host", "{{private_ipv4}}",
 				"--private-ssl-cert", "private.pem"
