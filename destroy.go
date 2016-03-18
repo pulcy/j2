@@ -62,7 +62,7 @@ func destroyRun(cmd *cobra.Command, args []string) {
 		SliceDelay:   destroyFlags.SliceDelay,
 	}
 	d := deployment.NewDeployment(job, *cluster, groups(&destroyFlags.Flags),
-		deployment.ScalingGroupSelection(destroyFlags.ScalingGroup), destroyFlags.Force, delays, renderContext, images)
+		deployment.ScalingGroupSelection(destroyFlags.ScalingGroup), destroyFlags.Force, destroyFlags.AutoContinue, delays, renderContext, images)
 
 	assert(d.Destroy(deploymentDeps))
 }

@@ -40,6 +40,7 @@ type Deployment struct {
 	groupSelection        TaskGroupSelection
 	scalingGroupSelection ScalingGroupSelection
 	force                 bool
+	autoContinue          bool
 	DeploymentDelays
 	renderContext units.RenderContext
 	images        jobs.Images
@@ -54,7 +55,7 @@ type DeploymentDependencies struct {
 
 // NewDeployment creates a new Deployment instances and generates all unit files for the given job.
 func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGroupSelection,
-	scalingGroupSelection ScalingGroupSelection, force bool, delays DeploymentDelays,
+	scalingGroupSelection ScalingGroupSelection, force, autoContinue bool, delays DeploymentDelays,
 	renderContext units.RenderContext, images jobs.Images) *Deployment {
 	return &Deployment{
 		job:                   job,
@@ -62,6 +63,7 @@ func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGro
 		groupSelection:        groupSelection,
 		scalingGroupSelection: scalingGroupSelection,
 		force:            force,
+		autoContinue:     autoContinue,
 		DeploymentDelays: delays,
 		renderContext:    renderContext,
 		images:           images,

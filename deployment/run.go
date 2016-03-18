@@ -90,10 +90,12 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 			sort.Strings(changes[1:])
 			formattedChanges := strings.Replace(columnize.SimpleFormat(changes), "#", " ", -1)
 			fmt.Printf("Step %d: Update scaling group %d of %d on '%s'.\n%s\n", step, curScale, maxScale, d.cluster.Stack, formattedChanges)
-			if err := deps.Confirm("Are you sure you want to continue?"); err != nil {
-				return maskAny(err)
+			if !d.autoContinue {
+				if err := deps.Confirm("Are you sure you want to continue?"); err != nil {
+					return maskAny(err)
+				}
+				fmt.Println()
 			}
-			fmt.Println()
 		}
 
 		// Destroy the obsolete & modified units

@@ -30,6 +30,7 @@ type Flags struct {
 	ScalingGroup   uint
 	DryRun         bool
 	Force          bool
+	AutoContinue   bool
 	StopDelay      time.Duration
 	DestroyDelay   time.Duration
 	SliceDelay     time.Duration

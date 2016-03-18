@@ -34,6 +34,7 @@ func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.StringVarP(&f.TunnelOverride, "tunnel", "t", defaultTunnelOverride, "SSH endpoint to tunnel through with fleet (cluster override)")
 	fs.StringSliceVarP(&f.Groups, "groups", "g", defaultGroups, "target task groups to deploy")
 	fs.BoolVarP(&f.Force, "force", "f", defaultForce, "wheather to confirm destroy or not")
+	fs.BoolVarP(&f.AutoContinue, "yes", "y", false, "auto continue on confirmation")
 	fs.BoolVarP(&f.DryRun, "dry-run", "d", defaultDryRun, "wheather to schedule units or not")
 	fs.UintVar(&f.ScalingGroup, "scaling-group", defaultScalingGroup, "scaling group to deploy")
 	fs.BoolVarP(&f.Local, "local", "l", defaultLocal, "User local vagrant test cluster")

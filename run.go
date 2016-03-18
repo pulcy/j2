@@ -74,7 +74,7 @@ func runRun(cmd *cobra.Command, args []string) {
 		SliceDelay:   runFlags.SliceDelay,
 	}
 	d := deployment.NewDeployment(*job, *cluster, groups(&runFlags.Flags),
-		deployment.ScalingGroupSelection(runFlags.ScalingGroup), runFlags.Force, delays, renderContext, images)
+		deployment.ScalingGroupSelection(runFlags.ScalingGroup), runFlags.Force, runFlags.AutoContinue, delays, renderContext, images)
 
 	if runFlags.DryRun {
 		assert(d.DryRun(deploymentDeps))
