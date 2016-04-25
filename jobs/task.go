@@ -21,6 +21,7 @@ import (
 
 	"github.com/juju/errgo"
 
+	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/units"
 )
 
@@ -71,6 +72,10 @@ func (t *Task) link() {
 	for i, l := range t.Links {
 		t.Links[i].Target = t.resolveLink(l.Target)
 	}
+}
+
+// optimizeFor optimizes the task for the given cluster.
+func (t *Task) optimizeFor(cluster cluster.Cluster) {
 }
 
 // replaceVariables replaces all known variables in the values of the given task.

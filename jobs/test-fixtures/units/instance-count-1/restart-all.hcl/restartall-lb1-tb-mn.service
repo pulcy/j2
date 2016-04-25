@@ -1,0 +1,28 @@
+[Unit]
+Description=Main unit for restartall/lb1/tb [global]
+Requires=docker.service
+Requires=restartall-lb1-ta-mn.service
+After=docker.service
+After=restartall-lb1-ta-mn.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=restartall-lb1-tb"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull foo-b
+ExecStartPre=-/usr/bin/docker stop -t 10 restartall-lb1-tb
+ExecStartPre=-/usr/bin/docker rm -f restartall-lb1-tb
+ExecStart=/usr/bin/docker run --rm --name restartall-lb1-tb -P $A00 $A01 foo-b
+ExecStop=-/usr/bin/docker stop -t 10 restartall-lb1-tb
+ExecStopPost=-/usr/bin/docker rm -f restartall-lb1-tb
+
+[X-Fleet]
+Global=true
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

@@ -22,6 +22,7 @@ import (
 
 	"github.com/juju/errgo"
 
+	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/units"
 )
 
@@ -58,7 +59,7 @@ type TaskGroup struct {
 	Global        bool          `json:"global,omitempty"` // Scheduled on all machines
 	Tasks         TaskList      `json:"tasks"`
 	Constraints   Constraints   `json:"constraints,omitempty"`
-	RestartPolicy RestartPolicy `json:"restart,omitempty"`
+	RestartPolicy RestartPolicy `json:"restart,omitempty" mapstructure:"restart,omitempty"`
 }
 
 type TaskGroupList []*TaskGroup
@@ -77,6 +78,16 @@ func (tg *TaskGroup) link() {
 	}
 	sort.Sort(tg.Tasks)
 	sort.Sort(tg.Constraints)
+}
+
+// optimizeFor optimizes the task group for the given cluster.
+func (tg *TaskGroup) optimizeFor(cluster cluster.Cluster) {
+	for _, t := range tg.Tasks {
+		t.optimizeFor(cluster)
+	}
+	if tg.Global && int(tg.Count) > cluster.InstanceCount {
+		tg.Count = uint(cluster.InstanceCount)
+	}
 }
 
 // replaceVariables replaces all known variables in the values of the given group.

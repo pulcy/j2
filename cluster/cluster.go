@@ -46,6 +46,17 @@ type Cluster struct {
 	DefaultOptions flags.Options `mapstructure:"default-options,omitempty"`
 }
 
+// New returns a new cluster for testing purposes.
+func New(domain, stack string, instanceCount int) Cluster {
+	cluster := Cluster{
+		Domain:        domain,
+		Stack:         stack,
+		InstanceCount: instanceCount,
+	}
+	cluster.setDefaults()
+	return cluster
+}
+
 // validate checks the values in the given cluster
 func (c Cluster) validate() error {
 	if c.Stack == "" {

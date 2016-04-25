@@ -92,6 +92,9 @@ func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error
 	// Sort internal structures and make final links
 	job.link()
 
+	// Optimize job for cluster
+	job.optimizeFor(opts.Cluster)
+
 	// Validate the job
 	if err := job.Validate(); err != nil {
 		return nil, maskAny(err)
@@ -310,6 +313,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 	excludedKeys := []string{
 		"env",
 		"image",
+		"after",
 		"volumes",
 		"volumes-from",
 		"frontend",
@@ -359,6 +363,17 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 			if err := util.Decode(o.Val, nil, nil, &t.Environment); err != nil {
 				return maskAny(err)
 			}
+		}
+	}
+
+	// Parse after
+	if o := obj.List.Filter("after"); len(o.Items) > 0 {
+		list, err := util.ParseStringList(o, fmt.Sprintf("after of task %s", t.Name))
+		if err != nil {
+			return maskAny(err)
+		}
+		for _, x := range list {
+			t.After = append(t.After, TaskName(x))
 		}
 	}
 

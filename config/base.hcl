@@ -24,9 +24,9 @@ job "base" {
 
 		task "lb" {
 			image = "pulcy/robin:0.16.3"
+			after = "certificates"
 			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "{{private_ipv4}}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
 			volumes = "/tmp/base/lb/certs/:/certs/"
-			after = ["certificates"]
 			secret "secret/base/lb/stats-password" {
                 environment = "STATS_PASSWORD"
             }

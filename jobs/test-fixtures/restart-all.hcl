@@ -1,15 +1,30 @@
 job "restartall" {
 
-	group "lb" {
+	group "lb1" {
+		global = true
+		count = 1
+		restart = "all"
+
+		task "ta" {
+			image = "foo-a"
+		}
+		task "tb" {
+			image = "foo-b"
+			after = "ta"
+		}
+	}
+
+	group "lb2" {
+		global = true
 		count = 2
 		restart = "all"
 
-		task "a" {
+		task "ta" {
 			image = "foo-a"
 		}
-		task "b" {
+		task "tb" {
 			image = "foo-b"
-			after = "a"
+			after = ["ta"]
 		}
 	}
 }

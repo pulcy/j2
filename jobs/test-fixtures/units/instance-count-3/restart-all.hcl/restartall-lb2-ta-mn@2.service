@@ -1,0 +1,28 @@
+[Unit]
+Description=Main unit for restartall/lb2/ta [global]
+Requires=docker.service
+Requires=restartall-lb2-tb-mn@2.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=restartall-lb2-ta"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull foo-a
+ExecStartPre=-/usr/bin/docker stop -t 10 restartall-lb2-ta
+ExecStartPre=-/usr/bin/docker rm -f restartall-lb2-ta
+ExecStart=/usr/bin/docker run --rm --name restartall-lb2-ta -P $A00 $A01 foo-a
+ExecStop=-/usr/bin/docker stop -t 10 restartall-lb2-ta
+ExecStopPost=-/usr/bin/docker rm -f restartall-lb2-ta
+
+[X-Fleet]
+Global=true
+MachineMetadata="even=true"
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
