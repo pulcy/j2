@@ -1,0 +1,34 @@
+{
+    "name": "restartall",
+    "groups": [{
+        "name": "lb1",
+        "count": 1,
+        "global": true,
+        "tasks": [{
+            "name": "ta",
+            "image": "foo-a"
+        }, {
+            "name": "tb",
+            "image": "foo-b",
+            "after": [
+                "ta"
+            ]
+        }],
+        "restart": "all"
+    }, {
+        "name": "lb2",
+        "count": 2,
+        "global": true,
+        "tasks": [{
+            "name": "ta",
+            "image": "foo-a"
+        }, {
+            "name": "tb",
+            "image": "foo-b",
+            "after": [
+                "ta"
+            ]
+        }],
+        "restart": "all"
+    }]
+}

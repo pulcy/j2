@@ -21,6 +21,7 @@ import (
 
 	"github.com/juju/errgo"
 
+	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/units"
 )
 
@@ -46,6 +47,7 @@ type Task struct {
 	Type             TaskType          `json:"type,omitempty" mapstructure:"type,omitempty"`
 	Timer            string            `json:"timer,omitempty" mapstructure:"timer,omitempty"`
 	Image            DockerImage       `json:"image"`
+	After            []TaskName        `json:"after,omitempty"`
 	VolumesFrom      []TaskName        `json:"volumes-from,omitempty"`
 	Volumes          []string          `json:"volumes,omitempty"`
 	Args             []string          `json:"args,omitempty"`
@@ -72,12 +74,19 @@ func (t *Task) link() {
 	}
 }
 
+// optimizeFor optimizes the task for the given cluster.
+func (t *Task) optimizeFor(cluster cluster.Cluster) {
+}
+
 // replaceVariables replaces all known variables in the values of the given task.
 func (t *Task) replaceVariables() error {
 	ctx := NewVariableContext(t.group.job, t.group, t)
 	t.Type = TaskType(ctx.replaceString(string(t.Type)))
 	t.Timer = ctx.replaceString(t.Timer)
 	t.Image = t.Image.replaceVariables(ctx)
+	for i, x := range t.After {
+		t.After[i] = TaskName(ctx.replaceString(string(x)))
+	}
 	for i, x := range t.VolumesFrom {
 		t.VolumesFrom[i] = TaskName(ctx.replaceString(string(x)))
 	}
@@ -112,6 +121,12 @@ func (t Task) Validate() error {
 	}
 	if err := t.Type.Validate(); err != nil {
 		return maskAny(err)
+	}
+	for _, name := range t.After {
+		_, err := t.group.Task(name)
+		if err != nil {
+			return maskAny(err)
+		}
 	}
 	for _, name := range t.VolumesFrom {
 		_, err := t.group.Task(name)

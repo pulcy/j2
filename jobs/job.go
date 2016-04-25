@@ -20,6 +20,8 @@ import (
 	"sort"
 
 	"github.com/juju/errgo"
+
+	"github.com/pulcy/j2/cluster"
 )
 
 var (
@@ -61,6 +63,13 @@ func (j *Job) link() {
 	}
 	sort.Sort(j.Groups)
 	sort.Sort(j.Constraints)
+}
+
+// optimizeFor optimizes the job for the given cluster.
+func (j *Job) optimizeFor(cluster cluster.Cluster) {
+	for _, tg := range j.Groups {
+		tg.optimizeFor(cluster)
+	}
 }
 
 // replaceVariables replaces all known variables in the values of the given job.

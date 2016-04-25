@@ -22,6 +22,7 @@ import (
 
 	"github.com/juju/errgo"
 
+	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/units"
 )
 
@@ -54,10 +55,11 @@ type TaskGroup struct {
 	Name TaskGroupName `json:"name", mapstructure:"-"`
 	job  *Job
 
-	Count       uint        `json:"count"`            // Number of instances of this group
-	Global      bool        `json:"global,omitempty"` // Scheduled on all machines
-	Tasks       TaskList    `json:"tasks"`
-	Constraints Constraints `json:"constraints,omitempty"`
+	Count         uint          `json:"count"`            // Number of instances of this group
+	Global        bool          `json:"global,omitempty"` // Scheduled on all machines
+	Tasks         TaskList      `json:"tasks"`
+	Constraints   Constraints   `json:"constraints,omitempty"`
+	RestartPolicy RestartPolicy `json:"restart,omitempty" mapstructure:"restart,omitempty"`
 }
 
 type TaskGroupList []*TaskGroup
@@ -78,6 +80,16 @@ func (tg *TaskGroup) link() {
 	sort.Sort(tg.Constraints)
 }
 
+// optimizeFor optimizes the task group for the given cluster.
+func (tg *TaskGroup) optimizeFor(cluster cluster.Cluster) {
+	for _, t := range tg.Tasks {
+		t.optimizeFor(cluster)
+	}
+	if tg.Global && int(tg.Count) > cluster.InstanceCount {
+		tg.Count = uint(cluster.InstanceCount)
+	}
+}
+
 // replaceVariables replaces all known variables in the values of the given group.
 func (tg *TaskGroup) replaceVariables() error {
 	ctx := NewVariableContext(tg.job, tg, nil)
@@ -89,6 +101,7 @@ func (tg *TaskGroup) replaceVariables() error {
 	for i, x := range tg.Constraints {
 		tg.Constraints[i] = x.replaceVariables(ctx)
 	}
+	tg.RestartPolicy = RestartPolicy(ctx.replaceString(string(tg.RestartPolicy)))
 	return maskAny(ctx.Err())
 }
 
@@ -117,6 +130,9 @@ func (tg *TaskGroup) Validate() error {
 	if err := tg.Constraints.Validate(); err != nil {
 		return maskAny(err)
 	}
+	if err := tg.RestartPolicy.Validate(); err != nil {
+		return maskAny(err)
+	}
 	return nil
 }
 
@@ -136,6 +152,22 @@ func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
 	return !tg.Global
 }*/
 
+type taskUnitChain struct {
+	Task      *Task
+	MainChain units.UnitChain
+}
+
+type taskUnitChainList []taskUnitChain
+
+func (l taskUnitChainList) find(taskName TaskName) (taskUnitChain, error) {
+	for _, x := range l {
+		if x.Task.Name == taskName {
+			return x, nil
+		}
+	}
+	return taskUnitChain{}, maskAny(errgo.WithCausef(nil, TaskNotFoundError, taskName.String()))
+}
+
 // createUnits creates all units needed to run this taskgroup.
 func (tg *TaskGroup) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
 	if ctx.ScalingGroup > tg.Count {
@@ -143,21 +175,51 @@ func (tg *TaskGroup) createUnits(ctx generatorContext) ([]units.UnitChain, error
 	}
 
 	// Create all units for my tasks
-	chains := []units.UnitChain{}
+	allChains := []units.UnitChain{}
+	taskUnitChains := taskUnitChainList{}
 	allUnits := []*units.Unit{}
 	for _, t := range tg.Tasks {
-		taskUnitChains, err := t.createUnits(ctx)
+		tuc, err := t.createUnits(ctx)
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		chains = append(chains, taskUnitChains...)
+		allChains = append(allChains, tuc...)
+		if len(tuc) > 0 {
+			taskUnitChains = append(taskUnitChains, taskUnitChain{
+				Task:      t,
+				MainChain: tuc[0],
+			})
+		}
 		// Link chains to enfore the actual chain
-		for _, chain := range taskUnitChains {
+		for _, chain := range tuc {
 			chain.Link()
 		}
 		// Collect all units in the chain
-		for _, chain := range taskUnitChains {
+		for _, chain := range tuc {
 			allUnits = append(allUnits, chain...)
+		}
+	}
+
+	// In case of restart="all", bind chains such that they restart together
+	if tg.RestartPolicy.IsAll() {
+		for i, x := range taskUnitChains {
+			for j, y := range taskUnitChains {
+				if i == j {
+					continue
+				}
+				x.MainChain.BindRestartTo(y.MainChain)
+			}
+		}
+	}
+
+	// Create "After" links
+	for _, x := range taskUnitChains {
+		for _, afterName := range x.Task.After {
+			other, err := taskUnitChains.find(afterName)
+			if err != nil {
+				return nil, maskAny(err)
+			}
+			x.MainChain.After(other.MainChain)
 		}
 	}
 
@@ -166,7 +228,7 @@ func (tg *TaskGroup) createUnits(ctx generatorContext) ([]units.UnitChain, error
 		units.GroupUnitsOnMachine(allUnits...)
 	}
 
-	return chains, nil
+	return allChains, nil
 }
 
 // Gets the full name of this taskgroup: job/taskgroup

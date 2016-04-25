@@ -11,6 +11,7 @@ job "base" {
 	group "load_balancer" {
 		global = true
 		count = 2 // This splits the instances of the tasks up into 2 groups, 50% of the machines get one group, the other 50% the rest.
+		restart = "all" // If one task is restarted, restart all tasks.
 
 		task "certificates" {
 			type = "oneshot"
@@ -23,6 +24,7 @@ job "base" {
 
 		task "lb" {
 			image = "pulcy/robin:0.16.3"
+			after = "certificates"
 			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "{{private_ipv4}}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
 			volumes = "/tmp/base/lb/certs/:/certs/"
 			secret "secret/base/lb/stats-password" {
