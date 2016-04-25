@@ -46,6 +46,7 @@ type Task struct {
 	Type             TaskType          `json:"type,omitempty" mapstructure:"type,omitempty"`
 	Timer            string            `json:"timer,omitempty" mapstructure:"timer,omitempty"`
 	Image            DockerImage       `json:"image"`
+	After            []TaskName        `json:"after,omitempty"`
 	VolumesFrom      []TaskName        `json:"volumes-from,omitempty"`
 	Volumes          []string          `json:"volumes,omitempty"`
 	Args             []string          `json:"args,omitempty"`
@@ -78,6 +79,9 @@ func (t *Task) replaceVariables() error {
 	t.Type = TaskType(ctx.replaceString(string(t.Type)))
 	t.Timer = ctx.replaceString(t.Timer)
 	t.Image = t.Image.replaceVariables(ctx)
+	for i, x := range t.After {
+		t.After[i] = TaskName(ctx.replaceString(string(x)))
+	}
 	for i, x := range t.VolumesFrom {
 		t.VolumesFrom[i] = TaskName(ctx.replaceString(string(x)))
 	}
@@ -112,6 +116,12 @@ func (t Task) Validate() error {
 	}
 	if err := t.Type.Validate(); err != nil {
 		return maskAny(err)
+	}
+	for _, name := range t.After {
+		_, err := t.group.Task(name)
+		if err != nil {
+			return maskAny(err)
+		}
 	}
 	for _, name := range t.VolumesFrom {
 		_, err := t.group.Task(name)

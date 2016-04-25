@@ -70,6 +70,16 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			"restart-all.hcl",
+			false,
+			[]string{
+				"restartall-lb-a-mn@1.service",
+				"restartall-lb-a-mn@2.service",
+				"restartall-lb-b-mn@1.service",
+				"restartall-lb-b-mn@2.service",
+			},
+		},
+		{
 			"secret.hcl",
 			false,
 			[]string{
