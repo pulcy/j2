@@ -4,14 +4,22 @@ Requires=docker.service
 After=docker.service
 
 [Service]
-Type=oneshot
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
 Environment="A00=-e SERVICE_NAME=test-some_proxy-some_proxy"
 Environment="A01=--log-driver=test"
-ExecStart=/usr/bin/true
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3Quc29tZV9wcm94eS5zb21lX3Byb3h5LnByaXZhdGUiLCJwb3J0Ijo4MCwicHJpdmF0ZSI6dHJ1ZSwicmV3cml0ZS1ydWxlcyI6W3sicGF0aC1wcmVmaXgiOiIvX2RiL2Zvby9hcHAifV19XSwic2VydmljZSI6InRlc3Qtc29tZV9wcm94eS1zb21lX3Byb3h5In0= | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-couchdb-couchdb-1'
-ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-couchdb-couchdb-1
+ExecStartPre=/usr/bin/docker pull 
+ExecStartPre=-/usr/bin/docker stop -t 10 test-some_proxy-some_proxy-1
+ExecStartPre=-/usr/bin/docker rm -f test-some_proxy-some_proxy-1
+ExecStart=/usr/bin/docker run --rm --name test-some_proxy-some_proxy-1 -P $A00 $A01  sleep 36500d
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3Quc29tZV9wcm94eS5zb21lX3Byb3h5LnByaXZhdGUiLCJwb3J0Ijo4MCwicHJpdmF0ZSI6dHJ1ZSwicmV3cml0ZS1ydWxlcyI6W3sicGF0aC1wcmVmaXgiOiIvX2RiL2Zvby9hcHAifV19XSwic2VydmljZSI6InRlc3QtY291Y2hkYi1jb3VjaGRiIn0= | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-some_proxy-some_proxy-1'
+ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-some_proxy-some_proxy-1
+ExecStop=-/usr/bin/docker stop -t 10 test-some_proxy-some_proxy-1
+ExecStopPost=-/usr/bin/docker rm -f test-some_proxy-some_proxy-1
 
 [X-Fleet]
 Conflicts=test-some_proxy-some_proxy-mn@*.service
@@ -19,4 +27,4 @@ MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration="/pulcy/frontend/test-couchdb-couchdb-1={\"selectors\":[{\"domain\":\"test.some_proxy.some_proxy.private\",\"port\":80,\"private\":true,\"rewrite-rules\":[{\"path-prefix\":\"/_db/foo/app\"}]}],\"service\":\"test-some_proxy-some_proxy\"}"
+FrontEndRegistration="/pulcy/frontend/test-some_proxy-some_proxy-1={\"selectors\":[{\"domain\":\"test.some_proxy.some_proxy.private\",\"port\":80,\"private\":true,\"rewrite-rules\":[{\"path-prefix\":\"/_db/foo/app\"}]}],\"service\":\"test-couchdb-couchdb\"}"
