@@ -61,6 +61,8 @@ The following keys can be specified on a `task`.
   Service tasks are supposed to run continuously and will be restarted in case of failure.
   Proxy tasks do not have a real service to run, instead they provide a virtual
   service that forwards all requests to another service (optionally with a rewrite rule).
+- `after` - Contains the name of zero or more other tasks in the same group. If set, this task will be started
+  only after all listed tasks have been started.
 - `volumes-from` - Contains the name of zero or more other tasks. The volumes used by these other tasks will be
   mounted in the container of this task.
 - `volumes` - Contains a list of zero or more volume mounts for the container.
@@ -150,6 +152,7 @@ The following keys can be specified on a `group`.
 - `count` - Specifies how many instances of the task-group that should be created.
 - `global` - If set to true, this task-group will create one instance for every machine in the cluster.
 - `constraint` - See [Constraints](#constraints)
+- `restart` - If set to `all`, all tasks of this group will be restarted in case one of them restarts (or is updated).
 
 ### Constraints
 
