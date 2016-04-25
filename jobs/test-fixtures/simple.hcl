@@ -108,4 +108,15 @@ job "test" {
 		}
 		private-frontend { }
 	}
+
+	task "some_domain_proxy" {
+		type = "proxy"
+		target = ".couchdb"
+		rewrite {
+			domain = "newdomain.com"
+		}
+		frontend {
+			domain = "obsoletedomain.com"
+		}
+	}
 }

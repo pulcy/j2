@@ -58,6 +58,21 @@
             "capabilities": ["IPC_LOCK"]
         }]
     }, {
+        "name": "some_domain_proxy",
+        "count": 1,
+        "tasks": [{
+            "name": "some_domain_proxy",
+            "image": "",
+            "type": "proxy",
+            "target": "test.couchdb.couchdb",
+            "rewrites": [{
+                "domain": "newdomain.com"
+            }],
+            "frontends": [{
+                "domain": "obsoletedomain.com"
+            }]
+        }]
+    }, {
         "name": "some_proxy",
         "count": 1,
         "tasks": [{
