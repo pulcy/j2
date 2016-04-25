@@ -12,7 +12,7 @@ job "ceph" {
 			KV_IP = "{{private_ipv4}}"
 			CEPH_PUBLIC_NETWORK = "$(echo {{private_ipv4}} | cut -d '.' -f 1,2,3 | awk '{print $1 \".0/24\"}')"
 		}
-		docker_args = ["--net=host"]
+		docker-args = ["--net=host"]
 	}
 
 	task "osd" {
@@ -30,6 +30,6 @@ job "ceph" {
 			KV_TYPE = "etcd"
 			KV_IP = "{{private_ipv4}}"
 		}
-		docker_args = ["--net=host", "--privileged=true", "--pid=host"]
+		docker-args = ["--net=host", "--privileged=true", "--pid=host"]
 	}
 }
