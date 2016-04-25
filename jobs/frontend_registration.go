@@ -54,7 +54,8 @@ type userRecord struct {
 }
 
 type rewriteRule struct {
-	PathPrefix string `json:"path-prefix"`
+	PathPrefix string `json:"path-prefix,omitempty"`
+	Domain     string `json:"domain,omitempty"`
 }
 
 // addFrontEndRegistration adds registration code for frontends to the given units
@@ -84,6 +85,7 @@ func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) e
 		for _, rw := range t.Rewrites {
 			rwRules = append(rwRules, rewriteRule{
 				PathPrefix: rw.PathPrefix,
+				Domain:     rw.Domain,
 			})
 		}
 	}

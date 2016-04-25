@@ -1,0 +1,30 @@
+[Unit]
+Description=Main unit for test/some_domain_proxy/some_domain_proxy [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=test-some_domain_proxy-some_domain_proxy"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull 
+ExecStartPre=-/usr/bin/docker stop -t 10 test-some_domain_proxy-some_domain_proxy-1
+ExecStartPre=-/usr/bin/docker rm -f test-some_domain_proxy-some_domain_proxy-1
+ExecStart=/usr/bin/docker run --rm --name test-some_domain_proxy-some_domain_proxy-1 -P $A00 $A01  sleep 36500d
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6Im9ic29sZXRlZG9tYWluLmNvbSIsInJld3JpdGUtcnVsZXMiOlt7ImRvbWFpbiI6Im5ld2RvbWFpbi5jb20ifV19XSwic2VydmljZSI6InRlc3QtY291Y2hkYi1jb3VjaGRiIn0= | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-some_domain_proxy-some_domain_proxy-1'
+ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-some_domain_proxy-some_domain_proxy-1
+ExecStop=-/usr/bin/docker stop -t 10 test-some_domain_proxy-some_domain_proxy-1
+ExecStopPost=-/usr/bin/docker rm -f test-some_domain_proxy-some_domain_proxy-1
+
+[X-Fleet]
+Conflicts=test-some_domain_proxy-some_domain_proxy-mn@*.service
+MachineMetadata="core=true"
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
+FrontEndRegistration="/pulcy/frontend/test-some_domain_proxy-some_domain_proxy-1={\"selectors\":[{\"domain\":\"obsoletedomain.com\",\"rewrite-rules\":[{\"domain\":\"newdomain.com\"}]}],\"service\":\"test-couchdb-couchdb\"}"
