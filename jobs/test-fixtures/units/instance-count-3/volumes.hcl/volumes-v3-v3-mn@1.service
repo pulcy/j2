@@ -1,0 +1,32 @@
+[Unit]
+Description=Main unit for volumes/v3/v3 [slice 1]
+Requires=docker.service
+Requires=volumes-v3-v3-vl0@1.service
+After=docker.service
+After=volumes-v3-v3-vl0@1.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=--volumes-from volumes-v3-v3-1-vl0"
+Environment="A01=-v /var/run/docker.sock:/tmp/docker.sock"
+Environment="A02=-e SERVICE_NAME=volumes-v3-v3"
+Environment="A03=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull v3:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 volumes-v3-v3-1
+ExecStartPre=-/usr/bin/docker rm -f volumes-v3-v3-1
+ExecStartPre=/bin/sh -c 'test -e /var/run/docker.sock || mkdir -p /var/run/docker.sock'
+ExecStart=/usr/bin/docker run --rm --name volumes-v3-v3-1 -P $A00 $A01 $A02 $A03 v3:latest
+ExecStop=-/usr/bin/docker stop -t 10 volumes-v3-v3-1
+ExecStopPost=-/usr/bin/docker rm -f volumes-v3-v3-1
+
+[X-Fleet]
+Conflicts=volumes-v3-v3-mn@*.service
+MachineOf=volumes-v3-v3-vl0@1.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

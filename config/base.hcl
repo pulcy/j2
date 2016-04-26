@@ -3,7 +3,7 @@ job "base" {
 
 	task "registrator" {
 		global = true
-		image = "gliderlabs/registrator:latest"
+		image = "gliderlabs/registrator:v6"
 		volumes = "/var/run/docker.sock:/tmp/docker.sock"
 		args = ["-ttl=120", "-ttl-refresh=90", "etcd://{{private_ipv4}}:4001/pulcy/service"]
 	}

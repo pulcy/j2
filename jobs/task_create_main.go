@@ -158,6 +158,11 @@ func (t *Task) createMainDockerCmdLine(image string, env map[string]string, ctx 
 		if err != nil {
 			return nil, maskAny(err)
 		}
+		for i, v := range other.Volumes {
+			if v.requiresMountUnit() {
+				addArg(fmt.Sprintf("--volumes-from %s", other.createVolumeUnitContainerName(i, ctx)), &execStart, env)
+			}
+		}
 		addArg(fmt.Sprintf("--volumes-from %s", other.containerName(ctx.ScalingGroup)), &execStart, env)
 	}
 	envKeys := []string{}

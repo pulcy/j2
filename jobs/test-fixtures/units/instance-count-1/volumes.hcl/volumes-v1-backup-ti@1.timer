@@ -1,0 +1,12 @@
+[Unit]
+Description=Timer unit for volumes/v1/backup [slice 1]
+
+[Timer]
+OnCalendar=hourly
+Unit=volumes-v1-backup-mn@1.service
+
+[X-Fleet]
+MachineOf=volumes-v1-backup-mn@1.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
