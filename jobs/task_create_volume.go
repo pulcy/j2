@@ -16,6 +16,7 @@ package jobs
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 
@@ -27,7 +28,7 @@ func (t *Task) createVolumeUnit(vol Volume, volIndex int, ctx generatorContext) 
 	namePostfix := t.createVolumeUnitNamePostfix(volIndex)
 	containerName := t.createVolumeUnitContainerName(volIndex, ctx)
 	image := ctx.Images.CephVolume
-	volPrefix := fmt.Sprintf("%s/%d/%s", t.fullName(), int(ctx.ScalingGroup), vol.PathHash())
+	volPrefix := path.Join(fmt.Sprintf("%s/%d", t.fullName(), int(ctx.ScalingGroup)), vol.Path)
 	volHostPath := fmt.Sprintf("/media/%s", volPrefix)
 
 	unit := &units.Unit{
