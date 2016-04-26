@@ -16,6 +16,7 @@ package jobs
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -26,9 +27,10 @@ import (
 )
 
 const (
-	unitKindMain  = "-mn"
-	unitKindProxy = "-pr"
-	unitKindTimer = "-ti"
+	unitKindMain   = "-mn"
+	unitKindVolume = "-vl"
+	unitKindProxy  = "-pr"
+	unitKindTimer  = "-ti"
 )
 
 var (
@@ -49,7 +51,7 @@ type Task struct {
 	Image            DockerImage       `json:"image"`
 	After            []TaskName        `json:"after,omitempty"`
 	VolumesFrom      []TaskName        `json:"volumes-from,omitempty"`
-	Volumes          []string          `json:"volumes,omitempty"`
+	Volumes          VolumeList        `json:"volumes,omitempty"`
 	Args             []string          `json:"args,omitempty"`
 	Environment      map[string]string `json:"environment,omitempty"`
 	Ports            []string          `json:"ports,omitempty"`
@@ -72,6 +74,7 @@ func (t *Task) link() {
 	for i, l := range t.Links {
 		t.Links[i].Target = t.resolveLink(l.Target)
 	}
+	sort.Sort(t.Volumes)
 }
 
 // optimizeFor optimizes the task for the given cluster.
@@ -90,7 +93,9 @@ func (t *Task) replaceVariables() error {
 	for i, x := range t.VolumesFrom {
 		t.VolumesFrom[i] = TaskName(ctx.replaceString(string(x)))
 	}
-	t.Volumes = ctx.replaceStringSlice(t.Volumes)
+	for i, x := range t.Volumes {
+		t.Volumes[i] = x.replaceVariables(ctx)
+	}
 	t.Args = ctx.replaceStringSlice(t.Args)
 	t.Environment = ctx.replaceStringMap(t.Environment)
 	t.Ports = ctx.replaceStringSlice(t.Ports)
@@ -188,21 +193,33 @@ func (t Task) Validate() error {
 func (t *Task) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
 	mainChain := units.UnitChain{}
 
-	proxyUnitNames := []string{}
+	sidekickUnitNames := []string{}
 	for _, l := range t.Links {
 		if !l.Type.IsTCP() {
 			continue
 		}
-		linkIndex := len(proxyUnitNames)
+		linkIndex := len(sidekickUnitNames)
 		unit, err := t.createProxyUnit(l, linkIndex, ctx)
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		proxyUnitNames = append(proxyUnitNames, unit.FullName)
+		sidekickUnitNames = append(sidekickUnitNames, unit.FullName)
 		mainChain = append(mainChain, unit)
 	}
 
-	main, err := t.createMainUnit(proxyUnitNames, ctx)
+	for i, v := range t.Volumes {
+		if !v.requiresMountUnit() {
+			continue
+		}
+		unit, err := t.createVolumeUnit(v, i, ctx)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		sidekickUnitNames = append(sidekickUnitNames, unit.FullName)
+		mainChain = append(mainChain, unit)
+	}
+
+	main, err := t.createMainUnit(sidekickUnitNames, ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}

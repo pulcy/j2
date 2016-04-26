@@ -26,7 +26,7 @@ import (
 )
 
 // createMainUnit
-func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*units.Unit, error) {
+func (t *Task) createMainUnit(sidekickUnitNames []string, ctx generatorContext) (*units.Unit, error) {
 	name := t.containerName(ctx.ScalingGroup)
 	image := t.Image.String()
 	if t.Type == "proxy" {
@@ -74,9 +74,11 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", t.containerName(ctx.ScalingGroup)),
 	)
 	for _, v := range t.Volumes {
-		dir := strings.Split(v, ":")
-		mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s'", dir[0], dir[0])
-		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
+		if v.IsLocal() {
+			hostPath := v.HostPath
+			mkdir := fmt.Sprintf("/bin/sh -c 'test -e %s || mkdir -p %s'", hostPath, hostPath)
+			main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre, mkdir)
+		}
 	}
 
 	main.ExecOptions.ExecStop = append(main.ExecOptions.ExecStop,
@@ -92,14 +94,14 @@ func (t *Task) createMainUnit(proxyUnitNames []string, ctx generatorContext) (*u
 
 	// Service dependencies
 	// Requires=
-	if requires, err := t.createMainRequires(proxyUnitNames, ctx); err != nil {
+	if requires, err := t.createMainRequires(sidekickUnitNames, ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		main.ExecOptions.Require(requires...)
 	}
 	main.ExecOptions.Require("docker.service")
 	// After=...
-	if after, err := t.createMainAfter(proxyUnitNames, ctx); err != nil {
+	if after, err := t.createMainAfter(sidekickUnitNames, ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		main.ExecOptions.After(after...)
@@ -135,8 +137,12 @@ func (t *Task) createMainDockerCmdLine(image string, env map[string]string, ctx 
 	} else {
 		execStart = append(execStart, "-P")
 	}
-	for _, v := range t.Volumes {
-		addArg(fmt.Sprintf("-v %s", v), &execStart, env)
+	for i, v := range t.Volumes {
+		if v.IsLocal() {
+			addArg(fmt.Sprintf("-v %s", v), &execStart, env)
+		} else if v.requiresMountUnit() {
+			addArg(fmt.Sprintf("--volumes-from %s", t.createVolumeUnitContainerName(i, ctx)), &execStart, env)
+		}
 	}
 	for _, secret := range t.Secrets {
 		if ok, path := secret.TargetFile(); ok {
@@ -195,9 +201,9 @@ func (t *Task) createMainDockerCmdLine(image string, env map[string]string, ctx 
 }
 
 // createMainAfter creates the `After=` sequence for the main unit
-func (t *Task) createMainAfter(proxyUnitNames []string, ctx generatorContext) ([]string, error) {
+func (t *Task) createMainAfter(sidekickUnitNames []string, ctx generatorContext) ([]string, error) {
 	after := append([]string{}, commonAfter...)
-	after = append(after, proxyUnitNames...)
+	after = append(after, sidekickUnitNames...)
 
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)
@@ -211,9 +217,9 @@ func (t *Task) createMainAfter(proxyUnitNames []string, ctx generatorContext) ([
 }
 
 // createMainRequires creates the `Requires=` sequence for the main unit
-func (t *Task) createMainRequires(proxyUnitNames []string, ctx generatorContext) ([]string, error) {
+func (t *Task) createMainRequires(sidekickUnitNames []string, ctx generatorContext) ([]string, error) {
 	requires := append([]string{}, commonRequires...)
-	requires = append(requires, proxyUnitNames...)
+	requires = append(requires, sidekickUnitNames...)
 
 	for _, name := range t.VolumesFrom {
 		other, err := t.group.Task(name)

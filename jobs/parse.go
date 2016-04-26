@@ -383,7 +383,13 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 		if err != nil {
 			return maskAny(err)
 		}
-		t.Volumes = list
+		for _, x := range list {
+			vol, err := ParseVolume(x)
+			if err != nil {
+				return maskAny(err)
+			}
+			t.Volumes = append(t.Volumes, vol)
+		}
 	}
 
 	// Parse volumes-from

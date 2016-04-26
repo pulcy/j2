@@ -2,6 +2,7 @@ job "ceph" {
 
 	task "monitor" {
 		global = true
+		count = 2
 		image = "ceph/daemon"
 		volumes = "/var/lib/ceph:/var/lib/ceph"
 		args = ["mon"]
@@ -17,6 +18,7 @@ job "ceph" {
 
 	task "osd" {
 		global = true
+		count = 2
 		image = "ceph/daemon"
 		volumes = [
 			"/var/lib/ceph/osd:/var/lib/ceph/osd",
@@ -31,5 +33,22 @@ job "ceph" {
 			KV_IP = "{{private_ipv4}}"
 		}
 		docker-args = ["--net=host", "--privileged=true", "--pid=host"]
+	}
+
+	task "mds" {
+		count = 2
+		image = "ceph/daemon"
+		volumes = [
+			"/var/lib/ceph/:/var/lib/ceph/",
+			"/var/log/ceph:/var/log/ceph"
+		]
+		args = ["mds"]
+		env {
+			MDS_NAME= "mds-${instance}"
+			CEPHFS_CREATE = "1"
+			KV_TYPE = "etcd"
+			KV_IP = "{{private_ipv4}}"
+		}
+		docker-args = ["--net=host"]
 	}
 }
