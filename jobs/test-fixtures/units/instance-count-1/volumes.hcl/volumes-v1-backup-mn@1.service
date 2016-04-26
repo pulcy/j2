@@ -1,0 +1,26 @@
+[Unit]
+Description=Main unit for volumes/v1/backup [slice 1]
+Requires=docker.service
+Requires=volumes-v1-storage-mn@1.service
+After=docker.service
+After=volumes-v1-storage-mn@1.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=--volumes-from volumes-v1-storage-1-vl0"
+Environment="A01=--volumes-from volumes-v1-storage-1"
+Environment="A02=-e SERVICE_NAME=volumes-v1-backup"
+Environment="A03=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull mybackup:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 volumes-v1-backup-1
+ExecStartPre=-/usr/bin/docker rm -f volumes-v1-backup-1
+ExecStart=/usr/bin/docker run --rm --name volumes-v1-backup-1 -P $A00 $A01 $A02 $A03 mybackup:latest
+ExecStop=-/usr/bin/docker stop -t 10 volumes-v1-backup-1
+ExecStopPost=-/usr/bin/docker rm -f volumes-v1-backup-1
+
+[X-Fleet]
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

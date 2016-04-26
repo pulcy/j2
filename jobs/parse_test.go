@@ -173,6 +173,32 @@ func TestParse(t *testing.T) {
 				"test-web-storage-pr0@2.service",
 			},
 		},
+		{
+			"volumes.hcl",
+			false,
+			[]string{
+				"volumes-v1-backup-mn@1.service",
+				"volumes-v1-backup-ti@1.timer",
+				"volumes-v1-storage-mn@1.service",
+				"volumes-v1-storage-vl0@1.service",
+				"volumes-v2-v2-mn@1.service",
+				"volumes-v3-v3-mn@1.service",
+				"volumes-v3-v3-vl0@1.service",
+				"volumes-v4global-v4global-mn.service",
+				"volumes-v4global-v4global-vl0.service",
+			},
+			[]string{
+				"volumes-v1-backup-mn@1.service",
+				"volumes-v1-backup-ti@1.timer",
+				"volumes-v1-storage-mn@1.service",
+				"volumes-v1-storage-vl0@1.service",
+				"volumes-v2-v2-mn@1.service",
+				"volumes-v3-v3-mn@1.service",
+				"volumes-v3-v3-vl0@1.service",
+				"volumes-v4global-v4global-mn.service",
+				"volumes-v4global-v4global-vl0.service",
+			},
+		},
 	}
 
 	for _, tc := range cases {

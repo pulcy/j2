@@ -1,0 +1,56 @@
+{
+    "name": "volumes",
+    "groups": [{
+        "name": "v1",
+        "count": 1,
+        "tasks": [{
+            "name": "backup",
+            "type": "oneshot",
+            "timer": "hourly",
+            "image": "mybackup:latest",
+            "volumes-from": [
+                "storage"
+            ]
+        }, {
+            "name": "storage",
+            "image": "mystorage:latest",
+            "volumes": [
+                "instance:/data"
+            ]
+        }]
+    }, {
+        "name": "v2",
+        "count": 1,
+        "tasks": [{
+            "name": "v2",
+            "image": "v2:latest",
+            "volumes": [
+                "/etc:/etc",
+                "/var/run/docker.sock:/tmp/docker.sock"
+            ]
+        }]
+    }, {
+        "name": "v3",
+        "count": 1,
+        "tasks": [{
+            "name": "v3",
+            "image": "v3:latest",
+            "volumes": [
+                "instance:/var/lib/data",
+                "/var/run/docker.sock:/tmp/docker.sock"
+            ]
+        }]
+    }, {
+        "name": "v4global",
+        "count": 1,
+        "global": true,
+        "tasks": [{
+            "name": "v4global",
+            "image": "v4:latest",
+            "volumes": [
+                "instance:/var/lib/data",
+                "/var/run/docker.sock:/tmp/docker.sock"
+            ]
+        }]
+    }]
+}

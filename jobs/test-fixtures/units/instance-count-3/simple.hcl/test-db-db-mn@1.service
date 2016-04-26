@@ -10,17 +10,17 @@ StartLimitInterval=60s
 StartLimitBurst=3
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
-Environment="A00=-v /var/run/docker.sock:/tmp/docker.sock"
-Environment="A01=-v /etc:/etc"
+Environment="A00=-v /etc:/etc"
+Environment="A01=-v /var/run/docker.sock:/tmp/docker.sock"
 Environment="A02=-e SERVICE_NAME=test-db-db"
 Environment="A03=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull redis:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-db-db-1
 ExecStartPre=-/usr/bin/docker rm -f test-db-db-1
-ExecStartPre=/bin/sh -c 'test -e /var/run/docker.sock || mkdir -p /var/run/docker.sock'
 ExecStartPre=/bin/sh -c 'test -e /etc || mkdir -p /etc'
+ExecStartPre=/bin/sh -c 'test -e /var/run/docker.sock || mkdir -p /var/run/docker.sock'
 ExecStart=/usr/bin/docker run --rm --name test-db-db-1 -P $A00 $A01 $A02 $A03 redis:latest
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3QuZGIuZGIucHJpdmF0ZSIsInBvcnQiOjgwLCJwcml2YXRlIjp0cnVlLCJ1c2VycyI6W3sidXNlciI6ImFkbWluIiwicHdoYXNoIjoiYWFZbWpyUlpMN3dXMiJ9XX1dLCJzZXJ2aWNlIjoidGVzdC1kYi1kYiJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-db-db-1'
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3QuZGIuZGIucHJpdmF0ZSIsInBvcnQiOjgwLCJwcml2YXRlIjp0cnVlLCJ1c2VycyI6W3sidXNlciI6ImFkbWluIiwicHdoYXNoIjoiMzFsaWtFaUxyUi4xSSJ9XX1dLCJzZXJ2aWNlIjoidGVzdC1kYi1kYiJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-db-db-1'
 ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-db-db-1
 ExecStop=-/usr/bin/docker stop -t 10 test-db-db-1
 ExecStopPost=-/usr/bin/docker rm -f test-db-db-1
@@ -31,4 +31,4 @@ MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration="/pulcy/frontend/test-db-db-1={\"selectors\":[{\"domain\":\"test.db.db.private\",\"port\":80,\"private\":true,\"users\":[{\"user\":\"admin\",\"pwhash\":\"aaYmjrRZL7wW2\"}]}],\"service\":\"test-db-db\"}"
+FrontEndRegistration="/pulcy/frontend/test-db-db-1={\"selectors\":[{\"domain\":\"test.db.db.private\",\"port\":80,\"private\":true,\"users\":[{\"user\":\"admin\",\"pwhash\":\"31likEiLrR.1I\"}]}],\"service\":\"test-db-db\"}"

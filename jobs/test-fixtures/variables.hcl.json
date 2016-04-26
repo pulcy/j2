@@ -23,7 +23,7 @@
         "tasks": [{
             "name": "db",
             "image": "redis:latest",
-            "volumes": ["/var/run/docker.sock:/tmp/docker.sock", "/etc:/etc"],
+            "volumes": ["/etc:/etc", "/var/run/docker.sock:/tmp/docker.sock"],
             "private-frontends": [{
                 "port": 80,
                 "users": [{
