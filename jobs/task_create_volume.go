@@ -109,6 +109,12 @@ func (t *Task) createVolumeDockerCmdLine(containerName, containerImage string, v
 	addArg("-e PREFIX="+volPrefix, &execStart, env)
 	addArg("-e TARGET="+vol.Path, &execStart, env)
 	addArg("-e WAIT=1", &execStart, env)
+	if v, err := vol.MountOption("uid"); err == nil {
+		addArg("-e UID="+v, &execStart, env)
+	}
+	if v, err := vol.MountOption("gid"); err == nil {
+		addArg("-e GID="+v, &execStart, env)
+	}
 	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
 		addArg(arg, &execStart, env)
 	}

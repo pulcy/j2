@@ -15,9 +15,7 @@
 package jobs
 
 import (
-	"crypto/sha1"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/juju/errgo"
@@ -51,16 +49,19 @@ func (vt VolumeType) Validate() error {
 
 // Volume contains a specification of a volume mounted into the tasks container
 type Volume struct {
-	Path     string     `json:"path"` // container path
-	Type     VolumeType `json:"type,omitempty" mapstructure:"type,omitempty"`
-	HostPath string     `json:"host-path,omitempty" mapstructure:"host-path,omitempty"`
-	Options  []string   `json:"options,omitempty" mapstructure:"options,omitempty"`
+	Path         string     `json:"path"` // container path
+	Type         VolumeType `json:"type,omitempty" mapstructure:"type,omitempty"`
+	HostPath     string     `json:"host-path,omitempty" mapstructure:"host-path,omitempty"`
+	Options      []string   `json:"options,omitempty" mapstructure:"options,omitempty"`
+	MountOptions []string   `json:"mount-options,omitempty" mapstructure:"mount-options,omitempty"`
 }
 
 func (v Volume) replaceVariables(ctx *variableContext) Volume {
 	v.Path = ctx.replaceString(v.Path)
 	v.Type = VolumeType(ctx.replaceString(string(v.Type)))
 	v.HostPath = ctx.replaceString(v.HostPath)
+	v.Options = ctx.replaceStringSlice(v.Options)
+	v.MountOptions = ctx.replaceStringSlice(v.MountOptions)
 	return v
 }
 
@@ -91,10 +92,18 @@ func (v Volume) requiresMountUnit() bool {
 	return !v.IsLocal()
 }
 
-// PathHash returns a hash of the Path field
-func (v Volume) PathHash() string {
-	hash := sha1.Sum([]byte(v.Path))
-	return fmt.Sprintf("%x", hash[:4])
+// MountOption looks for a mount option with given key and returns its value.
+// Returns OptionNotFoundError if option is not found.
+func (v Volume) MountOption(key string) (string, error) {
+	for _, x := range v.MountOptions {
+		if x == key {
+			return "", nil
+		}
+		if strings.HasPrefix(x, key+"=") {
+			return x[len(key)+1:], nil
+		}
+	}
+	return "", maskAny(errgo.WithCausef(nil, OptionNotFoundError, key))
 }
 
 // String creates a string representation of a given volume
@@ -105,6 +114,9 @@ func (v Volume) String() string {
 		parts = []string{v.HostPath, v.Path}
 	case VolumeTypeInstance:
 		parts = []string{string(v.Type), v.Path}
+		if len(v.MountOptions) > 0 {
+			parts[0] = parts[0] + "@" + strings.Join(v.MountOptions, ",")
+		}
 	default:
 		return ""
 	}
@@ -130,12 +142,12 @@ func ParseVolume(input string) (Volume, error) {
 	case 1:
 		return Volume{Type: VolumeTypeInstance, Path: input}, nil
 	case 2:
-		if VolumeType(parts[0]).Validate() == nil {
-			return Volume{Type: VolumeType(parts[0]), Path: parts[1]}, nil
+		if vt, mountOptions, err := parseVolumeType(parts[0]); err == nil {
+			return Volume{Type: vt, Path: parts[1], MountOptions: mountOptions}, nil
 		}
 		return Volume{Type: VolumeTypeLocal, Path: parts[1], HostPath: parts[0]}, nil
 	case 3:
-		if VolumeType(parts[0]).Validate() == nil {
+		if _, _, err := parseVolumeType(parts[0]); err == nil {
 			return Volume{}, maskAny(errgo.WithCausef(nil, ValidationError, "not a valid volume '%s'", input))
 		}
 		options, err := parseVolumeOptions(parts[2])
@@ -159,4 +171,14 @@ func parseVolumeOptions(input string) ([]string, error) {
 		}
 	}
 	return parts, nil
+}
+
+func parseVolumeType(input string) (VolumeType, []string, error) {
+	parts := strings.SplitN(input, "@", 2)
+	vtype := VolumeType(parts[0])
+	var mountOptions []string
+	if len(parts) > 1 {
+		mountOptions = strings.Split(parts[1], ",")
+	}
+	return vtype, mountOptions, maskAny(vtype.Validate())
 }

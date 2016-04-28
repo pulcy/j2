@@ -33,6 +33,8 @@ func TestParseVolume(t *testing.T) {
 		{Input: "/tmp:/data:wierd", ErrorExpected: true},
 		{Input: "/foo", Expected: jobs.Volume{Path: "/foo", Type: "instance"}},
 		{Input: "instance:/foo/2", Expected: jobs.Volume{Path: "/foo/2", Type: "instance"}},
+		{Input: "instance@uid=1:/foo/2", Expected: jobs.Volume{Path: "/foo/2", Type: "instance", MountOptions: []string{"uid=1"}}},
+		{Input: "instance@uid=1,gid=12:/foo/2", Expected: jobs.Volume{Path: "/foo/2", Type: "instance", MountOptions: []string{"uid=1", "gid=12"}}},
 	}
 	for _, test := range tests {
 		vol, err := jobs.ParseVolume(test.Input)
