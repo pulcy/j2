@@ -76,6 +76,7 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 		"default-options",
 		"docker",
 		"fleet",
+		"quark",
 	}
 	if err := util.Decode(obj.Val, excludeList, nil, c); err != nil {
 		return maskAny(err)
