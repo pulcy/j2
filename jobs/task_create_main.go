@@ -60,6 +60,11 @@ func (t *Task) createMainUnit(sidekickUnitNames []string, ctx generatorContext) 
 	main.ExecOptions.ExecStartPre = []string{
 		fmt.Sprintf("/usr/bin/docker pull %s", image),
 	}
+	if ctx.DockerOptions.EnvFile != "" {
+		main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre,
+			fmt.Sprintf("/usr/bin/touch %s", ctx.DockerOptions.EnvFile),
+		)
+	}
 
 	// Add secret extraction commands
 	secretsCmds, err := t.createSecretsExecStartPre(main.ExecOptions.Environment, ctx)
@@ -170,6 +175,9 @@ func (t *Task) createMainDockerCmdLine(image string, env map[string]string, ctx 
 		envKeys = append(envKeys, k)
 	}
 	sort.Strings(envKeys)
+	if ctx.DockerOptions.EnvFile != "" {
+		addArg(fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile), &execStart, env)
+	}
 	for _, k := range envKeys {
 		addArg("-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, t.Environment[k])), &execStart, env)
 	}

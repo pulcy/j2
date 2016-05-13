@@ -58,6 +58,11 @@ func (t *Task) createVolumeUnit(vol Volume, volIndex int, ctx generatorContext) 
 		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", unit.ExecOptions.ContainerTimeoutStopSec, containerName),
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", containerName),
 	)
+	if ctx.DockerOptions.EnvFile != "" {
+		unit.ExecOptions.ExecStartPre = append(unit.ExecOptions.ExecStartPre,
+			fmt.Sprintf("/usr/bin/touch %s", ctx.DockerOptions.EnvFile),
+		)
+	}
 
 	unit.ExecOptions.ExecStop = append(unit.ExecOptions.ExecStop,
 		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", unit.ExecOptions.ContainerTimeoutStopSec, containerName),
@@ -105,6 +110,9 @@ func (t *Task) createVolumeDockerCmdLine(containerName, containerImage string, v
 	}
 	addArg(fmt.Sprintf("-v %s:%s:shared", volHostPath, vol.Path), &execStart, env)
 	addArg("-v /usr/bin/etcdctl:/usr/bin/etcdctl", &execStart, env)
+	if ctx.DockerOptions.EnvFile != "" {
+		addArg(fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile), &execStart, env)
+	}
 	addArg("-e SERVICE_IGNORE=true", &execStart, env) // Support registrator
 	addArg("-e PREFIX="+volPrefix, &execStart, env)
 	addArg("-e TARGET="+vol.Path, &execStart, env)

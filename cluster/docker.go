@@ -18,6 +18,7 @@ package cluster
 type DockerOptions struct {
 	// Arguments to add to the docker command for logging
 	LoggingArgs []string `mapstructure:"docker-log-args,omitempty"`
+	EnvFile     string   `mapstructure:"env-file,omitempty"`
 }
 
 // validate checks the values in the given cluster
