@@ -14,6 +14,10 @@ job "ceph" {
 			CEPH_PUBLIC_NETWORK = "$(echo {{private_ipv4}} | cut -d '.' -f 1,2,3 | awk '{print $1 \".0/24\"}')"
 		}
 		docker-args = ["--net=host"]
+		constraint {
+			attribute = "meta.ceph-mon"
+			value = "true"
+		}
 	}
 
 	task "osd" {
@@ -33,6 +37,10 @@ job "ceph" {
 			KV_IP = "{{private_ipv4}}"
 		}
 		docker-args = ["--net=host", "--privileged=true", "--pid=host"]
+		constraint {
+			attribute = "meta.ceph-osd"
+			value = "true"
+		}
 	}
 
 	task "mds" {
