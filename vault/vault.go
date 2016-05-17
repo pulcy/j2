@@ -18,7 +18,9 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
@@ -44,8 +46,19 @@ func NewVault(srvCfg VaultConfig, log *logging.Logger) (*Vault, error) {
 	if err := config.ReadEnvironment(); err != nil {
 		return nil, maskAny(err)
 	}
+	var serverName string
 	if srvCfg.VaultAddr != "" {
+		log.Debugf("Setting vault address to %s", srvCfg.VaultAddr)
 		config.Address = srvCfg.VaultAddr
+		url, err := url.Parse(config.Address)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		host, _, err := net.SplitHostPort(url.Host)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		serverName = host
 	}
 	if srvCfg.VaultCACert != "" || srvCfg.VaultCAPath != "" {
 		var newCertPool *x509.CertPool
@@ -62,6 +75,7 @@ func NewVault(srvCfg VaultConfig, log *logging.Logger) (*Vault, error) {
 		}
 		clientTLSConfig := config.HttpClient.Transport.(*http.Transport).TLSClientConfig
 		clientTLSConfig.RootCAs = newCertPool
+		clientTLSConfig.ServerName = serverName
 	}
 	client, err := api.NewClient(config)
 	if err != nil {
