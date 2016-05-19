@@ -58,5 +58,9 @@ job "ceph" {
 			KV_IP = "{{private_ipv4}}"
 		}
 		docker-args = ["--net=host"]
+		constraint {
+			attribute = "meta.worker"
+			value = "true"
+		}
 	}
 }
