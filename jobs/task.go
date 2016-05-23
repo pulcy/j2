@@ -58,6 +58,7 @@ type Task struct {
 	PublicFrontEnds  []PublicFrontEnd  `json:"frontends,omitempty"`
 	PrivateFrontEnds []PrivateFrontEnd `json:"private-frontends,omitempty"`
 	HttpCheckPath    string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
+	HttpCheckMethod  string            `json:"http-check-method,omitempty" mapstructure:"http-check-method,omitempty"`
 	Sticky           bool              `json:"sticky,omitempty" mapstructure:"sticky,omitempty"`
 	Capabilities     []string          `json:"capabilities,omitempty"`
 	Links            Links             `json:"links,omitempty"`
@@ -106,6 +107,7 @@ func (t *Task) replaceVariables() error {
 		t.PrivateFrontEnds[i] = x.replaceVariables(ctx)
 	}
 	t.HttpCheckPath = ctx.replaceString(t.HttpCheckPath)
+	t.HttpCheckMethod = ctx.replaceString(t.HttpCheckMethod)
 	t.Capabilities = ctx.replaceStringSlice(t.Capabilities)
 	for i, x := range t.Links {
 		t.Links[i] = x.replaceVariables(ctx)

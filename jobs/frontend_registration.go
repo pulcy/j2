@@ -30,11 +30,12 @@ var (
 )
 
 type frontendRecord struct {
-	Selectors     []frontendSelectorRecord `json:"selectors"`
-	Service       string                   `json:"service,omitempty"`
-	Mode          string                   `json:"mode,omitempty"` // http|tcp
-	HttpCheckPath string                   `json:"http-check-path,omitempty"`
-	Sticky        bool                     `json:"sticky,omitempty"`
+	Selectors       []frontendSelectorRecord `json:"selectors"`
+	Service         string                   `json:"service,omitempty"`
+	Mode            string                   `json:"mode,omitempty"` // http|tcp
+	HttpCheckPath   string                   `json:"http-check-path,omitempty"`
+	HttpCheckMethod string                   `json:"http-check-method,omitempty"`
+	Sticky          bool                     `json:"sticky,omitempty"`
 }
 
 type frontendSelectorRecord struct {
@@ -70,9 +71,10 @@ func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) e
 	}
 	key := fmt.Sprintf("/pulcy/frontend/%s-%d", serviceName, ctx.ScalingGroup)
 	record := frontendRecord{
-		Service:       targetServiceName,
-		HttpCheckPath: t.HttpCheckPath,
-		Sticky:        t.Sticky,
+		Service:         targetServiceName,
+		HttpCheckPath:   t.HttpCheckPath,
+		HttpCheckMethod: t.HttpCheckMethod,
+		Sticky:          t.Sticky,
 	}
 	instanceKey := fmt.Sprintf("/pulcy/frontend/%s-%d-inst", serviceName, ctx.ScalingGroup)
 	instanceRecord := frontendRecord{
