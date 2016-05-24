@@ -77,6 +77,7 @@ func (t *Task) createMainUnit(sidekickUnitNames []string, ctx generatorContext) 
 	main.ExecOptions.ExecStartPre = append(main.ExecOptions.ExecStartPre,
 		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", main.ExecOptions.ContainerTimeoutStopSec, name),
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", t.containerName(ctx.ScalingGroup)),
+		"-/home/core/bin/docker-cleanup.sh",
 	)
 	for _, v := range t.Volumes {
 		if v.IsLocal() {

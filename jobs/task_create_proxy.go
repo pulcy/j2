@@ -53,6 +53,7 @@ func (t *Task) createProxyUnit(link Link, linkIndex int, ctx generatorContext) (
 	unit.ExecOptions.ExecStartPre = append(unit.ExecOptions.ExecStartPre,
 		fmt.Sprintf("-/usr/bin/docker stop -t %v %s", unit.ExecOptions.ContainerTimeoutStopSec, containerName),
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", containerName),
+		"-/home/core/bin/docker-cleanup.sh",
 	)
 	if ctx.DockerOptions.EnvFile != "" {
 		unit.ExecOptions.ExecStartPre = append(unit.ExecOptions.ExecStartPre,
