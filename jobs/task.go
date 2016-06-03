@@ -67,6 +67,7 @@ type Task struct {
 	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`
 	Target           LinkName          `json:"target,omitempty" mapstructure:"target,omitempty"`
 	Rewrites         []Rewrite         `json:"rewrites,omitempty" mapstructure:"rewrites,omitempty"`
+	User             string            `json:"user,omitempty" mapstructure:"user,omitempty"`
 }
 
 // Link objects just after parsing
@@ -118,6 +119,7 @@ func (t *Task) replaceVariables() error {
 	t.DockerArgs = ctx.replaceStringSlice(t.DockerArgs)
 	t.LogDriver = LogDriver(ctx.replaceString(string(t.LogDriver)))
 	t.Target = LinkName(ctx.replaceString(string(t.Target)))
+	t.User = ctx.replaceString(t.User)
 	return maskAny(ctx.Err())
 }
 

@@ -207,6 +207,9 @@ func (t *Task) createMainDockerCmdLine(image string, env map[string]string, ctx 
 	for _, arg := range t.DockerArgs {
 		addArg(arg, &execStart, env)
 	}
+	if t.User != "" {
+		addArg(fmt.Sprintf("--user %s", t.User), &execStart, env)
+	}
 
 	execStart = append(execStart, image)
 	if t.Type == "proxy" {
