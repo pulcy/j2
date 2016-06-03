@@ -16,6 +16,7 @@ Environment="A02=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull couchdb:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-couchdb-couchdb-1
 ExecStartPre=-/usr/bin/docker rm -f test-couchdb-couchdb-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStartPre=/bin/sh -c 'test -e /var/lib/test/couchdb/couchdb || mkdir -p /var/lib/test/couchdb/couchdb'
 ExecStart=/usr/bin/docker run --rm --name test-couchdb-couchdb-1 -P $A00 $A01 $A02 couchdb:latest
 ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3QuY291Y2hkYi5jb3VjaGRiLjEucHJpdmF0ZSIsInBvcnQiOjU5ODQsInByaXZhdGUiOnRydWV9XSwic2VydmljZSI6InRlc3QtY291Y2hkYi1jb3VjaGRiLTEifQ== | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-couchdb-couchdb-1-inst'

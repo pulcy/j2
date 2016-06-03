@@ -18,6 +18,7 @@ Environment="A02=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull mystorage:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 volumes-v1-storage-1
 ExecStartPre=-/usr/bin/docker rm -f volumes-v1-storage-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStart=/usr/bin/docker run --rm --name volumes-v1-storage-1 -P $A00 $A01 $A02 mystorage:latest
 ExecStop=-/usr/bin/docker stop -t 10 volumes-v1-storage-1
 ExecStopPost=-/usr/bin/docker rm -f volumes-v1-storage-1

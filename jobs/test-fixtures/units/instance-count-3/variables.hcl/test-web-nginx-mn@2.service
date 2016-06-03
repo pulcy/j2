@@ -32,11 +32,14 @@ Environment="A16=-e \"replacetest=1.2.3\""
 Environment="A17=-e \"taskfull=test.web.nginx\""
 Environment="A18=-e \"taskname=nginx\""
 Environment="A19=-e SERVICE_NAME=test-web-nginx"
-Environment="A20=--log-driver=test"
+Environment="A20=--add-host"
+Environment="A21=--log-driver=test"
+Environment="A22=http://test.db.db.private:81"
 ExecStartPre=/usr/bin/docker pull alpine:3.2
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-nginx-2
 ExecStartPre=-/usr/bin/docker rm -f test-web-nginx-2
-ExecStart=/usr/bin/docker run --rm --name test-web-nginx-2 -P $A00 $A01 $A02 $A03 $A04 $A05 $A06 $A07 $A08 $A09 $A10 $A11 $A12 $A13 $A14 $A15 $A16 $A17 $A18 $A19 --add-host test.db.db.private:${COREOS_PRIVATE_IPV4} $A20 alpine:3.2 ls -al --db http://test.db.db.private:81
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name test-web-nginx-2 -P $A00 $A01 $A02 $A03 $A04 $A05 $A06 $A07 $A08 $A09 $A10 $A11 $A12 $A13 $A14 $A15 $A16 $A17 $A18 $A19 $A20 test.db.db.private:${COREOS_PRIVATE_IPV4} $A21 alpine:3.2 ls -al --db $A22
 ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsid2VpZ2h0IjoxMCwiZG9tYWluIjoiZm9vLmNvbSJ9LHsid2VpZ2h0IjoxMiwiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6ImYxVXRjZHVGWTgvZk0ifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx-2'
 ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-web-nginx-2
 ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-2

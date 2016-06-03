@@ -22,6 +22,7 @@ ExecStartPre=/usr/bin/docker pull
 ExecStartPre=/bin/sh -c 'test -e /media/volumes/v3/v3/1/var/lib/data || mkdir -p /media/volumes/v3/v3/1/var/lib/data'
 ExecStartPre=-/usr/bin/docker stop -t 10 volumes-v3-v3-1-vl0
 ExecStartPre=-/usr/bin/docker rm -f volumes-v3-v3-1-vl0
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStart=/usr/bin/docker run --rm --name volumes-v3-v3-1-vl0 --net=host --privileged $A00 $A01 $A02 $A03 $A04 $A05 $A06 
 ExecStop=-/usr/bin/docker stop -t 10 volumes-v3-v3-1-vl0
 ExecStopPost=-/usr/bin/docker rm -f volumes-v3-v3-1-vl0

@@ -16,6 +16,7 @@ Environment="A03=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull mybackup:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 volumes-v1-backup-1
 ExecStartPre=-/usr/bin/docker rm -f volumes-v1-backup-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStart=/usr/bin/docker run --rm --name volumes-v1-backup-1 -P $A00 $A01 $A02 $A03 mybackup:latest
 ExecStop=-/usr/bin/docker stop -t 10 volumes-v1-backup-1
 ExecStopPost=-/usr/bin/docker rm -f volumes-v1-backup-1

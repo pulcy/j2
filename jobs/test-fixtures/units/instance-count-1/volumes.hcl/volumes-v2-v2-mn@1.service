@@ -17,6 +17,7 @@ Environment="A03=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull v2:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 volumes-v2-v2-1
 ExecStartPre=-/usr/bin/docker rm -f volumes-v2-v2-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStartPre=/bin/sh -c 'test -e /etc || mkdir -p /etc'
 ExecStartPre=/bin/sh -c 'test -e /var/run/docker.sock || mkdir -p /var/run/docker.sock'
 ExecStart=/usr/bin/docker run --rm --name volumes-v2-v2-1 -P $A00 $A01 $A02 $A03 v2:latest

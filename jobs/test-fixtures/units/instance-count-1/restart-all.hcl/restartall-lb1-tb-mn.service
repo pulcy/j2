@@ -17,6 +17,7 @@ Environment="A01=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull foo-b
 ExecStartPre=-/usr/bin/docker stop -t 10 restartall-lb1-tb
 ExecStartPre=-/usr/bin/docker rm -f restartall-lb1-tb
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStart=/usr/bin/docker run --rm --name restartall-lb1-tb -P $A00 $A01 foo-b
 ExecStop=-/usr/bin/docker stop -t 10 restartall-lb1-tb
 ExecStopPost=-/usr/bin/docker rm -f restartall-lb1-tb

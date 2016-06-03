@@ -15,6 +15,7 @@ Environment="A01=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull alpine:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-global-global
 ExecStartPre=-/usr/bin/docker rm -f test-global-global
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStart=/usr/bin/docker run --rm --name test-global-global -P $A00 $A01 alpine:latest
 ExecStop=-/usr/bin/docker stop -t 10 test-global-global
 ExecStopPost=-/usr/bin/docker rm -f test-global-global

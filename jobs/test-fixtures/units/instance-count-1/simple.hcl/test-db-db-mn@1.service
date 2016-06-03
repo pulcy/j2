@@ -17,6 +17,7 @@ Environment="A03=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull redis:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-db-db-1
 ExecStartPre=-/usr/bin/docker rm -f test-db-db-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStartPre=/bin/sh -c 'test -e /etc || mkdir -p /etc'
 ExecStartPre=/bin/sh -c 'test -e /var/run/docker.sock || mkdir -p /var/run/docker.sock'
 ExecStart=/usr/bin/docker run --rm --name test-db-db-1 -P $A00 $A01 $A02 $A03 redis:latest

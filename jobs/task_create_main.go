@@ -193,7 +193,8 @@ func (t *Task) createMainDockerCmdLine(image string, env map[string]string, ctx 
 	for _, l := range t.Links {
 		targetName := l.Target.PrivateDomainName()
 		if l.Type.IsHTTP() {
-			addArg(fmt.Sprintf("--add-host %s:${COREOS_PRIVATE_IPV4}", targetName), &execStart, env)
+			addArg("--add-host", &execStart, env)
+			addArg(fmt.Sprintf("%s:${COREOS_PRIVATE_IPV4}", targetName), &execStart, env)
 		} else {
 			linkContainerName := fmt.Sprintf("%s-pr%d", t.containerName(ctx.ScalingGroup), tcpLinkIndex)
 			addArg(fmt.Sprintf("--link %s:%s", linkContainerName, targetName), &execStart, env)
@@ -203,13 +204,17 @@ func (t *Task) createMainDockerCmdLine(image string, env map[string]string, ctx 
 	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
 		addArg(arg, &execStart, env)
 	}
-	execStart = append(execStart, t.DockerArgs...)
+	for _, arg := range t.DockerArgs {
+		addArg(arg, &execStart, env)
+	}
 
 	execStart = append(execStart, image)
 	if t.Type == "proxy" {
 		execStart = append(execStart, "sleep 36500d")
 	}
-	execStart = append(execStart, t.Args...)
+	for _, arg := range t.Args {
+		addArg(arg, &execStart, env)
+	}
 
 	return execStart, nil
 }

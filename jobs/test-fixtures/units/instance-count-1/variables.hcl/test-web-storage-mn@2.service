@@ -18,6 +18,7 @@ Environment="A02=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull mystorage:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-storage-2
 ExecStartPre=-/usr/bin/docker rm -f test-web-storage-2
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStart=/usr/bin/docker run --rm --name test-web-storage-2 -P $A00 $A01 $A02 mystorage:latest
 ExecStop=-/usr/bin/docker stop -t 10 test-web-storage-2
 ExecStopPost=-/usr/bin/docker rm -f test-web-storage-2
