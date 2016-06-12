@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/juju/errgo"
 	"github.com/spf13/cobra"
 
 	"github.com/pulcy/j2/deployment"
@@ -91,7 +90,8 @@ func doRunUpdate(stack, tunnel string, unitNames, files []string, stopDelay, des
 		panic("Internal update error")
 	}
 
-	f := fleet.NewTunnel(tunnel)
+	f, err := fleet.NewTunnel(tunnel)
+	assert(err)
 	loadedUnitNames, err := selectLoadedUnits(unitNames, f)
 	assert(err)
 	modifiedUnitNames, err := selectModifiedUnits(loadedUnitNames, files, f, force)
@@ -261,12 +261,15 @@ func detectLargestScalingGroup(scalingGroup *uint, defaultScale uint, updateCurr
 }
 
 func launchUnits(tunnel string, files []string) error {
-	f := fleet.NewTunnel(tunnel)
+	f, err := fleet.NewTunnel(tunnel)
+	if err != nil {
+		return maskAny(err)
+	}
 
 	Verbosef("Starting %#v\n", files)
 	out, err := f.Start(files...)
 	if err != nil {
-		return errgo.Mask(err)
+		return maskAny(err)
 	}
 
 	fmt.Println(out)

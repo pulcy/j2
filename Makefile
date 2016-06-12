@@ -7,7 +7,7 @@ COMMIT := $(shell git rev-parse --short HEAD)
 GOBUILDDIR := $(SCRIPTDIR)/.gobuild
 SRCDIR := $(SCRIPTDIR)
 BINDIR := $(ROOTDIR)
-VENDORDIR := $(ROOTDIR)/vendor
+VENDORDIR := $(ROOTDIR)/deps
 
 ORGPATH := github.com/pulcy
 ORGDIR := $(GOBUILDDIR)/src/$(ORGPATH)
@@ -17,7 +17,7 @@ REPOPATH := $(ORGPATH)/$(REPONAME)
 BIN := $(BINDIR)/$(PROJECT)
 
 GOPATH := $(GOBUILDDIR)
-GOVERSION := 1.6.2-alpine
+GOVERSION := 1.6.2
 
 ifndef GOOS
 	GOOS := $(shell go env GOOS)
@@ -41,10 +41,14 @@ deps:
 $(GOBUILDDIR):
 	@mkdir -p $(ORGDIR)
 	@rm -f $(REPODIR) && ln -s ../../../.. $(REPODIR)
+	@pulsar get https://github.com/coreos/fleet.git $(GOBUILDDIR)/src/github.com/coreos/fleet
+	@GOPATH=$(GOPATH) pulsar go flatten -V $(VENDORDIR)
 
 update-vendor:
 	@rm -Rf $(VENDORDIR)
 	@pulsar go vendor -V $(VENDORDIR) \
+		github.com/coreos/etcd/client \
+		github.com/dchest/uniuri \
 		github.com/spf13/pflag \
 		github.com/spf13/cobra \
 		github.com/juju/errgo \
@@ -57,7 +61,7 @@ update-vendor:
 		github.com/nyarla/go-crypt \
 		github.com/op/go-logging \
 		github.com/ryanuber/columnize \
-		github.com/dchest/uniuri
+		github.com/vishvananda/netns
 
 $(BIN): $(GOBUILDDIR) $(SOURCES)
 	docker run \
@@ -66,9 +70,10 @@ $(BIN): $(GOBUILDDIR) $(SOURCES)
 		-e GOPATH=/usr/code/.gobuild \
 		-e GOOS=$(GOOS) \
 		-e GOARCH=$(GOARCH) \
+		-e CGO_ENABLED=0 \
 		-w /usr/code/ \
 		golang:$(GOVERSION) \
-		go build -a -ldflags "-X main.projectVersion=$(VERSION) -X main.projectBuild=$(COMMIT)" -o /usr/code/$(PROJECT) $(REPOPATH)
+		go build -a -installsuffix netgo -ldflags "-X main.projectVersion=$(VERSION) -X main.projectBuild=$(COMMIT)" -o /usr/code/$(PROJECT) $(REPOPATH)
 
 run-tests:
 	@make run-test test=$(REPOPATH)/jobs

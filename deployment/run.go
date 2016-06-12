@@ -30,7 +30,10 @@ import (
 // Run creates all applicable unit files and deploys them onto the configured cluster.
 func (d *Deployment) Run(deps DeploymentDependencies) error {
 	// Fetch all current units
-	f := d.newFleetTunnel()
+	f, err := d.newFleetTunnel()
+	if err != nil {
+		return maskAny(err)
+	}
 	allUnits, err := f.List()
 	if err != nil {
 		return maskAny(err)
