@@ -249,6 +249,7 @@ func normalizeUnitContent(content string) []string {
 func launchUnits(f fleet.FleetTunnel, files []string, ui *stateUI) error {
 	ui.Verbosef("Starting %#v\n", files)
 
+	ui.MessageSink <- fmt.Sprintf("Starting %d units", len(files))
 	if err := f.Start(ui.EventSink, files...); err != nil {
 		return maskAny(err)
 	}
