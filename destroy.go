@@ -15,18 +15,12 @@
 package main
 
 import (
-	"fmt"
-	"strings"
-	"time"
+	"github.com/spf13/cobra"
 
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/deployment"
 	fg "github.com/pulcy/j2/flags"
-	"github.com/pulcy/j2/fleet"
 	"github.com/pulcy/j2/jobs"
-
-	"github.com/juju/errgo"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -62,9 +56,9 @@ func destroyRun(cmd *cobra.Command, args []string) {
 		SliceDelay:   destroyFlags.SliceDelay,
 	}
 	d := deployment.NewDeployment(job, *cluster, groups(&destroyFlags.Flags),
-		deployment.ScalingGroupSelection(destroyFlags.ScalingGroup), destroyFlags.Force, destroyFlags.AutoContinue, delays, renderContext, images)
+		deployment.ScalingGroupSelection(destroyFlags.ScalingGroup), destroyFlags.Force, destroyFlags.AutoContinue, globalFlags.verbose, delays, renderContext, images)
 
-	assert(d.Destroy(deploymentDeps))
+	assert(d.Destroy())
 }
 
 func destroyValidators(f *fg.Flags, cluster cluster.Cluster) {
@@ -76,70 +70,4 @@ func destroyValidators(f *fg.Flags, cluster cluster.Cluster) {
 	if err := jn.Validate(); err != nil {
 		Exitf("--job invalid: %v\n", err)
 	}
-}
-
-func selectUnits(allUnitNames []string, f *fg.Flags) []string {
-	groups := groups(f)
-	var filter func(string) bool
-	jobName := jobs.JobName(f.JobPath)
-	if len(groups) == 0 {
-		// Select everything in the job
-		filter = func(unitName string) bool {
-			return jobs.IsUnitForJob(unitName, jobName)
-		}
-	} else {
-		// Select everything in one of the groups
-		filter = func(unitName string) bool {
-			for _, g := range groups {
-				if jobs.IsUnitForTaskGroup(unitName, jobName, g) {
-					return true
-				}
-			}
-			return false
-		}
-	}
-	list := []string{}
-	for _, unitName := range allUnitNames {
-		if filter(unitName) {
-			list = append(list, unitName)
-		}
-	}
-	return list
-}
-
-func confirmDestroy(force bool, stack string, units []string) error {
-	if !force {
-		if err := confirm(fmt.Sprintf("You are about to destroy:\n- %s\n\nAre you sure you want to destroy %d units on stack '%s'?\nEnter yes:", strings.Join(units, "\n- "), len(units), stack)); err != nil {
-			return errgo.Mask(err)
-		}
-	}
-	fmt.Println()
-
-	return nil
-}
-
-func destroyUnits(stack string, f *fleet.FleetTunnel, units []string, stopDelay time.Duration) error {
-	if len(units) == 0 {
-		return errgo.Newf("No units on cluster: %s", stack)
-	}
-
-	var out string
-	out, err := f.Stop(units...)
-	if err != nil {
-		fmt.Printf("Warning: stop failed.\n%s\n", err.Error())
-	}
-
-	fmt.Println(out)
-
-	fmt.Printf("Waiting for %s...\n", stopDelay)
-	time.Sleep(stopDelay)
-
-	out, err = f.Destroy(units...)
-	if err != nil {
-		return errgo.Mask(err)
-	}
-
-	fmt.Println(out)
-
-	return nil
 }

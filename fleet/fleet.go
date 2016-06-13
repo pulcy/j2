@@ -17,7 +17,6 @@ package fleet
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -95,16 +94,16 @@ func (f *FleetTunnel) findUnits(names []string) (sus []schema.Unit, err error) {
 // If maxAttempts is zero tryWaitForUnitStates will retry forever, and
 // if it is greater than zero, it will retry up to the indicated value.
 // It returns 0 on success or 1 on errors.
-func (f *FleetTunnel) tryWaitForUnitStates(units []string, state string, js job.JobState, maxAttempts int, out io.Writer) error {
+func (f *FleetTunnel) tryWaitForUnitStates(units []string, state string, js job.JobState, maxAttempts int, events chan Event) error {
 	// We do not wait just assume we reached the desired state
 	if maxAttempts <= -1 {
 		for _, name := range units {
-			out.Write([]byte(fmt.Sprintf("Triggered unit %s %s\n", name, state)))
+			events <- newEvent(name, fmt.Sprintf("triggered %s", name))
 		}
 		return nil
 	}
 
-	errchan := f.waitForUnitStates(units, js, maxAttempts, out)
+	errchan := f.waitForUnitStates(units, js, maxAttempts, events)
 	var ae aerr.AggregateError
 	for err := range errchan {
 		ae.Add(maskAny(err))
@@ -124,12 +123,12 @@ func (f *FleetTunnel) tryWaitForUnitStates(units []string, state string, js job.
 // than zero. Returned is an error channel used to communicate when
 // timeouts occur. The returned error channel will be closed after all
 // polling operation is complete.
-func (f *FleetTunnel) waitForUnitStates(units []string, js job.JobState, maxAttempts int, out io.Writer) chan error {
+func (f *FleetTunnel) waitForUnitStates(units []string, js job.JobState, maxAttempts int, events chan Event) chan error {
 	errchan := make(chan error)
 	var wg sync.WaitGroup
 	for _, name := range units {
 		wg.Add(1)
-		go f.checkUnitState(name, js, maxAttempts, out, &wg, errchan)
+		go f.checkUnitState(name, js, maxAttempts, events, &wg, errchan)
 	}
 
 	go func() {
@@ -140,21 +139,21 @@ func (f *FleetTunnel) waitForUnitStates(units []string, js job.JobState, maxAtte
 	return errchan
 }
 
-func (f *FleetTunnel) checkUnitState(name string, js job.JobState, maxAttempts int, out io.Writer, wg *sync.WaitGroup, errchan chan error) {
+func (f *FleetTunnel) checkUnitState(name string, js job.JobState, maxAttempts int, events chan Event, wg *sync.WaitGroup, errchan chan error) {
 	defer wg.Done()
 
 	sleep := defaultSleepTime
 
 	if maxAttempts < 1 {
 		for {
-			if f.assertUnitState(name, js, out) {
+			if f.assertUnitState(name, js, events) {
 				return
 			}
 			time.Sleep(sleep)
 		}
 	} else {
 		for attempt := 0; attempt < maxAttempts; attempt++ {
-			if f.assertUnitState(name, js, out) {
+			if f.assertUnitState(name, js, events) {
 				return
 			}
 			time.Sleep(sleep)
@@ -163,7 +162,7 @@ func (f *FleetTunnel) checkUnitState(name string, js job.JobState, maxAttempts i
 	}
 }
 
-func (f *FleetTunnel) assertUnitState(name string, js job.JobState, out io.Writer) (ret bool) {
+func (f *FleetTunnel) assertUnitState(name string, js job.JobState, events chan Event) (ret bool) {
 	var state string
 
 	u, err := f.cAPI.Unit(name)
@@ -172,6 +171,7 @@ func (f *FleetTunnel) assertUnitState(name string, js job.JobState, out io.Write
 		return
 	}
 	if u == nil {
+		events <- newEvent(name, "unit not found")
 		log.Warningf("Unit %s not found", name)
 		return
 	}
@@ -189,7 +189,7 @@ func (f *FleetTunnel) assertUnitState(name string, js job.JobState, out io.Write
 	}
 
 	ret = true
-	msg := fmt.Sprintf("Unit %s %s", name, u.CurrentState)
+	msg := u.CurrentState
 
 	if u.MachineID != "" {
 		ms := f.cachedMachineState(u.MachineID)
@@ -198,7 +198,7 @@ func (f *FleetTunnel) assertUnitState(name string, js job.JobState, out io.Write
 		}
 	}
 
-	fmt.Fprintln(out, msg)
+	events <- newEvent(name, msg)
 	return
 }
 

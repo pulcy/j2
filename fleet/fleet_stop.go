@@ -15,27 +15,24 @@
 package fleet
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/coreos/fleet/job"
 )
 
-func (f *FleetTunnel) Stop(unitNames ...string) (string, error) {
+func (f *FleetTunnel) Stop(events chan Event, unitNames ...string) error {
 	log.Debugf("stopping %v", unitNames)
-
-	stdout := &bytes.Buffer{}
 
 	units, err := f.findUnits(unitNames)
 	if err != nil {
-		return "", maskAny(err)
+		return maskAny(err)
 	}
 
 	stopping := make([]string, 0)
 	for _, u := range units {
 		if !suToGlobal(u) {
 			if job.JobState(u.CurrentState) == job.JobStateInactive {
-				return "", maskAny(fmt.Errorf("Unable to stop unit %s in state %s", u.Name, job.JobStateInactive))
+				return maskAny(fmt.Errorf("Unable to stop unit %s in state %s", u.Name, job.JobStateInactive))
 			} else if job.JobState(u.CurrentState) == job.JobStateLoaded {
 				log.Debugf("Unit(%s) already %s, skipping.", u.Name, job.JobStateLoaded)
 				continue
@@ -45,16 +42,16 @@ func (f *FleetTunnel) Stop(unitNames ...string) (string, error) {
 		log.Debugf("Setting target state of Unit(%s) to %s", u.Name, job.JobStateLoaded)
 		f.cAPI.SetUnitTargetState(u.Name, string(job.JobStateLoaded))
 		if suToGlobal(u) {
-			stdout.WriteString(fmt.Sprintf("Triggered global unit %s stop\n", u.Name))
+			events <- newEvent(u.Name, "triggered global unit stop")
 		} else {
+			events <- newEvent(u.Name, "triggered unit stop")
 			stopping = append(stopping, u.Name)
 		}
 	}
 
-	if err := f.tryWaitForUnitStates(stopping, "stop", job.JobStateLoaded, f.BlockAttempts, stdout); err != nil {
-		return "", maskAny(err)
+	if err := f.tryWaitForUnitStates(stopping, "stop", job.JobStateLoaded, f.BlockAttempts, events); err != nil {
+		return maskAny(err)
 	}
-	stdout.WriteString(fmt.Sprintf("Successfully stopped units %v.\n", stopping))
 
-	return stdout.String(), nil
+	return nil
 }

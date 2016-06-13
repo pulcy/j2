@@ -15,7 +15,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 
@@ -77,32 +76,10 @@ func showUsage(cmd *cobra.Command, args []string) {
 	cmd.Usage()
 }
 
-func confirm(question string) error {
-	for {
-		fmt.Printf("%s [yes|no]", question)
-		bufStdin := bufio.NewReader(os.Stdin)
-		line, _, err := bufStdin.ReadLine()
-		if err != nil {
-			return err
-		}
-
-		if string(line) == "yes" || string(line) == "y" {
-			return nil
-		}
-		fmt.Println("Please enter 'yes' to confirm.")
-	}
-}
-
 func Exitf(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
 	fmt.Println()
 	os.Exit(1)
-}
-
-func Verbosef(format string, args ...interface{}) {
-	if globalFlags.verbose {
-		fmt.Printf(format, args...)
-	}
 }
 
 func assert(err error) {

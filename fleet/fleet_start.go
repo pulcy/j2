@@ -15,9 +15,7 @@
 package fleet
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -30,33 +28,31 @@ import (
 	aerr "github.com/ewoutp/go-aggregate-error"
 )
 
-func (f *FleetTunnel) Start(units ...string) (string, error) {
+func (f *FleetTunnel) Start(events chan Event, units ...string) error {
 	log.Debugf("starting %v", units)
 
-	stdout := &bytes.Buffer{}
-
-	if err := f.lazyCreateUnits(units, stdout); err != nil {
-		return "", maskAny(fmt.Errorf("Error creating units: %v", err))
+	if err := f.lazyCreateUnits(units, events); err != nil {
+		return maskAny(fmt.Errorf("Error creating units: %v", err))
 	}
 
 	triggered, err := f.lazyStartUnits(units)
 	if err != nil {
-		return "", maskAny(fmt.Errorf("Error starting units: %v", err))
+		return maskAny(fmt.Errorf("Error starting units: %v", err))
 	}
 
 	var starting []string
 	for _, u := range triggered {
 		if suToGlobal(*u) {
-			stdout.WriteString(fmt.Sprintf("Triggered global unit %s start\n", u.Name))
+			events <- newEvent(u.Name, "triggered global unit start")
 		} else {
 			starting = append(starting, u.Name)
 		}
 	}
 
-	if err := f.tryWaitForUnitStates(starting, "start", job.JobStateLaunched, f.BlockAttempts, stdout); err != nil {
-		return "", maskAny(err)
+	if err := f.tryWaitForUnitStates(starting, "start", job.JobStateLaunched, f.BlockAttempts, events); err != nil {
+		return maskAny(err)
 	}
-	return stdout.String(), nil
+	return nil
 }
 
 // lazyCreateUnits iterates over a set of unit names and, for each, attempts to
@@ -69,7 +65,7 @@ func (f *FleetTunnel) Start(units ...string) (string, error) {
 // Any error encountered during these steps is returned immediately (i.e.
 // subsequent Jobs are not acted on). An error is also returned if none of the
 // above conditions match a given Job.
-func (f *FleetTunnel) lazyCreateUnits(args []string, stdout io.Writer) error {
+func (f *FleetTunnel) lazyCreateUnits(args []string, events chan Event) error {
 	errchan := make(chan error)
 	blockAttempts := f.BlockAttempts
 	var wg sync.WaitGroup
@@ -91,13 +87,14 @@ func (f *FleetTunnel) lazyCreateUnits(args []string, stdout io.Writer) error {
 			return err
 		}
 
+		events <- newEvent(name, "creating unit")
 		_, err = f.createUnit(name, uf)
 		if err != nil {
 			return err
 		}
 
 		wg.Add(1)
-		go f.checkUnitState(name, job.JobStateInactive, blockAttempts, stdout, &wg, errchan)
+		go f.checkUnitState(name, job.JobStateInactive, blockAttempts, events, &wg, errchan)
 	}
 
 	go func() {

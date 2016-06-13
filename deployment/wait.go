@@ -59,7 +59,7 @@ func init() {
 }
 
 // InterruptibleSleep holds execution for a given duration, or until an interrupt signal is received.
-func InterruptibleSleep(duration time.Duration, message string) {
+func InterruptibleSleep(messages chan string, duration time.Duration, message string) {
 	waiting = true
 	waitID++
 	wg := sync.WaitGroup{}
@@ -68,19 +68,12 @@ func InterruptibleSleep(duration time.Duration, message string) {
 		defer wg.Done()
 		delay := time.Millisecond * 500
 		for {
-			msg := fmt.Sprintf(message, time.Duration(time.Second*time.Duration(duration.Seconds())))
-			fmt.Print(msg)
+			messages <- fmt.Sprintf(message, time.Duration(time.Second*time.Duration(duration.Seconds())))
 			if !waiting {
-				fmt.Println()
 				break
 			}
 			time.Sleep(delay)
 			duration = duration - delay
-			fmt.Print("\r")
-			for _, _ = range msg {
-				fmt.Print(" ")
-			}
-			fmt.Print("\r")
 		}
 	}()
 

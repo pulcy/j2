@@ -37,10 +37,6 @@ var (
 		ProjectVersion: projectVersion,
 		ProjectBuild:   projectBuild,
 	}
-	deploymentDeps = deployment.DeploymentDependencies{
-		Confirm:  confirm,
-		Verbosef: Verbosef,
-	}
 )
 
 func init() {
@@ -66,12 +62,12 @@ func runRun(cmd *cobra.Command, args []string) {
 		SliceDelay:   runFlags.SliceDelay,
 	}
 	d := deployment.NewDeployment(*job, *cluster, groups(&runFlags.Flags),
-		deployment.ScalingGroupSelection(runFlags.ScalingGroup), runFlags.Force, runFlags.AutoContinue, delays, renderContext, images)
+		deployment.ScalingGroupSelection(runFlags.ScalingGroup), runFlags.Force, runFlags.AutoContinue, globalFlags.verbose, delays, renderContext, images)
 
 	if runFlags.DryRun {
-		assert(d.DryRun(deploymentDeps))
+		assert(d.DryRun())
 	} else {
-		assert(d.Run(deploymentDeps))
+		assert(d.Run())
 	}
 }
 

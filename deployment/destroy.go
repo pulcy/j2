@@ -22,7 +22,7 @@ import (
 )
 
 // Destroy removes all unit files that belong to the configured job from the configured cluster.
-func (d *Deployment) Destroy(deps DeploymentDependencies) error {
+func (d *Deployment) Destroy() error {
 	f, err := d.newFleetTunnel()
 	if err != nil {
 		return maskAny(err)
@@ -40,52 +40,49 @@ func (d *Deployment) Destroy(deps DeploymentDependencies) error {
 		return nil
 	}
 
-	if err := d.confirmDestroy(deps, unitNames, false); err != nil {
+	ui := newStateUI(d.verbose)
+	defer ui.Close()
+
+	if err := d.confirmDestroy(unitNames, false, ui); err != nil {
 		return maskAny(err)
 	}
-	if err := d.destroyUnits(f, unitNames); err != nil {
+	if err := d.destroyUnits(f, unitNames, ui); err != nil {
 		return maskAny(err)
 	}
 
 	return nil
 }
 
-func (d *Deployment) confirmDestroy(deps DeploymentDependencies, units []string, obsolete bool) error {
+func (d *Deployment) confirmDestroy(units []string, obsolete bool, ui *stateUI) error {
 	if !d.force {
 		obsoleteMsg := ""
 		if obsolete {
 			obsoleteMsg = " obsolete units"
 		}
-		if err := deps.Confirm(fmt.Sprintf("You are about to destroy%s:\n- %s\n\nAre you sure you want to destroy %d units on stack '%s'?\nEnter yes:", obsoleteMsg, strings.Join(units, "\n- "), len(units), d.cluster.Stack)); err != nil {
+		if err := ui.Confirm(fmt.Sprintf("You are about to destroy%s:\n- %s\n\nAre you sure you want to destroy %d units on stack '%s'?\nEnter yes:", obsoleteMsg, strings.Join(units, "\n- "), len(units), d.cluster.Stack)); err != nil {
 			return maskAny(err)
 		}
-		fmt.Println()
 	}
 
 	return nil
 }
 
-func (d *Deployment) destroyUnits(f fleet.FleetTunnel, units []string) error {
+func (d *Deployment) destroyUnits(f fleet.FleetTunnel, units []string, ui *stateUI) error {
 	if len(units) == 0 {
 		return maskAny(fmt.Errorf("No units on cluster: %s", d.cluster.Stack))
 	}
 
-	var out string
-	out, err := f.Stop(units...)
-	if err != nil {
-		fmt.Printf("Warning: stop failed.\n%s\n", err.Error())
+	ui.MessageSink <- fmt.Sprintf("Stopping %d units", len(units))
+	if err := f.Stop(ui.EventSink, units...); err != nil {
+		ui.Warningf("Warning: stop failed.\n%s\n", err.Error())
 	}
 
-	fmt.Println(out)
+	InterruptibleSleep(ui.MessageSink, d.StopDelay, "Waiting for %s...")
 
-	InterruptibleSleep(d.StopDelay, "Waiting for %s...")
-
-	out, err = f.Destroy(units...)
-	if err != nil {
+	ui.MessageSink <- fmt.Sprintf("Destroying %d units", len(units))
+	if err := f.Destroy(ui.EventSink, units...); err != nil {
 		return maskAny(err)
 	}
-
-	fmt.Println(out)
 
 	return nil
 }

@@ -28,7 +28,7 @@ import (
 )
 
 // Run creates all applicable unit files and deploys them onto the configured cluster.
-func (d *Deployment) Run(deps DeploymentDependencies) error {
+func (d *Deployment) Run() error {
 	// Fetch all current units
 	f, err := d.newFleetTunnel()
 	if err != nil {
@@ -38,6 +38,10 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 	if err != nil {
 		return maskAny(err)
 	}
+
+	// Prepare UI
+	ui := newStateUI(d.verbose)
+	defer ui.Close()
 
 	// Find out which current units belong to the configured job
 	remainingLoadedJobUnitNames := selectUnitNames(allUnits, d.createUnitNamePredicate())
@@ -72,9 +76,9 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 		if err != nil {
 			return maskAny(err)
 		}
-		isModifiedPredicate := d.isModifiedPredicate(deps, sg, statusMap, f)
+		isModifiedPredicate := d.isModifiedPredicate(sg, statusMap, f, ui)
 		modifiedUnitNames := selectUnitNames(notObsoleteUnitNames, isModifiedPredicate)
-		isFailedPredicate := d.isFailedPredicate(deps, sg, statusMap, f)
+		isFailedPredicate := d.isFailedPredicate(sg, statusMap, f, ui)
 		failedUnitNames := selectUnitNames(notObsoleteUnitNames, isFailedPredicate)
 		unitNamesToDestroy := append(append(obsoleteUnitNames, modifiedUnitNames...), failedUnitNames...)
 		newUnitNames := selectUnitNames(sg.unitNames, notPredicate(containsPredicate(loadedScalingGroupUnitNames)))
@@ -92,33 +96,32 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 			changes = append(changes, formatChanges("# ", newUnitNames, "Create")...)
 			sort.Strings(changes[1:])
 			formattedChanges := strings.Replace(columnize.SimpleFormat(changes), "#", " ", -1)
-			fmt.Printf("Step %d: Update scaling group %d of %d on '%s'.\n%s\n", step, curScale, maxScale, d.cluster.Stack, formattedChanges)
+			ui.HeaderSink <- fmt.Sprintf("Step %d: Update scaling group %d of %d on '%s'.\n%s\n", step, curScale, maxScale, d.cluster.Stack, formattedChanges)
 			if !d.autoContinue {
-				if err := deps.Confirm("Are you sure you want to continue?"); err != nil {
+				if err := ui.Confirm("Are you sure you want to continue?"); err != nil {
 					return maskAny(err)
 				}
-				fmt.Println()
 			}
 		}
 
 		// Destroy the obsolete & modified units
 		if len(unitNamesToDestroy) > 0 {
-			if err := d.destroyUnits(f, unitNamesToDestroy); err != nil {
+			if err := d.destroyUnits(f, unitNamesToDestroy, ui); err != nil {
 				return maskAny(err)
 			}
 
-			InterruptibleSleep(d.DestroyDelay, "Waiting for %s...")
+			InterruptibleSleep(ui.MessageSink, d.DestroyDelay, "Waiting for %s...")
 		}
 
 		// Now launch everything
-		if err := launchUnits(deps, f, sg.fileNames); err != nil {
+		if err := launchUnits(f, sg.fileNames, ui); err != nil {
 			return maskAny(err)
 		}
 
 		// Wait a bit and ask for confirmation before continuing (only when more groups will follow)
 		if anyModifications && sgIndex+1 < len(d.scalingGroups) {
 			nextScale := d.scalingGroups[sgIndex+1].scalingGroup
-			InterruptibleSleep(d.SliceDelay, fmt.Sprintf("Waiting %s before continuing with scaling group %d of %d...", "%s", nextScale, maxScale))
+			InterruptibleSleep(ui.MessageSink, d.SliceDelay, fmt.Sprintf("Waiting %s before continuing with scaling group %d of %d...", "%s", nextScale, maxScale))
 		}
 
 		// Update counters
@@ -126,6 +129,7 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 			totalModifications++
 		}
 		step++
+		ui.Clear()
 	}
 
 	// Destroy remaining units
@@ -134,13 +138,12 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 		changes = append(changes, formatChanges("# ", remainingLoadedJobUnitNames, "Remove (is obsolete) !!!")...)
 		sort.Strings(changes[1:])
 		formattedChanges := strings.Replace(columnize.SimpleFormat(changes), "#", " ", -1)
-		fmt.Printf("Step %d: Cleanup of obsolete units on '%s'.\n%s\n", step, d.cluster.Stack, formattedChanges)
-		if err := deps.Confirm("Are you sure you want to continue?"); err != nil {
+		ui.HeaderSink <- fmt.Sprintf("Step %d: Cleanup of obsolete units on '%s'.\n%s\n", step, d.cluster.Stack, formattedChanges)
+		if err := ui.Confirm("Are you sure you want to continue?"); err != nil {
 			return maskAny(err)
 		}
-		fmt.Println()
 
-		if err := d.destroyUnits(f, remainingLoadedJobUnitNames); err != nil {
+		if err := d.destroyUnits(f, remainingLoadedJobUnitNames, ui); err != nil {
 			return maskAny(err)
 		}
 
@@ -149,24 +152,25 @@ func (d *Deployment) Run(deps DeploymentDependencies) error {
 
 	// Notify in case we did nothing
 	if totalModifications == 0 {
-		fmt.Printf("No modifications needed.\n")
+		ui.MessageSink <- "No modifications needed."
 	} else {
-		fmt.Printf("Done.\n")
+		ui.MessageSink <- "Done."
 	}
 
 	return nil
 }
 
 // isFailedPredicate creates a predicate that returns true when the given unit file is in the failed status.
-func (d *Deployment) isFailedPredicate(deps DeploymentDependencies, sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel) func(string) bool {
+func (d *Deployment) isFailedPredicate(sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel, ui *stateUI) func(string) bool {
 	return func(unitName string) bool {
+		ui.MessageSink <- fmt.Sprintf("Checking state of %s", unitName)
 		unitState, found := status.Get(unitName)
 		if !found {
-			deps.Verbosef("Unit '%s' is not found\n", unitName)
+			ui.Verbosef("Unit '%s' is not found\n", unitName)
 			return true
 		}
 		if unitState == "failed" {
-			deps.Verbosef("Unit '%s' is in failed state\n", unitName)
+			ui.Verbosef("Unit '%s' is in failed state\n", unitName)
 			return true
 		}
 		return false
@@ -174,25 +178,26 @@ func (d *Deployment) isFailedPredicate(deps DeploymentDependencies, sg scalingGr
 }
 
 // isModifiedPredicate creates a predicate that returns true when the given unit file is modified
-func (d *Deployment) isModifiedPredicate(deps DeploymentDependencies, sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel) func(string) bool {
+func (d *Deployment) isModifiedPredicate(sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel, ui *stateUI) func(string) bool {
 	return func(unitName string) bool {
 		if d.force {
 			return true
 		}
+		ui.MessageSink <- fmt.Sprintf("Checking %s for modifications", unitName)
 		cat, err := f.Cat(unitName)
 		if err != nil {
-			deps.Verbosef("Failed to cat '%s': %#v\n", unitName, err)
+			ui.Verbosef("Failed to cat '%s': %#v\n", unitName, err)
 			return true // Assume it is modified
 		}
 		newCat, err := readUnit(unitName, sg.fileNames)
 		if err != nil {
-			deps.Verbosef("Failed to read new '%s' unit: %#v\n", unitName, err)
+			ui.Verbosef("Failed to read new '%s' unit: %#v\n", unitName, err)
 			return true // Assume it is modified
 		}
-		if !compareUnitContent(deps, unitName, cat, newCat) {
+		if !compareUnitContent(unitName, cat, newCat, ui) {
 			return true
 		}
-		deps.Verbosef("Unit '%s' has not changed\n", unitName)
+		ui.Verbosef("Unit '%s' has not changed\n", unitName)
 		return false
 	}
 }
@@ -211,18 +216,18 @@ func readUnit(unitName string, files []string) (string, error) {
 	return "", nil // This will ensure that the unit is considered different
 }
 
-func compareUnitContent(deps DeploymentDependencies, unitName, a, b string) bool {
+func compareUnitContent(unitName, a, b string, ui *stateUI) bool {
 	linesA := normalizeUnitContent(a)
 	linesB := normalizeUnitContent(b)
 
 	if len(linesA) != len(linesB) {
-		deps.Verbosef("Length differs in %s\n", unitName)
+		ui.Verbosef("Length differs in %s\n", unitName)
 		return false
 	}
 	for i, la := range linesA {
 		lb := linesB[i]
 		if la != lb {
-			deps.Verbosef("Line %d in %s differs\n>>>> %s\n<<<< %s\n", i, unitName, la, lb)
+			ui.Verbosef("Line %d in %s differs\n>>>> %s\n<<<< %s\n", i, unitName, la, lb)
 			return false
 		}
 	}
@@ -241,16 +246,13 @@ func normalizeUnitContent(content string) []string {
 	return result
 }
 
-func launchUnits(deps DeploymentDependencies, f fleet.FleetTunnel, files []string) error {
-	deps.Verbosef("Starting %#v\n", files)
-	out, err := f.Start(files...)
-	if err != nil {
+func launchUnits(f fleet.FleetTunnel, files []string, ui *stateUI) error {
+	ui.Verbosef("Starting %#v\n", files)
+
+	if err := f.Start(ui.EventSink, files...); err != nil {
 		return maskAny(err)
 	}
 
-	if out != "" {
-		fmt.Println(out)
-	}
 	return nil
 }
 

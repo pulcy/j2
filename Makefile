@@ -49,6 +49,7 @@ update-vendor:
 	@pulsar go vendor -V $(VENDORDIR) \
 		github.com/coreos/etcd/client \
 		github.com/dchest/uniuri \
+		github.com/gosuri/uilive \
 		github.com/spf13/pflag \
 		github.com/spf13/cobra \
 		github.com/juju/errgo \

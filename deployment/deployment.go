@@ -39,6 +39,7 @@ type Deployment struct {
 	cluster               cluster.Cluster
 	groupSelection        TaskGroupSelection
 	scalingGroupSelection ScalingGroupSelection
+	verbose               bool
 	force                 bool
 	autoContinue          bool
 	DeploymentDelays
@@ -48,14 +49,9 @@ type Deployment struct {
 	scalingGroups []scalingGroupUnits
 }
 
-type DeploymentDependencies struct {
-	Confirm  func(string) error
-	Verbosef func(format string, args ...interface{})
-}
-
 // NewDeployment creates a new Deployment instances and generates all unit files for the given job.
 func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGroupSelection,
-	scalingGroupSelection ScalingGroupSelection, force, autoContinue bool, delays DeploymentDelays,
+	scalingGroupSelection ScalingGroupSelection, force, autoContinue, verbose bool, delays DeploymentDelays,
 	renderContext units.RenderContext, images jobs.Images) *Deployment {
 	return &Deployment{
 		job:                   job,
@@ -64,6 +60,7 @@ func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGro
 		scalingGroupSelection: scalingGroupSelection,
 		force:            force,
 		autoContinue:     autoContinue,
+		verbose:          verbose,
 		DeploymentDelays: delays,
 		renderContext:    renderContext,
 		images:           images,
@@ -71,7 +68,10 @@ func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGro
 }
 
 // DryRun creates all unit files it will deploy during a normal `Run` and present them to the user.
-func (d *Deployment) DryRun(deps DeploymentDependencies) error {
+func (d *Deployment) DryRun() error {
+	ui := newStateUI(d.verbose)
+	defer ui.Close()
+
 	if err := d.generateScalingGroups(); err != nil {
 		return maskAny(err)
 	}
@@ -84,11 +84,12 @@ func (d *Deployment) DryRun(deps DeploymentDependencies) error {
 		units = append(units, sgu.unitNames...)
 	}
 	sort.Strings(units)
-	fmt.Printf("The following units will be deployed.\n\n%s\n\nYou can review them in %s.\n",
+	ui.HeaderSink <- fmt.Sprintf("The following units will be deployed.\n\n%s\n\nYou can review them in %s.\n",
 		strings.Join(units, "\n"),
 		dir,
 	)
-	if err := deps.Confirm(fmt.Sprintf("Remove review files from %s ?", dir)); err != nil {
+
+	if err := ui.Confirm(fmt.Sprintf("Remove review files from %s ?", dir)); err != nil {
 		return maskAny(err)
 	}
 

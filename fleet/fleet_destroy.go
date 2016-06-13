@@ -15,64 +15,72 @@
 package fleet
 
 import (
-	"bytes"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/coreos/fleet/client"
 	aerr "github.com/ewoutp/go-aggregate-error"
 )
 
-func (f *FleetTunnel) Destroy(unitNames ...string) (string, error) {
+func (f *FleetTunnel) Destroy(events chan Event, unitNames ...string) error {
 	log.Debugf("destroying %v", unitNames)
 
-	stdout := bytes.Buffer{}
 	var ae aerr.AggregateError
+	wg := sync.WaitGroup{}
 
 	for _, unit := range unitNames {
-		err := f.cAPI.DestroyUnit(unit)
-		if err != nil {
-			// Ignore 'Unit does not exist' error
-			if client.IsErrorUnitNotFound(err) {
-				continue
-			}
-			ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
-			continue
-		}
+		wg.Add(1)
+		go func(unit string) {
+			defer wg.Done()
 
-		if f.NoBlock {
-			attempts := f.BlockAttempts
-			retry := func() bool {
-				if f.BlockAttempts < 1 {
+			events <- newEvent(unit, "destroying")
+			err := f.cAPI.DestroyUnit(unit)
+			if err != nil {
+				// Ignore 'Unit does not exist' error
+				if client.IsErrorUnitNotFound(err) {
+					return
+				}
+				ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
+				return
+			}
+
+			if f.NoBlock {
+				attempts := f.BlockAttempts
+				retry := func() bool {
+					if f.BlockAttempts < 1 {
+						return true
+					}
+					attempts--
+					if attempts == 0 {
+						return false
+					}
 					return true
 				}
-				attempts--
-				if attempts == 0 {
-					return false
+
+				for retry() {
+					u, err := f.cAPI.Unit(unit)
+					if err != nil {
+						ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
+						break
+					}
+
+					if u == nil {
+						break
+					}
+					time.Sleep(defaultSleepTime)
 				}
-				return true
 			}
 
-			for retry() {
-				u, err := f.cAPI.Unit(unit)
-				if err != nil {
-					ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
-					break
-				}
-
-				if u == nil {
-					break
-				}
-				time.Sleep(defaultSleepTime)
-			}
-		}
-
-		stdout.WriteString(fmt.Sprintf("Destroyed %s\n", unit))
+			events <- newEvent(unit, "destroyed")
+		}(unit)
 	}
+
+	wg.Wait()
 
 	if !ae.IsEmpty() {
-		return "", maskAny(&ae)
+		return maskAny(&ae)
 	}
 
-	return stdout.String(), nil
+	return nil
 }
