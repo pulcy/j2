@@ -12,18 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package deployment
+package fleet
 
 import (
-	"github.com/pulcy/j2/fleet"
+	"fmt"
+
+	"github.com/coreos/fleet/schema"
 )
 
-func (d *Deployment) newFleetTunnel() (fleet.FleetTunnel, error) {
-	config := fleet.DefaultConfig()
-	config.Tunnel = d.cluster.Tunnel
-	tun, err := fleet.NewTunnel(config)
+func (f *FleetTunnel) Cat(unitName string) (string, error) {
+	log.Debugf("cat unit %v", unitName)
+
+	u, err := f.cAPI.Unit(unitName)
 	if err != nil {
-		return fleet.FleetTunnel{}, maskAny(err)
+		return "", maskAny(err)
 	}
-	return *tun, nil
+	if u == nil {
+		return "", maskAny(fmt.Errorf("Unit %s not found", unitName))
+	}
+
+	uf := schema.MapSchemaUnitOptionsToUnitFile(u.Options)
+
+	return uf.String(), nil
 }

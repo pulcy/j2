@@ -12,18 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package deployment
+package fleet
 
-import (
-	"github.com/pulcy/j2/fleet"
-)
+func (f *FleetTunnel) List() ([]string, error) {
+	log.Debugf("list units")
 
-func (d *Deployment) newFleetTunnel() (fleet.FleetTunnel, error) {
-	config := fleet.DefaultConfig()
-	config.Tunnel = d.cluster.Tunnel
-	tun, err := fleet.NewTunnel(config)
+	units, err := f.cAPI.Units()
 	if err != nil {
-		return fleet.FleetTunnel{}, maskAny(err)
+		return nil, maskAny(err)
 	}
-	return *tun, nil
+
+	names := []string{}
+	for _, unit := range units {
+		names = append(names, unit.Name)
+	}
+
+	return names, nil
 }

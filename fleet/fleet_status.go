@@ -12,18 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package deployment
+package fleet
 
-import (
-	"github.com/pulcy/j2/fleet"
-)
+func (f *FleetTunnel) Status() (StatusMap, error) {
+	log.Debugf("list unit status")
 
-func (d *Deployment) newFleetTunnel() (fleet.FleetTunnel, error) {
-	config := fleet.DefaultConfig()
-	config.Tunnel = d.cluster.Tunnel
-	tun, err := fleet.NewTunnel(config)
+	states, err := f.cAPI.UnitStates()
 	if err != nil {
-		return fleet.FleetTunnel{}, maskAny(err)
+		return StatusMap{}, maskAny(err)
 	}
-	return *tun, nil
+
+	return newStatusMapFromUnits(states), nil
 }
