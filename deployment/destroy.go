@@ -73,11 +73,14 @@ func (d *Deployment) destroyUnits(f fleet.FleetTunnel, units []string, ui *state
 	}
 
 	ui.MessageSink <- fmt.Sprintf("Stopping %d units", len(units))
-	if err := f.Stop(ui.EventSink, units...); err != nil {
+	stats, err := f.Stop(ui.EventSink, units...)
+	if err != nil {
 		ui.Warningf("Warning: stop failed.\n%s\n", err.Error())
 	}
 
-	InterruptibleSleep(ui.MessageSink, d.StopDelay, "Waiting for %s...")
+	if stats.StoppedGlobalUnits > 0 {
+		InterruptibleSleep(ui.MessageSink, d.StopDelay, "Waiting for %s...")
+	}
 
 	ui.MessageSink <- fmt.Sprintf("Destroying %d units", len(units))
 	if err := f.Destroy(ui.EventSink, units...); err != nil {
