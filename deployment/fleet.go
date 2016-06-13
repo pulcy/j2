@@ -18,6 +18,10 @@ import (
 	"github.com/pulcy/j2/fleet"
 )
 
-func (d *Deployment) newFleetTunnel() fleet.FleetTunnel {
-	return *fleet.NewTunnel(d.cluster.Tunnel)
+func (d *Deployment) newFleetTunnel() (fleet.FleetTunnel, error) {
+	tun, err := fleet.NewTunnel(d.cluster.Tunnel)
+	if err != nil {
+		return fleet.FleetTunnel{}, maskAny(err)
+	}
+	return *tun, nil
 }

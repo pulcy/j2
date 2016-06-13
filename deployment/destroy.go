@@ -23,7 +23,11 @@ import (
 
 // Destroy removes all unit files that belong to the configured job from the configured cluster.
 func (d *Deployment) Destroy(deps DeploymentDependencies) error {
-	f := d.newFleetTunnel()
+	f, err := d.newFleetTunnel()
+	if err != nil {
+		return maskAny(err)
+	}
+
 	list, err := f.List()
 	if err != nil {
 		return maskAny(err)
