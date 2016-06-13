@@ -17,6 +17,8 @@ package fleet
 import (
 	_ "fmt"
 	"strings"
+
+	"github.com/coreos/fleet/schema"
 )
 
 type StatusMap struct {
@@ -28,6 +30,17 @@ func (s StatusMap) Get(unitName string) (string, bool) {
 		return status, true
 	}
 	return "", false
+}
+
+func newStatusMapFromUnits(unitStates []*schema.UnitState) StatusMap {
+	//fmt.Printf("Fleet Status:\n%s\n", listUnitsOutput)
+	s := StatusMap{
+		state: make(map[string]string),
+	}
+	for _, unit := range unitStates {
+		s.state[unit.Name] = unit.SystemdActiveState
+	}
+	return s
 }
 
 func newStatusMap(listUnitsOutput string) StatusMap {

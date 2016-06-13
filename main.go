@@ -42,14 +42,18 @@ var (
 
 var (
 	cmdMain = &cobra.Command{
-		Use:              projectName,
-		Run:              showUsage,
-		PersistentPreRun: func(*cobra.Command, []string) { setLogLevel(globalFlags.logLevel) },
+		Use: projectName,
+		Run: showUsage,
+		PersistentPreRun: func(*cobra.Command, []string) {
+			setLogLevel(globalFlags.logLevel, defaultLogLevel, projectName)
+			setLogLevel(globalFlags.fleetLogLevel, globalFlags.logLevel, "fleet")
+		},
 	}
 	globalFlags struct {
-		debug    bool
-		verbose  bool
-		logLevel string
+		debug         bool
+		verbose       bool
+		logLevel      string
+		fleetLogLevel string
 	}
 	log *logging.Logger
 )
@@ -59,6 +63,7 @@ func init() {
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.debug, "debug", "D", false, "Print debug output")
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.verbose, "verbose", "v", false, "Print verbose output")
 	cmdMain.PersistentFlags().StringVar(&globalFlags.logLevel, "log-level", defaultLogLevel, "Log level (debug|info|warning|error)")
+	cmdMain.PersistentFlags().StringVar(&globalFlags.fleetLogLevel, "fleet-log-level", "", "Log level of the fleet tunnel (debug|info|warning|error)")
 }
 
 func main() {
@@ -106,10 +111,13 @@ func assert(err error) {
 	}
 }
 
-func setLogLevel(logLevel string) {
+func setLogLevel(logLevel, defaultLogLevel, logName string) {
+	if logLevel == "" {
+		logLevel = defaultLogLevel
+	}
 	level, err := logging.LogLevel(logLevel)
 	if err != nil {
 		Exitf("Invalid log-level '%s': %#v", logLevel, err)
 	}
-	logging.SetLevel(level, projectName)
+	logging.SetLevel(level, logName)
 }
