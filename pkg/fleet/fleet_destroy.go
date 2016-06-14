@@ -16,7 +16,6 @@ package fleet
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/coreos/fleet/client"
@@ -27,56 +26,48 @@ func (f *FleetTunnel) Destroy(events chan Event, unitNames ...string) error {
 	log.Debugf("destroying %v", unitNames)
 
 	var ae aerr.AggregateError
-	wg := sync.WaitGroup{}
 
 	for _, unit := range unitNames {
-		wg.Add(1)
-		go func(unit string) {
-			defer wg.Done()
-
-			events <- newEvent(unit, "destroying")
-			err := f.cAPI.DestroyUnit(unit)
-			if err != nil {
-				// Ignore 'Unit does not exist' error
-				if client.IsErrorUnitNotFound(err) {
-					return
-				}
-				ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
-				return
+		events <- newEvent(unit, "destroying")
+		err := f.cAPI.DestroyUnit(unit)
+		if err != nil {
+			// Ignore 'Unit does not exist' error
+			if client.IsErrorUnitNotFound(err) {
+				continue
 			}
+			ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
+			continue
+		}
 
-			if f.NoBlock {
-				attempts := f.BlockAttempts
-				retry := func() bool {
-					if f.BlockAttempts < 1 {
-						return true
-					}
-					attempts--
-					if attempts == 0 {
-						return false
-					}
+		if f.NoBlock {
+			attempts := f.BlockAttempts
+			retry := func() bool {
+				if f.BlockAttempts < 1 {
 					return true
 				}
-
-				for retry() {
-					u, err := f.cAPI.Unit(unit)
-					if err != nil {
-						ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
-						break
-					}
-
-					if u == nil {
-						break
-					}
-					time.Sleep(defaultSleepTime)
+				attempts--
+				if attempts == 0 {
+					return false
 				}
+				return true
 			}
 
-			events <- newEvent(unit, "destroyed")
-		}(unit)
-	}
+			for retry() {
+				u, err := f.cAPI.Unit(unit)
+				if err != nil {
+					ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
+					break
+				}
 
-	wg.Wait()
+				if u == nil {
+					break
+				}
+				time.Sleep(defaultSleepTime)
+			}
+		}
+
+		events <- newEvent(unit, "destroyed")
+	}
 
 	if !ae.IsEmpty() {
 		return maskAny(&ae)
