@@ -266,21 +266,20 @@ func testUnits(t *testing.T, job *jobs.Job, cl cluster.Cluster, expectedUnitName
 		FleetOptions: cl.FleetOptions,
 	}
 	generator := job.Generate(config)
-	generator.NewTmpDir()
 	ctx := units.RenderContext{
 		ProjectName:    "testproject",
 		ProjectVersion: "test-version",
 		ProjectBuild:   "test-build",
 	}
-	defer generator.RemoveTmpFiles()
 	images := jobs.Images{
 		VaultMonkey: "pulcy/vault-monkey:latest",
 	}
-	if err := generator.WriteTmpFiles(ctx, images, cl.InstanceCount); err != nil {
-		t.Fatalf("WriteTmpFiles failed for instance-count %d: %#v", cl.InstanceCount, maskAny(err))
+	units, err := generator.GenerateUnits(ctx, images, cl.InstanceCount)
+	if err != nil {
+		t.Fatalf("GenerateUnits failed for instance-count %d: %#v", cl.InstanceCount, maskAny(err))
 	}
-	compareUnitNames(t, expectedUnitNames, generator.UnitNames())
-	compareUnitFiles(t, generator.FileNames(), filepath.Join(fixtureDir, "units", fmt.Sprintf("instance-count-%d", cl.InstanceCount), testName))
+	compareUnitNames(t, expectedUnitNames, units)
+	compareUnitFiles(t, units, filepath.Join(fixtureDir, "units", fmt.Sprintf("instance-count-%d", cl.InstanceCount), testName))
 }
 
 func compareJson(a, b []byte) ([]string, error) {
@@ -298,7 +297,11 @@ func compareJson(a, b []byte) ([]string, error) {
 	return diffs, nil
 }
 
-func compareUnitNames(t *testing.T, expected, found []string) {
+func compareUnitNames(t *testing.T, expected []string, generated []jobs.UnitData) {
+	var found []string
+	for _, u := range generated {
+		found = append(found, u.Name())
+	}
 	sort.Strings(expected)
 	sort.Strings(found)
 	expectedStr := strings.Join(expected, "\n- ")
@@ -308,20 +311,21 @@ func compareUnitNames(t *testing.T, expected, found []string) {
 	}
 }
 
-func compareUnitFiles(t *testing.T, fileNames []string, fixtureDir string) {
+func compareUnitFiles(t *testing.T, units []jobs.UnitData, fixtureDir string) {
 	errors := []string{}
-	for _, fn := range fileNames {
-		fixturePath := filepath.Join(fixtureDir, filepath.Base(fn))
+	tmpDir, err := ioutil.TempDir("", "j2-test")
+	if err != nil {
+		t.Fatalf("Cannot create temp dir: %#v", err)
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+	for _, u := range units {
+		fixturePath := filepath.Join(fixtureDir, u.Name())
 		if _, err := os.Stat(fixturePath); os.IsNotExist(err) || os.Getenv("UPDATE-FIXTURES") == "1" {
 			// Fixture does not yet exist, create it
 			os.MkdirAll(fixtureDir, 0755)
-			data, err := ioutil.ReadFile(fn)
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("Failed to read '%s': %#v", fn, maskAny(err)))
-			} else {
-				if err := ioutil.WriteFile(fixturePath, data, 0755); err != nil {
-					errors = append(errors, fmt.Sprintf("Failed to create fixture: %#v", maskAny(err)))
-				}
+			if err := ioutil.WriteFile(fixturePath, []byte(u.Content()), 0755); err != nil {
+				errors = append(errors, fmt.Sprintf("Failed to create fixture: %#v", maskAny(err)))
 			}
 		} else {
 			// Compare
@@ -330,19 +334,19 @@ func compareUnitFiles(t *testing.T, fileNames []string, fixtureDir string) {
 				errors = append(errors, fmt.Sprintf("Failed to read fixture: %#v", maskAny(err)))
 				continue
 			}
-			fnRaw, err := ioutil.ReadFile(fn)
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("Failed to read test: %#v", maskAny(err)))
-				continue
-			}
 
 			fixtureContent := strings.TrimSpace(string(fixtureRaw))
-			fnContent := strings.TrimSpace(string(fnRaw))
+			fnContent := strings.TrimSpace(u.Content())
 
 			if fixtureContent != fnContent {
-				cmd := exec.Command("diff", fixturePath, fn)
-				if output, err := cmd.Output(); err != nil {
-					errors = append(errors, fmt.Sprintf("File '%s' is different:\n%s", fixturePath, string(output)))
+				fn := filepath.Join(tmpDir, u.Name())
+				if err := ioutil.WriteFile(fn, []byte(u.Content()), 0755); err != nil {
+					errors = append(errors, fmt.Sprintf("Failed to create fn: %#v", maskAny(err)))
+				} else {
+					cmd := exec.Command("diff", fixturePath, fn)
+					if output, err := cmd.Output(); err != nil {
+						errors = append(errors, fmt.Sprintf("File '%s' is different:\n%s", fixturePath, string(output)))
+					}
 				}
 			}
 		}
