@@ -24,8 +24,8 @@ ExecStop=-/usr/bin/docker stop -t 10 test-web-storage-1
 ExecStopPost=-/usr/bin/docker rm -f test-web-storage-1
 
 [X-Fleet]
-MachineOf=test-web-storage-pr0@1.service
 MachineOf=test-web-backup-mn@1.service
+MachineOf=test-web-storage-pr0@1.service
 MachineID=123456789
 MachineMetadata="web=true" "core=true"
 

@@ -25,8 +25,8 @@ ExecStopPost=-/usr/bin/docker rm -f volumes-v1-storage-1
 
 [X-Fleet]
 Conflicts=volumes-v1-storage-mn@*.service
-MachineOf=volumes-v1-storage-vl0@1.service
 MachineOf=volumes-v1-backup-mn@1.service
+MachineOf=volumes-v1-storage-vl0@1.service
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"

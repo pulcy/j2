@@ -146,5 +146,6 @@ func distinct(list []string) []string {
 		result = append(result, x)
 		seen[x] = struct{}{}
 	}
+	sort.Strings(result)
 	return result
 }
