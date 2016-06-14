@@ -12,26 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs
+package render
 
 import (
 	"github.com/pulcy/j2/cluster"
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 // CreateFleetAfter creates a list of unit names to add to the `After` setting of each unit of the given task.
-func (t *Task) AddFleetOptions(fleetOptions cluster.FleetOptions, unit *sdunits.Unit) {
-	unit.ExecOptions.After(t.group.job.excludeUnitsOfJob(fleetOptions.After)...)
-	unit.ExecOptions.Want(t.group.job.excludeUnitsOfJob(fleetOptions.Wants)...)
-	unit.ExecOptions.Require(t.group.job.excludeUnitsOfJob(fleetOptions.Requires)...)
+func addFleetOptions(t *jobs.Task, fleetOptions cluster.FleetOptions, unit *sdunits.Unit) {
+	jobName := t.JobName()
+	unit.ExecOptions.After(excludeUnitsOfJob(jobName, fleetOptions.After)...)
+	unit.ExecOptions.Want(excludeUnitsOfJob(jobName, fleetOptions.Wants)...)
+	unit.ExecOptions.Require(excludeUnitsOfJob(jobName, fleetOptions.Requires)...)
 }
 
 // excludeUnitsOfJob creates a copy of the given unit names list, excluding those unit names that
 // belong to the given job.
-func (j *Job) excludeUnitsOfJob(unitNames []string) []string {
+func excludeUnitsOfJob(jobName jobs.JobName, unitNames []string) []string {
 	result := []string{}
 	for _, unitName := range unitNames {
-		if !IsUnitForJob(unitName, j.Name) {
+		if !jobs.IsUnitForJob(unitName, jobName) {
 			result = append(result, unitName)
 		}
 	}

@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs
+package render
 
 import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/pulcy/j2/jobs"
 )
 
 const (
@@ -25,19 +27,19 @@ const (
 )
 
 // createSecretsUnit creates a unit used to extract secrets from vault
-func (t *Task) createSecretsExecStartPre(env map[string]string, ctx generatorContext) ([]string, error) {
+func createSecretsExecStartPre(t *jobs.Task, env map[string]string, ctx generatorContext) ([]string, error) {
 	if len(t.Secrets) == 0 {
 		// No secrets to extract
 		return nil, nil
 	}
 	// Create all secret extraction commands
-	jobID := t.group.job.ID
+	jobID := t.JobID()
 	if jobID == "" {
-		return nil, maskAny(fmt.Errorf("job ID missing for job %s with secrets", t.group.job.Name))
+		return nil, maskAny(fmt.Errorf("job ID missing for job %s with secrets", t.JobName()))
 	}
 
 	// Prepare volume paths
-	secretsRoot := t.secretsRootPath(ctx.ScalingGroup)
+	secretsRoot := secretsRootPath(t, ctx.ScalingGroup)
 	secretsRootVol := fmt.Sprintf("%s:%s", secretsRoot, secretsRoot)
 	vaultCrtVol := "/etc/pulcy/vault.crt:/etc/pulcy/vault.crt:ro"
 	clusterIdVol := "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro"
@@ -47,7 +49,7 @@ func (t *Task) createSecretsExecStartPre(env map[string]string, ctx generatorCon
 	envPaths := []string{}
 	for _, secret := range t.Secrets {
 		if ok, _ := secret.TargetFile(); ok {
-			targetPath, err := t.secretFilePath(ctx.ScalingGroup, secret)
+			targetPath, err := secretFilePath(t, ctx.ScalingGroup, secret)
 			if err != nil {
 				return nil, maskAny(err)
 			}
@@ -83,7 +85,7 @@ func (t *Task) createSecretsExecStartPre(env map[string]string, ctx generatorCon
 		}
 	}
 	if len(envPaths) > 0 {
-		targetPath := t.secretEnvironmentPath(ctx.ScalingGroup)
+		targetPath := secretEnvironmentPath(t, ctx.ScalingGroup)
 		cmd := []string{
 			"/usr/bin/docker",
 			"run",
@@ -128,24 +130,24 @@ func (t *Task) createSecretsExecStartPre(env map[string]string, ctx generatorCon
 }
 
 // secretsRootPath returns the path of the root directory that will contain secret files for the given task.
-func (t *Task) secretsRootPath(scalingGroup uint) string {
-	return filepath.Join(secretsPath, t.containerName(scalingGroup))
+func secretsRootPath(t *jobs.Task, scalingGroup uint) string {
+	return filepath.Join(secretsPath, t.ContainerName(scalingGroup))
 }
 
 // secretEnvironmentPath returns the path of the file containing all secret environment variables
 // for the given container.
-func (t *Task) secretEnvironmentPath(scalingGroup uint) string {
-	return filepath.Join(t.secretsRootPath(scalingGroup), "environment")
+func secretEnvironmentPath(t *jobs.Task, scalingGroup uint) string {
+	return filepath.Join(secretsRootPath(t, scalingGroup), "environment")
 }
 
 // secretFilePath returns the path of the file containing the given secret (file type)
-func (t *Task) secretFilePath(scalingGroup uint, secret Secret) (string, error) {
+func secretFilePath(t *jobs.Task, scalingGroup uint, secret jobs.Secret) (string, error) {
 	if secret.File == "" {
 		return "", maskAny(fmt.Errorf("Wrong secret, file must be non-empty"))
 	}
-	hash, err := secret.hash()
+	hash, err := secret.Hash()
 	if err != nil {
 		return "", maskAny(err)
 	}
-	return filepath.Join(t.secretsRootPath(scalingGroup), hash), nil
+	return filepath.Join(secretsRootPath(t, scalingGroup), hash), nil
 }

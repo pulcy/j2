@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs
+package render
 
 import (
 	"crypto/sha256"
@@ -23,6 +23,7 @@ import (
 	"github.com/nyarla/go-crypt"
 	"github.com/pulcy/robin-api"
 
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
 )
 
@@ -31,14 +32,14 @@ var (
 )
 
 // addFrontEndRegistration adds registration code for frontends to the given units
-func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext) error {
+func addFrontEndRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorContext) error {
 	if len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
 		return nil
 	}
-	serviceName := t.serviceName()
+	serviceName := t.ServiceName()
 	targetServiceName := serviceName
 	if t.Type == "proxy" {
-		targetServiceName = t.Target.etcdServiceName()
+		targetServiceName = t.Target.EtcdServiceName()
 	}
 	key := fmt.Sprintf("/pulcy/frontend/%s-%d", serviceName, ctx.ScalingGroup)
 	record := api.FrontendRecord{
@@ -82,7 +83,7 @@ func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext)
 			record.Mode = "tcp"
 		}
 		selRecord := api.FrontendSelectorRecord{
-			Domain:       t.privateDomainName(),
+			Domain:       t.PrivateDomainName(),
 			Port:         fr.Port,
 			Private:      true,
 			RewriteRules: rwRules,
@@ -94,24 +95,24 @@ func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext)
 
 		if fr.RegisterInstance {
 			instanceSelRecord := selRecord
-			instanceSelRecord.Domain = t.instanceSpecificPrivateDomainName(ctx.ScalingGroup)
+			instanceSelRecord.Domain = t.InstanceSpecificPrivateDomainName(ctx.ScalingGroup)
 			instanceRecord.Selectors = append(instanceRecord.Selectors, instanceSelRecord)
 		}
 	}
 
 	if len(instanceRecord.Selectors) > 0 {
-		if err := t.addFrontEndRegistrationRecord(main, instanceKey, instanceRecord, "FrontEndRegistration-i"); err != nil {
+		if err := addFrontEndRegistrationRecord(t, main, instanceKey, instanceRecord, "FrontEndRegistration-i"); err != nil {
 			return maskAny(err)
 		}
 	}
-	if err := t.addFrontEndRegistrationRecord(main, key, record, "FrontEndRegistration"); err != nil {
+	if err := addFrontEndRegistrationRecord(t, main, key, record, "FrontEndRegistration"); err != nil {
 		return maskAny(err)
 	}
 
 	return nil
 }
 
-func (t *Task) addFrontEndRegistrationRecord(main *sdunits.Unit, key string, record api.FrontendRecord, projectSettingKey string) error {
+func addFrontEndRegistrationRecord(t *jobs.Task, main *sdunits.Unit, key string, record api.FrontendRecord, projectSettingKey string) error {
 	json, err := json.Marshal(&record)
 	if err != nil {
 		return maskAny(err)
@@ -128,7 +129,7 @@ func (t *Task) addFrontEndRegistrationRecord(main *sdunits.Unit, key string, rec
 }
 
 // addUsers adds the given users to the selector record, while encrypting the passwords.
-func addUsers(t *Task, selRecord *api.FrontendSelectorRecord, users []User) error {
+func addUsers(t *jobs.Task, selRecord *api.FrontendSelectorRecord, users []jobs.User) error {
 	if len(users) == 0 {
 		return nil
 	}

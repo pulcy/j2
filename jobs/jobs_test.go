@@ -32,6 +32,7 @@ import (
 	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/jobs/render"
 	"github.com/pulcy/j2/pkg/vault"
 )
 
@@ -234,7 +235,7 @@ func TestParse(t *testing.T) {
 			}
 
 			// Now generate units
-			testUnits(t, job, cluster3, tc.ExpectedUnitNamesCount3, tc.Name)
+			testUnits(t, *job, cluster3, tc.ExpectedUnitNamesCount3, tc.Name)
 		}
 
 		cluster1 := cluster.New("test.com", "stack", 1)
@@ -249,7 +250,7 @@ func TestParse(t *testing.T) {
 			}
 
 			// Now generate units
-			testUnits(t, job1, cluster1, tc.ExpectedUnitNamesCount1, tc.Name)
+			testUnits(t, *job1, cluster1, tc.ExpectedUnitNamesCount1, tc.Name)
 		}
 	}
 }
@@ -272,9 +273,9 @@ func (r *renderContext) ProjectBuild() string {
 	return r.projectBuild
 }
 
-func testUnits(t *testing.T, job *jobs.Job, cl cluster.Cluster, expectedUnitNames []string, testName string) {
-	jobs.FixedPwhashSalt = "test-salt"
-	config := jobs.GeneratorConfig{
+func testUnits(t *testing.T, job jobs.Job, cl cluster.Cluster, expectedUnitNames []string, testName string) {
+	render.FixedPwhashSalt = "test-salt"
+	config := render.GeneratorConfig{
 		Groups:              nil,
 		CurrentScalingGroup: 0,
 		DockerOptions: cluster.DockerOptions{
@@ -282,13 +283,13 @@ func testUnits(t *testing.T, job *jobs.Job, cl cluster.Cluster, expectedUnitName
 		},
 		FleetOptions: cl.FleetOptions,
 	}
-	generator := job.Generate(config)
+	generator := render.NewGenerator(job, config)
 	ctx := &renderContext{
 		projectName:    "testproject",
 		projectVersion: "test-version",
 		projectBuild:   "test-build",
 	}
-	images := jobs.Images{
+	images := render.Images{
 		VaultMonkey: "pulcy/vault-monkey:latest",
 	}
 	units, err := generator.GenerateUnits(ctx, images, cl.InstanceCount)
@@ -314,7 +315,7 @@ func compareJson(a, b []byte) ([]string, error) {
 	return diffs, nil
 }
 
-func compareUnitNames(t *testing.T, expected []string, generated []jobs.UnitData) {
+func compareUnitNames(t *testing.T, expected []string, generated []render.UnitData) {
 	var found []string
 	for _, u := range generated {
 		found = append(found, u.Name())
@@ -328,7 +329,7 @@ func compareUnitNames(t *testing.T, expected []string, generated []jobs.UnitData
 	}
 }
 
-func compareUnitFiles(t *testing.T, units []jobs.UnitData, fixtureDir string) {
+func compareUnitFiles(t *testing.T, units []render.UnitData, fixtureDir string) {
 	errors := []string{}
 	tmpDir, err := ioutil.TempDir("", "j2-test")
 	if err != nil {

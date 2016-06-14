@@ -12,33 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs
+package render
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 // createProxyUnit
-func (t *Task) createProxyUnit(link Link, linkIndex int, ctx generatorContext) (*sdunits.Unit, error) {
+func createProxyUnit(t *jobs.Task, link jobs.Link, linkIndex int, ctx generatorContext) (*sdunits.Unit, error) {
 	namePostfix := fmt.Sprintf("%s%d", unitKindProxy, linkIndex)
-	containerName := t.containerName(ctx.ScalingGroup) + namePostfix
+	containerName := t.ContainerName(ctx.ScalingGroup) + namePostfix
 	image := ctx.Images.Wormhole
 
 	unit := &sdunits.Unit{
-		Name:         t.unitName(namePostfix, strconv.Itoa(int(ctx.ScalingGroup))),
-		FullName:     t.unitName(namePostfix, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
-		Description:  t.unitDescription(fmt.Sprintf("Proxy %d", linkIndex), ctx.ScalingGroup),
+		Name:         unitName(t, namePostfix, strconv.Itoa(int(ctx.ScalingGroup))),
+		FullName:     unitName(t, namePostfix, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
+		Description:  unitDescription(t, fmt.Sprintf("Proxy %d", linkIndex), ctx.ScalingGroup),
 		Type:         "service",
 		Scalable_:    true, //t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
 		ExecOptions:  sdunits.NewExecOptions(),
 		FleetOptions: sdunits.NewFleetOptions(),
 	}
-	execStart, err := t.createProxyDockerCmdLine(containerName, image, link, unit.ExecOptions.Environment, ctx)
+	execStart, err := createProxyDockerCmdLine(t, containerName, image, link, unit.ExecOptions.Environment, ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -67,36 +68,36 @@ func (t *Task) createProxyUnit(link Link, linkIndex int, ctx generatorContext) (
 	unit.ExecOptions.ExecStopPost = append(unit.ExecOptions.ExecStopPost,
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", containerName),
 	)
-	if err := t.setupInstanceConstraints(unit, namePostfix, ctx); err != nil {
+	if err := setupInstanceConstraints(t, unit, namePostfix, ctx); err != nil {
 		return nil, maskAny(err)
 	}
 
 	// Service dependencies
-	if requires, err := t.createProxyRequires(ctx); err != nil {
+	if requires, err := createProxyRequires(t, ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		unit.ExecOptions.Require(requires...)
 	}
 	unit.ExecOptions.Require("docker.service")
 	// After=...
-	if after, err := t.createProxyAfter(ctx); err != nil {
+	if after, err := createProxyAfter(t, ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		unit.ExecOptions.After(after...)
 	}
 
-	if err := t.setupConstraints(unit); err != nil {
+	if err := setupConstraints(t, unit); err != nil {
 		return nil, maskAny(err)
 	}
 
-	t.AddFleetOptions(ctx.FleetOptions, unit)
+	addFleetOptions(t, ctx.FleetOptions, unit)
 
 	return unit, nil
 }
 
 // createProxyDockerCmdLine creates the `ExecStart` line for
 // the proxy unit.
-func (t *Task) createProxyDockerCmdLine(containerName, containerImage string, link Link, env map[string]string, ctx generatorContext) ([]string, error) {
+func createProxyDockerCmdLine(t *jobs.Task, containerName, containerImage string, link jobs.Link, env map[string]string, ctx generatorContext) ([]string, error) {
 	execStart := []string{
 		"/usr/bin/docker",
 		"run",
@@ -117,21 +118,21 @@ func (t *Task) createProxyDockerCmdLine(containerName, containerImage string, li
 
 	execStart = append(execStart, containerImage)
 	execStart = append(execStart,
-		fmt.Sprintf("--etcd-addr http://${COREOS_PRIVATE_IPV4}:2379/pulcy/service/%s", link.Target.etcdServiceName()),
+		fmt.Sprintf("--etcd-addr http://${COREOS_PRIVATE_IPV4}:2379/pulcy/service/%s", link.Target.EtcdServiceName()),
 	)
 
 	return execStart, nil
 }
 
 // createProxyAfter creates the `After=` sequence for the proxy unit
-func (t *Task) createProxyAfter(ctx generatorContext) ([]string, error) {
+func createProxyAfter(t *jobs.Task, ctx generatorContext) ([]string, error) {
 	after := append([]string{}, commonAfter...)
 
 	return after, nil
 }
 
 // createProxyRequires creates the `Requires=` sequence for the proxy unit
-func (t *Task) createProxyRequires(ctx generatorContext) ([]string, error) {
+func createProxyRequires(t *jobs.Task, ctx generatorContext) ([]string, error) {
 	requires := append([]string{}, commonRequires...)
 
 	return requires, nil

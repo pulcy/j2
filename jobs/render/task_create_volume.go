@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs
+package render
 
 import (
 	"fmt"
@@ -20,28 +20,29 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 // createVolumeUnit
-func (t *Task) createVolumeUnit(vol Volume, volIndex int, ctx generatorContext) (*sdunits.Unit, error) {
-	namePostfix := t.createVolumeUnitNamePostfix(volIndex)
-	containerName := t.createVolumeUnitContainerName(volIndex, ctx)
+func createVolumeUnit(t *jobs.Task, vol jobs.Volume, volIndex int, ctx generatorContext) (*sdunits.Unit, error) {
+	namePostfix := createVolumeUnitNamePostfix(volIndex)
+	containerName := createVolumeUnitContainerName(t, volIndex, ctx)
 	image := ctx.Images.CephVolume
-	volPrefix := path.Join(fmt.Sprintf("%s/%d", t.fullName(), int(ctx.ScalingGroup)), vol.Path)
+	volPrefix := path.Join(fmt.Sprintf("%s/%d", t.FullName(), int(ctx.ScalingGroup)), vol.Path)
 	volHostPath := fmt.Sprintf("/media/%s", volPrefix)
 
 	unit := &sdunits.Unit{
-		Name:         t.unitName(namePostfix, strconv.Itoa(int(ctx.ScalingGroup))),
-		FullName:     t.unitName(namePostfix, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
-		Description:  t.unitDescription(fmt.Sprintf("Volume %d", volIndex), ctx.ScalingGroup),
+		Name:         unitName(t, namePostfix, strconv.Itoa(int(ctx.ScalingGroup))),
+		FullName:     unitName(t, namePostfix, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
+		Description:  unitDescription(t, fmt.Sprintf("Volume %d", volIndex), ctx.ScalingGroup),
 		Type:         "service",
 		Scalable_:    true, //t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
 		ExecOptions:  sdunits.NewExecOptions(),
 		FleetOptions: sdunits.NewFleetOptions(),
 	}
-	execStart, err := t.createVolumeDockerCmdLine(containerName, image, vol, volPrefix, volHostPath, unit.ExecOptions.Environment, ctx)
+	execStart, err := createVolumeDockerCmdLine(t, containerName, image, vol, volPrefix, volHostPath, unit.ExecOptions.Environment, ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -71,36 +72,36 @@ func (t *Task) createVolumeUnit(vol Volume, volIndex int, ctx generatorContext) 
 	unit.ExecOptions.ExecStopPost = append(unit.ExecOptions.ExecStopPost,
 		fmt.Sprintf("-/usr/bin/docker rm -f %s", containerName),
 	)
-	if err := t.setupInstanceConstraints(unit, namePostfix, ctx); err != nil {
+	if err := setupInstanceConstraints(t, unit, namePostfix, ctx); err != nil {
 		return nil, maskAny(err)
 	}
 
 	// Service dependencies
-	if requires, err := t.createVolumeRequires(ctx); err != nil {
+	if requires, err := createVolumeRequires(t, ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		unit.ExecOptions.Require(requires...)
 	}
 	unit.ExecOptions.Require("docker.service")
 	// After=...
-	if after, err := t.createVolumeAfter(ctx); err != nil {
+	if after, err := createVolumeAfter(t, ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		unit.ExecOptions.After(after...)
 	}
 
-	if err := t.setupConstraints(unit); err != nil {
+	if err := setupConstraints(t, unit); err != nil {
 		return nil, maskAny(err)
 	}
 
-	t.AddFleetOptions(ctx.FleetOptions, unit)
+	addFleetOptions(t, ctx.FleetOptions, unit)
 
 	return unit, nil
 }
 
 // createVolumeDockerCmdLine creates the `ExecStart` line for
 // the volume unit.
-func (t *Task) createVolumeDockerCmdLine(containerName, containerImage string, vol Volume, volPrefix, volHostPath string, env map[string]string, ctx generatorContext) ([]string, error) {
+func createVolumeDockerCmdLine(t *jobs.Task, containerName, containerImage string, vol jobs.Volume, volPrefix, volHostPath string, env map[string]string, ctx generatorContext) ([]string, error) {
 	execStart := []string{
 		"/usr/bin/docker",
 		"run",
@@ -134,25 +135,25 @@ func (t *Task) createVolumeDockerCmdLine(containerName, containerImage string, v
 }
 
 // createVolumeAfter creates the `After=` sequence for the volume unit
-func (t *Task) createVolumeAfter(ctx generatorContext) ([]string, error) {
+func createVolumeAfter(t *jobs.Task, ctx generatorContext) ([]string, error) {
 	after := append([]string{}, commonAfter...)
 
 	return after, nil
 }
 
 // createVolumeRequires creates the `Requires=` sequence for the volume unit
-func (t *Task) createVolumeRequires(ctx generatorContext) ([]string, error) {
+func createVolumeRequires(t *jobs.Task, ctx generatorContext) ([]string, error) {
 	requires := append([]string{}, commonRequires...)
 
 	return requires, nil
 }
 
 // createVolumeUnitNamePostfix creates the volume unit kind + volume-index
-func (t *Task) createVolumeUnitNamePostfix(volIndex int) string {
+func createVolumeUnitNamePostfix(volIndex int) string {
 	return fmt.Sprintf("%s%d", unitKindVolume, volIndex)
 }
 
 // createVolumeUnitContainerName creates the name of the docker container that serves a volume with given index
-func (t *Task) createVolumeUnitContainerName(volIndex int, ctx generatorContext) string {
-	return t.containerName(ctx.ScalingGroup) + t.createVolumeUnitNamePostfix(volIndex)
+func createVolumeUnitContainerName(t *jobs.Task, volIndex int, ctx generatorContext) string {
+	return t.ContainerName(ctx.ScalingGroup) + createVolumeUnitNamePostfix(volIndex)
 }

@@ -87,11 +87,6 @@ func (v Volume) IsInstance() bool {
 	return v.Type == VolumeTypeInstance
 }
 
-// requiresMountUnit returns true if the type of volume needs a mount unit.
-func (v Volume) requiresMountUnit() bool {
-	return !v.IsLocal()
-}
-
 // MountOption looks for a mount option with given key and returns its value.
 // Returns OptionNotFoundError if option is not found.
 func (v Volume) MountOption(key string) (string, error) {

@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs
+package render
 
 import (
 	"github.com/pulcy/j2/cluster"
+	"github.com/pulcy/j2/jobs"
 )
 
 type GeneratorConfig struct {
-	Groups              []TaskGroupName
+	Groups              []jobs.TaskGroupName
 	CurrentScalingGroup uint
 	DockerOptions       cluster.DockerOptions
 	FleetOptions        cluster.FleetOptions
 }
 
 type Generator struct {
-	job *Job
+	job jobs.Job
 	GeneratorConfig
 }
 
@@ -43,7 +44,7 @@ type RenderContext interface {
 	ProjectBuild() string
 }
 
-func newGenerator(job *Job, config GeneratorConfig) *Generator {
+func NewGenerator(job jobs.Job, config GeneratorConfig) *Generator {
 	return &Generator{
 		job:             job,
 		GeneratorConfig: config,
@@ -77,7 +78,7 @@ func (g *Generator) GenerateUnits(ctx RenderContext, images Images, instanceCoun
 				DockerOptions: g.DockerOptions,
 				FleetOptions:  g.FleetOptions,
 			}
-			unitChains, err := tg.createUnits(genCtx)
+			unitChains, err := createTaskGroupUnits(tg, genCtx)
 			if err != nil {
 				return nil, maskAny(err)
 			}
@@ -94,7 +95,7 @@ func (g *Generator) GenerateUnits(ctx RenderContext, images Images, instanceCoun
 }
 
 // Should the group with given name be generated?
-func (g *Generator) include(groupName TaskGroupName) bool {
+func (g *Generator) include(groupName jobs.TaskGroupName) bool {
 	if len(g.Groups) == 0 {
 		// include all
 		return true

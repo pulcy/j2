@@ -17,12 +17,12 @@ package deployment
 import (
 	"fmt"
 
-	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/jobs/render"
 )
 
 type scalingGroupUnits struct {
 	scalingGroup uint
-	units        []jobs.UnitData
+	units        []render.UnitData
 }
 
 func (sgu scalingGroupUnits) unitNames() []string {
@@ -33,7 +33,7 @@ func (sgu scalingGroupUnits) unitNames() []string {
 	return names
 }
 
-func (sgu scalingGroupUnits) get(unitName string) (jobs.UnitData, error) {
+func (sgu scalingGroupUnits) get(unitName string) (render.UnitData, error) {
 	for _, u := range sgu.units {
 		if u.Name() == unitName {
 			return u, nil
@@ -42,14 +42,14 @@ func (sgu scalingGroupUnits) get(unitName string) (jobs.UnitData, error) {
 	return nil, maskAny(fmt.Errorf("unit '%s' not found", unitName))
 }
 
-func (sgu scalingGroupUnits) selectByNames(unitNames ...[]string) []jobs.UnitData {
+func (sgu scalingGroupUnits) selectByNames(unitNames ...[]string) []render.UnitData {
 	names := make(map[string]struct{})
 	for _, list := range unitNames {
 		for _, name := range list {
 			names[name] = struct{}{}
 		}
 	}
-	var result []jobs.UnitData
+	var result []render.UnitData
 	for _, u := range sgu.units {
 		if _, ok := names[u.Name()]; ok {
 			result = append(result, u)
@@ -61,7 +61,7 @@ func (sgu scalingGroupUnits) selectByNames(unitNames ...[]string) []jobs.UnitDat
 // generateScalingGroupUnits generates the unit files for the given scaling group and returns
 // their names and file names.
 func (d *Deployment) generateScalingGroupUnits(scalingGroup uint) (scalingGroupUnits, error) {
-	generator := d.job.Generate(jobs.GeneratorConfig{
+	generator := render.NewGenerator(d.job, render.GeneratorConfig{
 		Groups:              d.groupSelection,
 		CurrentScalingGroup: scalingGroup,
 		DockerOptions:       d.cluster.DockerOptions,

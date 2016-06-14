@@ -21,7 +21,7 @@ import (
 	"github.com/op/go-logging"
 	"github.com/spf13/cobra"
 
-	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/jobs/render"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 var (
 	projectVersion = "dev"
 	projectBuild   = "dev"
-	images         = jobs.Images{
+	images         = render.Images{
 		VaultMonkey: "pulcy/vault-monkey:latest",
 		Wormhole:    "pulcy/wormhole:latest",
 		Alpine:      "alpine:3.3",

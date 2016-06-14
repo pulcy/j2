@@ -12,23 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs
+package render
 
 import (
 	"strconv"
 
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 // createTimerUnit
-func (t *Task) createTimerUnit(ctx generatorContext) (*sdunits.Unit, error) {
+func createTimerUnit(t *jobs.Task, ctx generatorContext) (*sdunits.Unit, error) {
 	if t.Timer == "" {
 		return nil, nil
 	}
 	unit := &sdunits.Unit{
-		Name:         t.unitName(unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))),
-		FullName:     t.unitName(unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))) + ".timer",
-		Description:  t.unitDescription("Timer", ctx.ScalingGroup),
+		Name:         unitName(t, unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))),
+		FullName:     unitName(t, unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))) + ".timer",
+		Description:  unitDescription(t, "Timer", ctx.ScalingGroup),
 		Type:         "timer",
 		Scalable_:    false, //    t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
@@ -36,9 +37,9 @@ func (t *Task) createTimerUnit(ctx generatorContext) (*sdunits.Unit, error) {
 		FleetOptions: sdunits.NewFleetOptions(),
 	}
 	unit.ExecOptions.OnCalendar = t.Timer
-	unit.ExecOptions.Unit = t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
+	unit.ExecOptions.Unit = unitName(t, unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
 
-	t.AddFleetOptions(ctx.FleetOptions, unit)
+	addFleetOptions(t, ctx.FleetOptions, unit)
 
 	return unit, nil
 }

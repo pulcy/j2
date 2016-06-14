@@ -22,6 +22,7 @@ import (
 	"github.com/ryanuber/columnize"
 
 	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/jobs/render"
 	"github.com/pulcy/j2/pkg/fleet"
 )
 
@@ -236,7 +237,7 @@ func normalizeUnitContent(content string) []string {
 }
 
 type unitDataList struct {
-	units []jobs.UnitData
+	units []render.UnitData
 }
 
 func (l *unitDataList) Len() int {
@@ -247,7 +248,7 @@ func (l *unitDataList) Get(index int) fleet.UnitData {
 	return l.units[index]
 }
 
-func launchUnits(f fleet.FleetTunnel, units []jobs.UnitData, ui *stateUI) error {
+func launchUnits(f fleet.FleetTunnel, units []render.UnitData, ui *stateUI) error {
 	ui.Verbosef("Starting %#v\n", units)
 
 	ui.MessageSink <- fmt.Sprintf("Starting %d unit(s)", len(units))

@@ -12,32 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs
+package render
 
-type UnitData interface {
-	Name() string
-	Content() string
-}
+import (
+	"github.com/juju/errgo"
+)
 
-type unitData struct {
-	name    string
-	content string
-}
+var (
+	TaskNotFoundError = errgo.New("task not found")
+	ValidationError   = errgo.New("validation failed")
 
-func newUnitData(name, content string) UnitData {
-	return &unitData{
-		name:    name,
-		content: content,
-	}
-}
-
-func (u *unitData) String() string {
-	return u.name
-}
-
-func (u *unitData) Name() string {
-	return u.name
-}
-func (u *unitData) Content() string {
-	return u.content
-}
+	maskAny = errgo.MaskFunc(errgo.Any)
+)

@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	metaAttributePrefix = "meta."
-	attributeNodeID     = "node.id"
+	MetaAttributePrefix = "meta."
+	AttributeNodeID     = "node.id"
 )
 
 // Constraint contains a specification of a scheduling constraint.
