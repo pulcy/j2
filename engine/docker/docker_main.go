@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package render
+package docker
 
 import (
 	"fmt"
@@ -25,10 +25,10 @@ import (
 
 // createMainDockerCmdLine creates the `ExecStart` line for
 // the main unit.
-func createMainDockerCmdLine(t *jobs.Task, image string, env map[string]string, ctx generatorContext) (cmdline.Cmdline, error) {
+func (e *dockerEngine) createMainDockerCmdLine(t *jobs.Task, image string, env map[string]string, scalingGroup uint) (cmdline.Cmdline, error) {
 	serviceName := t.ServiceName()
 	var cmd cmdline.Cmdline
-	cmd.Add(nil, "/usr/bin/docker", "run", "--rm", fmt.Sprintf("--name %s", t.ContainerName(ctx.ScalingGroup)))
+	cmd.Add(nil, e.dockerPath, "run", "--rm", fmt.Sprintf("--name %s", t.ContainerName(scalingGroup)))
 	if len(t.Ports) > 0 {
 		for _, p := range t.Ports {
 			cmd.Add(env, fmt.Sprintf("-p %s", p))
@@ -40,12 +40,12 @@ func createMainDockerCmdLine(t *jobs.Task, image string, env map[string]string, 
 		if v.IsLocal() {
 			cmd.Add(env, fmt.Sprintf("-v %s", v))
 		} else if !v.IsLocal() {
-			cmd.Add(env, fmt.Sprintf("--volumes-from %s", createVolumeUnitContainerName(t, i, ctx)))
+			cmd.Add(env, fmt.Sprintf("--volumes-from %s", createVolumeUnitContainerName(t, i, scalingGroup)))
 		}
 	}
 	for _, secret := range t.Secrets {
 		if ok, path := secret.TargetFile(); ok {
-			hostPath, err := secretFilePath(t, ctx.ScalingGroup, secret)
+			hostPath, err := secretFilePath(t, scalingGroup, secret)
 			if err != nil {
 				return cmdline.Cmdline{}, maskAny(err)
 			}
@@ -59,24 +59,24 @@ func createMainDockerCmdLine(t *jobs.Task, image string, env map[string]string, 
 		}
 		for i, v := range other.Volumes {
 			if !v.IsLocal() {
-				cmd.Add(env, fmt.Sprintf("--volumes-from %s", createVolumeUnitContainerName(other, i, ctx)))
+				cmd.Add(env, fmt.Sprintf("--volumes-from %s", createVolumeUnitContainerName(other, i, scalingGroup)))
 			}
 		}
-		cmd.Add(env, fmt.Sprintf("--volumes-from %s", other.ContainerName(ctx.ScalingGroup)))
+		cmd.Add(env, fmt.Sprintf("--volumes-from %s", other.ContainerName(scalingGroup)))
 	}
 	envKeys := []string{}
 	for k := range t.Environment {
 		envKeys = append(envKeys, k)
 	}
 	sort.Strings(envKeys)
-	if ctx.DockerOptions.EnvFile != "" {
-		cmd.Add(env, fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile))
+	if e.options.EnvFile != "" {
+		cmd.Add(env, fmt.Sprintf("--env-file=%s", e.options.EnvFile))
 	}
 	for _, k := range envKeys {
 		cmd.Add(env, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, t.Environment[k])))
 	}
 	if hasEnvironmentSecrets(t) {
-		cmd.Add(env, "--env-file="+secretEnvironmentPath(t, ctx.ScalingGroup))
+		cmd.Add(env, "--env-file="+secretEnvironmentPath(t, scalingGroup))
 	}
 	cmd.Add(env, fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
 	for _, cap := range t.Capabilities {
@@ -89,12 +89,12 @@ func createMainDockerCmdLine(t *jobs.Task, image string, env map[string]string, 
 			cmd.Add(env, "--add-host")
 			cmd.Add(env, fmt.Sprintf("%s:${COREOS_PRIVATE_IPV4}", targetName))
 		} else {
-			linkContainerName := fmt.Sprintf("%s-pr%d", t.ContainerName(ctx.ScalingGroup), tcpLinkIndex)
+			linkContainerName := fmt.Sprintf("%s-pr%d", t.ContainerName(scalingGroup), tcpLinkIndex)
 			cmd.Add(env, fmt.Sprintf("--link %s:%s", linkContainerName, targetName))
 			tcpLinkIndex++
 		}
 	}
-	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
+	for _, arg := range t.LogDriver.CreateDockerLogArgs(e.options) {
 		cmd.Add(env, arg)
 	}
 	for _, arg := range t.DockerArgs {
@@ -113,4 +113,15 @@ func createMainDockerCmdLine(t *jobs.Task, image string, env map[string]string, 
 	}
 
 	return cmd, nil
+}
+
+// hasEnvironmentSecrets returns true if the given task has secrets that should
+// be stored in an environment variable. False otherwise.
+func hasEnvironmentSecrets(t *jobs.Task) bool {
+	for _, secret := range t.Secrets {
+		if ok, _ := secret.TargetEnviroment(); ok {
+			return true
+		}
+	}
+	return false
 }

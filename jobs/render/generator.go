@@ -31,13 +31,6 @@ type Generator struct {
 	GeneratorConfig
 }
 
-type Images struct {
-	VaultMonkey string // Docker image name of vault-monkey
-	Wormhole    string // Docker image name of wormhole
-	Alpine      string // Docker image name of alpine linux
-	CephVolume  string // Docker image name of ceph-volume
-}
-
 type RenderContext interface {
 	ProjectName() string
 	ProjectVersion() string
@@ -54,12 +47,11 @@ func NewGenerator(job jobs.Job, config GeneratorConfig) *Generator {
 type generatorContext struct {
 	ScalingGroup  uint
 	InstanceCount int
-	Images
 	DockerOptions cluster.DockerOptions
 	FleetOptions  cluster.FleetOptions
 }
 
-func (g *Generator) GenerateUnits(ctx RenderContext, images Images, instanceCount int) ([]UnitData, error) {
+func (g *Generator) GenerateUnits(ctx RenderContext, instanceCount int) ([]UnitData, error) {
 	units := []UnitData{}
 	maxCount := g.job.MaxCount()
 	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
@@ -74,7 +66,6 @@ func (g *Generator) GenerateUnits(ctx RenderContext, images Images, instanceCoun
 			genCtx := generatorContext{
 				ScalingGroup:  scalingGroup,
 				InstanceCount: instanceCount,
-				Images:        images,
 				DockerOptions: g.DockerOptions,
 				FleetOptions:  g.FleetOptions,
 			}

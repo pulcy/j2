@@ -16,8 +16,11 @@ package render
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/pulcy/j2/engine"
+	"github.com/pulcy/j2/engine/docker"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
 )
@@ -42,13 +45,14 @@ var (
 func createTaskUnits(t *jobs.Task, ctx generatorContext) ([]sdunits.UnitChain, error) {
 	mainChain := sdunits.UnitChain{}
 
+	engine := newEngine(t, ctx)
 	sidekickUnitNames := []string{}
 	for _, l := range t.Links {
 		if !l.Type.IsTCP() {
 			continue
 		}
 		linkIndex := len(sidekickUnitNames)
-		unit, err := createProxyUnit(t, l, linkIndex, ctx)
+		unit, err := createProxyUnit(t, l, linkIndex, engine, ctx)
 		if err != nil {
 			return nil, maskAny(err)
 		}
@@ -60,7 +64,7 @@ func createTaskUnits(t *jobs.Task, ctx generatorContext) ([]sdunits.UnitChain, e
 		if v.IsLocal() {
 			continue
 		}
-		unit, err := createVolumeUnit(t, v, i, ctx)
+		unit, err := createVolumeUnit(t, v, i, engine, ctx)
 		if err != nil {
 			return nil, maskAny(err)
 		}
@@ -68,7 +72,7 @@ func createTaskUnits(t *jobs.Task, ctx generatorContext) ([]sdunits.UnitChain, e
 		mainChain = append(mainChain, unit)
 	}
 
-	main, err := createMainUnit(t, sidekickUnitNames, ctx)
+	main, err := createMainUnit(t, sidekickUnitNames, engine, ctx)
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -88,13 +92,23 @@ func createTaskUnits(t *jobs.Task, ctx generatorContext) ([]sdunits.UnitChain, e
 	return chains, nil
 }
 
+// newEngine creates a new Engine for the given task.
+func newEngine(t *jobs.Task, ctx generatorContext) engine.Engine {
+	return docker.NewDockerEngine(ctx.DockerOptions)
+}
+
 // unitName returns the name of the systemd unit for this task.
-func unitName(t *jobs.Task, kind string, scalingGroup string) string {
+func unitName(t *jobs.Task, kind string, scalingGroup uint) string {
+	return unitNameExt(t, kind, strconv.Itoa(int(scalingGroup)))
+}
+
+// unitNameExt returns the name of the systemd unit for this task.
+func unitNameExt(t *jobs.Task, kind string, scalingGroup string) string {
 	base := strings.Replace(t.FullName(), "/", "-", -1) + kind
 	if t.GroupGlobal() && t.GroupCount() == 1 {
 		return base
 	}
-	return fmt.Sprintf("%s@%s", base, scalingGroup)
+	return fmt.Sprintf("%s@%v", base, scalingGroup)
 }
 
 // unitDescription creates the description of a unit
@@ -104,15 +118,4 @@ func unitDescription(t *jobs.Task, prefix string, scalingGroup uint) string {
 		descriptionPostfix = "[global]"
 	}
 	return fmt.Sprintf("%s unit for %s %s", prefix, t.FullName(), descriptionPostfix)
-}
-
-// hasEnvironmentSecrets returns true if the given task has secrets that should
-// be stored in an environment variable. False otherwise.
-func hasEnvironmentSecrets(t *jobs.Task) bool {
-	for _, secret := range t.Secrets {
-		if ok, _ := secret.TargetEnviroment(); ok {
-			return true
-		}
-	}
-	return false
 }

@@ -38,7 +38,7 @@ func setupInstanceConstraints(t *jobs.Task, unit *sdunits.Unit, unitKind string,
 				unit.FleetOptions.MachineMetadata(constraint)
 			}
 		} else {
-			unit.FleetOptions.Conflicts(unitName(t, unitKind, "*") + ".service")
+			unit.FleetOptions.Conflicts(unitNameExt(t, unitKind, "*") + ".service")
 		}
 	}
 	return nil

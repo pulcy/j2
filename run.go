@@ -67,8 +67,7 @@ func runRun(cmd *cobra.Command, args []string) {
 		runFlags.AutoContinue,
 		globalFlags.verbose,
 		delays,
-		renderCtx,
-		images)
+		renderCtx)
 
 	if runFlags.DryRun {
 		assert(d.DryRun())

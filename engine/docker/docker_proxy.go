@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package render
+package docker
 
 import (
 	"fmt"
@@ -23,18 +23,18 @@ import (
 
 // createProxyDockerCmdLine creates the `ExecStart` line for
 // the proxy unit.
-func createProxyDockerCmdLine(t *jobs.Task, containerName, containerImage string, link jobs.Link, env map[string]string, ctx generatorContext) (cmdline.Cmdline, error) {
+func (e *dockerEngine) createProxyDockerCmdLine(t *jobs.Task, containerName, containerImage string, link jobs.Link, env map[string]string, scalingGroup uint) (cmdline.Cmdline, error) {
 	var cmd cmdline.Cmdline
-	cmd.Add(nil, "/usr/bin/docker", "run", "--rm", fmt.Sprintf("--name %s", containerName))
+	cmd.Add(nil, e.dockerPath, "run", "--rm", fmt.Sprintf("--name %s", containerName))
 	for _, p := range link.Ports {
 		cmd.Add(env, fmt.Sprintf("--expose %d", p))
 	}
 	cmd.Add(env, "-P")
-	if ctx.DockerOptions.EnvFile != "" {
-		cmd.Add(env, fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile))
+	if e.options.EnvFile != "" {
+		cmd.Add(env, fmt.Sprintf("--env-file=%s", e.options.EnvFile))
 	}
 	cmd.Add(env, "-e SERVICE_IGNORE=true") // Support registrator
-	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
+	for _, arg := range t.LogDriver.CreateDockerLogArgs(e.options) {
 		cmd.Add(env, arg)
 	}
 

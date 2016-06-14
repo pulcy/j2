@@ -68,7 +68,7 @@ func (d *Deployment) generateScalingGroupUnits(scalingGroup uint) (scalingGroupU
 		FleetOptions:        d.cluster.FleetOptions,
 	})
 
-	units, err := generator.GenerateUnits(d.renderContext, d.images, d.cluster.InstanceCount)
+	units, err := generator.GenerateUnits(d.renderContext, d.cluster.InstanceCount)
 	if err != nil {
 		return scalingGroupUnits{}, maskAny(err)
 	}

@@ -15,8 +15,6 @@
 package render
 
 import (
-	"strconv"
-
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
 )
@@ -27,8 +25,8 @@ func createTimerUnit(t *jobs.Task, ctx generatorContext) (*sdunits.Unit, error) 
 		return nil, nil
 	}
 	unit := &sdunits.Unit{
-		Name:         unitName(t, unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))),
-		FullName:     unitName(t, unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))) + ".timer",
+		Name:         unitName(t, unitKindTimer, ctx.ScalingGroup),
+		FullName:     unitName(t, unitKindTimer, ctx.ScalingGroup) + ".timer",
 		Description:  unitDescription(t, "Timer", ctx.ScalingGroup),
 		Type:         "timer",
 		Scalable_:    false, //    t.group.IsScalable(),
@@ -37,7 +35,7 @@ func createTimerUnit(t *jobs.Task, ctx generatorContext) (*sdunits.Unit, error) 
 		FleetOptions: sdunits.NewFleetOptions(),
 	}
 	unit.ExecOptions.OnCalendar = t.Timer
-	unit.ExecOptions.Unit = unitName(t, unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
+	unit.ExecOptions.Unit = unitName(t, unitKindMain, ctx.ScalingGroup) + ".service"
 
 	addFleetOptions(t, ctx.FleetOptions, unit)
 

@@ -30,6 +30,7 @@ import (
 	"github.com/op/go-logging"
 
 	"github.com/pulcy/j2/cluster"
+	"github.com/pulcy/j2/engine/docker"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/jobs/render"
@@ -289,10 +290,10 @@ func testUnits(t *testing.T, job jobs.Job, cl cluster.Cluster, expectedUnitNames
 		projectVersion: "test-version",
 		projectBuild:   "test-build",
 	}
-	images := render.Images{
+	docker.SetupImages(docker.Images{
 		VaultMonkey: "pulcy/vault-monkey:latest",
-	}
-	units, err := generator.GenerateUnits(ctx, images, cl.InstanceCount)
+	})
+	units, err := generator.GenerateUnits(ctx, cl.InstanceCount)
 	if err != nil {
 		t.Fatalf("GenerateUnits failed for instance-count %d: %#v", cl.InstanceCount, maskAny(err))
 	}

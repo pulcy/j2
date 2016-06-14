@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package render
+package docker
 
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/pkg/cmdline"
 )
 
 const (
@@ -27,7 +27,7 @@ const (
 )
 
 // createSecretsUnit creates a unit used to extract secrets from vault
-func createSecretsExecStartPre(t *jobs.Task, env map[string]string, ctx generatorContext) ([]string, error) {
+func (e *dockerEngine) createSecretsExecStartPre(t *jobs.Task, containerImage string, env map[string]string, scalingGroup uint) ([]cmdline.Cmdline, error) {
 	if len(t.Secrets) == 0 {
 		// No secrets to extract
 		return nil, nil
@@ -39,94 +39,77 @@ func createSecretsExecStartPre(t *jobs.Task, env map[string]string, ctx generato
 	}
 
 	// Prepare volume paths
-	secretsRoot := secretsRootPath(t, ctx.ScalingGroup)
+	secretsRoot := secretsRootPath(t, scalingGroup)
 	secretsRootVol := fmt.Sprintf("%s:%s", secretsRoot, secretsRoot)
 	vaultCrtVol := "/etc/pulcy/vault.crt:/etc/pulcy/vault.crt:ro"
 	clusterIdVol := "/etc/pulcy/cluster-id:/etc/pulcy/cluster-id:ro"
 	machineIdVol := "/etc/machine-id:/etc/machine-id:ro"
 
-	cmds := [][]string{}
+	var cmds []cmdline.Cmdline
+	cmds = append(cmds,
+		*cmdline.New(nil, "/usr/bin/mkdir", "-p", secretsRoot),
+		e.pullCmd(containerImage),
+	)
 	envPaths := []string{}
 	for _, secret := range t.Secrets {
 		if ok, _ := secret.TargetFile(); ok {
-			targetPath, err := secretFilePath(t, ctx.ScalingGroup, secret)
+			targetPath, err := secretFilePath(t, scalingGroup, secret)
 			if err != nil {
 				return nil, maskAny(err)
 			}
-			cmd := []string{
-				"/usr/bin/docker",
-				"run",
-				"--rm",
-			}
-			//addArg(fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)), &cmd, env)
-			addArg("--net=host", &cmd, env)
-			addArg("-v "+secretsRootVol, &cmd, env)
-			addArg("-v "+vaultCrtVol, &cmd, env)
-			addArg("-v "+clusterIdVol, &cmd, env)
-			addArg("-v "+machineIdVol, &cmd, env)
-			addArg("--env-file /etc/pulcy/vault.env", &cmd, env)
+			var cmd cmdline.Cmdline
+			cmd.Add(nil, e.dockerPath, "run", "--rm")
+			//cmd.Add(env, fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)))
+			cmd.Add(env, "--net=host")
+			cmd.Add(env, "-v "+secretsRootVol)
+			cmd.Add(env, "-v "+vaultCrtVol)
+			cmd.Add(env, "-v "+clusterIdVol)
+			cmd.Add(env, "-v "+machineIdVol)
+			cmd.Add(env, "--env-file /etc/pulcy/vault.env")
 			/*if ctx.DockerOptions.EnvFile != "" {
-				addArg(fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile), &cmd, env)
+				cmd.Add(env,fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile))
 			}*/
-			for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
-				addArg(arg, &cmd, env)
+			for _, arg := range t.LogDriver.CreateDockerLogArgs(e.options) {
+				cmd.Add(env, arg)
 			}
-			addArg(ctx.Images.VaultMonkey, &cmd, env)
-			cmd = append(cmd,
-				"extract",
-				"file",
-			)
-			addArg("--target "+targetPath, &cmd, env)
-			addArg("--job-id "+jobID, &cmd, env)
-			addArg(secret.VaultPath(), &cmd, env)
+			cmd.Add(env, containerImage)
+			cmd.Add(nil, "extract", "file")
+			cmd.Add(env, "--target "+targetPath)
+			cmd.Add(env, "--job-id "+jobID)
+			cmd.Add(env, secret.VaultPath())
 			cmds = append(cmds, cmd)
 		} else if ok, environmentKey := secret.TargetEnviroment(); ok {
 			envPaths = append(envPaths, fmt.Sprintf("%s=%s", environmentKey, secret.VaultPath()))
 		}
 	}
 	if len(envPaths) > 0 {
-		targetPath := secretEnvironmentPath(t, ctx.ScalingGroup)
-		cmd := []string{
-			"/usr/bin/docker",
-			"run",
-			"--rm",
-		}
-		//addArg(fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)), &cmd, env)
-		addArg("--net=host", &cmd, env)
-		addArg("-v "+secretsRootVol, &cmd, env)
-		addArg("-v "+vaultCrtVol, &cmd, env)
-		addArg("-v "+clusterIdVol, &cmd, env)
-		addArg("-v "+machineIdVol, &cmd, env)
-		addArg("--env-file /etc/pulcy/vault.env", &cmd, env)
+		targetPath := secretEnvironmentPath(t, scalingGroup)
+		var cmd cmdline.Cmdline
+		cmd.Add(nil, e.dockerPath, "run", "--rm")
+		//cmd.Add(env, fmt.Sprintf("--name %s-sc", t.containerName(ctx.ScalingGroup)))
+		cmd.Add(env, "--net=host")
+		cmd.Add(env, "-v "+secretsRootVol)
+		cmd.Add(env, "-v "+vaultCrtVol)
+		cmd.Add(env, "-v "+clusterIdVol)
+		cmd.Add(env, "-v "+machineIdVol)
+		cmd.Add(env, "--env-file /etc/pulcy/vault.env")
 		/*if ctx.DockerOptions.EnvFile != "" {
-			addArg(fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile), &cmd, env)
+			cmd.Add(env, fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile))
 		}*/
-		for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
-			addArg(arg, &cmd, env)
+		for _, arg := range t.LogDriver.CreateDockerLogArgs(e.options) {
+			cmd.Add(env, arg)
 		}
-		addArg(ctx.Images.VaultMonkey, &cmd, env)
-		cmd = append(cmd,
-			"extract",
-			"env",
-		)
-		addArg("--target "+targetPath, &cmd, env)
-		addArg("--job-id "+jobID, &cmd, env)
+		cmd.Add(env, containerImage)
+		cmd.Add(nil, "extract", "env")
+		cmd.Add(env, "--target "+targetPath)
+		cmd.Add(env, "--job-id "+jobID)
 		for _, envPath := range envPaths {
-			addArg(envPath, &cmd, env)
+			cmd.Add(env, envPath)
 		}
 		cmds = append(cmds, cmd)
 	}
 
-	// Create ExecStartPre result
-	result := []string{
-		fmt.Sprintf("/usr/bin/mkdir -p %s", secretsRoot),
-		fmt.Sprintf("/usr/bin/docker pull %s", ctx.Images.VaultMonkey),
-	}
-	for _, cmd := range cmds {
-		result = append(result, strings.Join(cmd, " "))
-	}
-
-	return result, nil
+	return cmds, nil
 }
 
 // secretsRootPath returns the path of the root directory that will contain secret files for the given task.

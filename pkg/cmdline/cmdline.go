@@ -14,6 +14,12 @@ const (
 	shortArgLen = 4
 )
 
+// New creates a new Cmdline filled with the given initial arguments
+func New(env map[string]string, args ...string) *Cmdline {
+	cmd := &Cmdline{}
+	return cmd.Add(env, args...)
+}
+
 // Add creates an environment variable for the given argument and adds that environment variable to the given commandline.
 // If the given argument is short or it contains a '$', it is added directly.
 func (c *Cmdline) Add(env map[string]string, args ...string) *Cmdline {
