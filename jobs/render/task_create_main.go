@@ -16,11 +16,7 @@ package render
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
-	"strings"
-
-	"github.com/juju/errgo"
 
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
@@ -48,7 +44,7 @@ func createMainUnit(t *jobs.Task, sidekickUnitNames []string, ctx generatorConte
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	main.ExecOptions.ExecStart = strings.Join(execStart, " ")
+	main.ExecOptions.ExecStart = execStart.String()
 	switch t.Type {
 	case "oneshot":
 		main.ExecOptions.IsOneshot = true
@@ -127,102 +123,6 @@ func createMainUnit(t *jobs.Task, sidekickUnitNames []string, ctx generatorConte
 	return main, nil
 }
 
-// createMainDockerCmdLine creates the `ExecStart` line for
-// the main unit.
-func createMainDockerCmdLine(t *jobs.Task, image string, env map[string]string, ctx generatorContext) ([]string, error) {
-	serviceName := t.ServiceName()
-	execStart := []string{
-		"/usr/bin/docker",
-		"run",
-		"--rm",
-		fmt.Sprintf("--name %s", t.ContainerName(ctx.ScalingGroup)),
-	}
-	if len(t.Ports) > 0 {
-		for _, p := range t.Ports {
-			addArg(fmt.Sprintf("-p %s", p), &execStart, env)
-		}
-	} else {
-		execStart = append(execStart, "-P")
-	}
-	for i, v := range t.Volumes {
-		if v.IsLocal() {
-			addArg(fmt.Sprintf("-v %s", v), &execStart, env)
-		} else if !v.IsLocal() {
-			addArg(fmt.Sprintf("--volumes-from %s", createVolumeUnitContainerName(t, i, ctx)), &execStart, env)
-		}
-	}
-	for _, secret := range t.Secrets {
-		if ok, path := secret.TargetFile(); ok {
-			hostPath, err := secretFilePath(t, ctx.ScalingGroup, secret)
-			if err != nil {
-				return nil, maskAny(err)
-			}
-			addArg(fmt.Sprintf("-v %s:%s:ro", hostPath, path), &execStart, env)
-		}
-	}
-	for _, name := range t.VolumesFrom {
-		other, err := t.Task(name)
-		if err != nil {
-			return nil, maskAny(err)
-		}
-		for i, v := range other.Volumes {
-			if !v.IsLocal() {
-				addArg(fmt.Sprintf("--volumes-from %s", createVolumeUnitContainerName(other, i, ctx)), &execStart, env)
-			}
-		}
-		addArg(fmt.Sprintf("--volumes-from %s", other.ContainerName(ctx.ScalingGroup)), &execStart, env)
-	}
-	envKeys := []string{}
-	for k := range t.Environment {
-		envKeys = append(envKeys, k)
-	}
-	sort.Strings(envKeys)
-	if ctx.DockerOptions.EnvFile != "" {
-		addArg(fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile), &execStart, env)
-	}
-	for _, k := range envKeys {
-		addArg("-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, t.Environment[k])), &execStart, env)
-	}
-	if hasEnvironmentSecrets(t) {
-		addArg("--env-file="+secretEnvironmentPath(t, ctx.ScalingGroup), &execStart, env)
-	}
-	addArg(fmt.Sprintf("-e SERVICE_NAME=%s", serviceName), &execStart, env) // Support registrator
-	for _, cap := range t.Capabilities {
-		addArg("--cap-add "+cap, &execStart, env)
-	}
-	tcpLinkIndex := 0
-	for _, l := range t.Links {
-		targetName := l.Target.PrivateDomainName()
-		if l.Type.IsHTTP() {
-			addArg("--add-host", &execStart, env)
-			addArg(fmt.Sprintf("%s:${COREOS_PRIVATE_IPV4}", targetName), &execStart, env)
-		} else {
-			linkContainerName := fmt.Sprintf("%s-pr%d", t.ContainerName(ctx.ScalingGroup), tcpLinkIndex)
-			addArg(fmt.Sprintf("--link %s:%s", linkContainerName, targetName), &execStart, env)
-			tcpLinkIndex++
-		}
-	}
-	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
-		addArg(arg, &execStart, env)
-	}
-	for _, arg := range t.DockerArgs {
-		addArg(arg, &execStart, env)
-	}
-	if t.User != "" {
-		addArg(fmt.Sprintf("--user %s", t.User), &execStart, env)
-	}
-
-	execStart = append(execStart, image)
-	if t.Type == "proxy" {
-		execStart = append(execStart, "sleep 36500d")
-	}
-	for _, arg := range t.Args {
-		addArg(arg, &execStart, env)
-	}
-
-	return execStart, nil
-}
-
 // createMainAfter creates the `After=` sequence for the main unit
 func createMainAfter(t *jobs.Task, sidekickUnitNames []string, ctx generatorContext) ([]string, error) {
 	after := append([]string{}, commonAfter...)
@@ -253,48 +153,4 @@ func createMainRequires(t *jobs.Task, sidekickUnitNames []string, ctx generatorC
 	}
 
 	return requires, nil
-}
-
-func setupInstanceConstraints(t *jobs.Task, unit *sdunits.Unit, unitKind string, ctx generatorContext) error {
-	unit.FleetOptions.IsGlobal = t.GroupGlobal()
-	if ctx.InstanceCount > 1 {
-		if t.GroupGlobal() {
-			if t.GroupCount() > 1 {
-				// Setup metadata constraint such that instances are only scheduled on some machines
-				if int(t.GroupCount()) > len(ctx.FleetOptions.GlobalInstanceConstraints) {
-					// Group count to high
-					return maskAny(errgo.WithCausef(nil, ValidationError, "Group count (%d) higher than #global instance constraints (%d)", t.GroupCount(), len(ctx.FleetOptions.GlobalInstanceConstraints)))
-				}
-				constraint := ctx.FleetOptions.GlobalInstanceConstraints[ctx.ScalingGroup-1]
-				unit.FleetOptions.MachineMetadata(constraint)
-			}
-		} else {
-			unit.FleetOptions.Conflicts(unitName(t, unitKind, "*") + ".service")
-		}
-	}
-	return nil
-}
-
-// setupConstraints creates constraint keys for the `X-Fleet` section for the main unit
-func setupConstraints(t *jobs.Task, unit *sdunits.Unit) error {
-	constraints := t.MergedConstraints()
-
-	metadata := []string{}
-	for _, c := range constraints {
-		if strings.HasPrefix(c.Attribute, jobs.MetaAttributePrefix) {
-			// meta.<somekey>
-			key := c.Attribute[len(jobs.MetaAttributePrefix):]
-			metadata = append(metadata, fmt.Sprintf("%s=%s", key, c.Value))
-		} else {
-			switch c.Attribute {
-			case jobs.AttributeNodeID:
-				unit.FleetOptions.MachineID = c.Value
-			default:
-				return errgo.WithCausef(nil, ValidationError, "Unknown constraint attribute '%s'", c.Attribute)
-			}
-		}
-	}
-	unit.FleetOptions.MachineMetadata(metadata...)
-
-	return nil
 }

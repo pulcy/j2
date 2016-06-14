@@ -17,7 +17,6 @@ package render
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
@@ -43,7 +42,7 @@ func createProxyUnit(t *jobs.Task, link jobs.Link, linkIndex int, ctx generatorC
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	unit.ExecOptions.ExecStart = strings.Join(execStart, " ")
+	unit.ExecOptions.ExecStart = execStart.String()
 	unit.ExecOptions.Restart = "always"
 
 	unit.ExecOptions.ExecStartPre = []string{
@@ -93,35 +92,6 @@ func createProxyUnit(t *jobs.Task, link jobs.Link, linkIndex int, ctx generatorC
 	addFleetOptions(t, ctx.FleetOptions, unit)
 
 	return unit, nil
-}
-
-// createProxyDockerCmdLine creates the `ExecStart` line for
-// the proxy unit.
-func createProxyDockerCmdLine(t *jobs.Task, containerName, containerImage string, link jobs.Link, env map[string]string, ctx generatorContext) ([]string, error) {
-	execStart := []string{
-		"/usr/bin/docker",
-		"run",
-		"--rm",
-		fmt.Sprintf("--name %s", containerName),
-	}
-	for _, p := range link.Ports {
-		addArg(fmt.Sprintf("--expose %d", p), &execStart, env)
-	}
-	addArg("-P", &execStart, env)
-	if ctx.DockerOptions.EnvFile != "" {
-		addArg(fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile), &execStart, env)
-	}
-	addArg("-e SERVICE_IGNORE=true", &execStart, env) // Support registrator
-	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
-		addArg(arg, &execStart, env)
-	}
-
-	execStart = append(execStart, containerImage)
-	execStart = append(execStart,
-		fmt.Sprintf("--etcd-addr http://${COREOS_PRIVATE_IPV4}:2379/pulcy/service/%s", link.Target.EtcdServiceName()),
-	)
-
-	return execStart, nil
 }
 
 // createProxyAfter creates the `After=` sequence for the proxy unit

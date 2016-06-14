@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"path"
 	"strconv"
-	"strings"
 
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
@@ -46,7 +45,7 @@ func createVolumeUnit(t *jobs.Task, vol jobs.Volume, volIndex int, ctx generator
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	unit.ExecOptions.ExecStart = strings.Join(execStart, " ")
+	unit.ExecOptions.ExecStart = execStart.String()
 	unit.ExecOptions.Restart = "always"
 
 	unit.ExecOptions.ExecStartPre = []string{
@@ -97,41 +96,6 @@ func createVolumeUnit(t *jobs.Task, vol jobs.Volume, volIndex int, ctx generator
 	addFleetOptions(t, ctx.FleetOptions, unit)
 
 	return unit, nil
-}
-
-// createVolumeDockerCmdLine creates the `ExecStart` line for
-// the volume unit.
-func createVolumeDockerCmdLine(t *jobs.Task, containerName, containerImage string, vol jobs.Volume, volPrefix, volHostPath string, env map[string]string, ctx generatorContext) ([]string, error) {
-	execStart := []string{
-		"/usr/bin/docker",
-		"run",
-		"--rm",
-		fmt.Sprintf("--name %s", containerName),
-		"--net=host",
-		"--privileged",
-	}
-	addArg(fmt.Sprintf("-v %s:%s:shared", volHostPath, vol.Path), &execStart, env)
-	addArg("-v /usr/bin/etcdctl:/usr/bin/etcdctl", &execStart, env)
-	if ctx.DockerOptions.EnvFile != "" {
-		addArg(fmt.Sprintf("--env-file=%s", ctx.DockerOptions.EnvFile), &execStart, env)
-	}
-	addArg("-e SERVICE_IGNORE=true", &execStart, env) // Support registrator
-	addArg("-e PREFIX="+volPrefix, &execStart, env)
-	addArg("-e TARGET="+vol.Path, &execStart, env)
-	addArg("-e WAIT=1", &execStart, env)
-	if v, err := vol.MountOption("uid"); err == nil {
-		addArg("-e UID="+v, &execStart, env)
-	}
-	if v, err := vol.MountOption("gid"); err == nil {
-		addArg("-e GID="+v, &execStart, env)
-	}
-	for _, arg := range t.LogDriver.CreateDockerLogArgs(ctx.DockerOptions) {
-		addArg(arg, &execStart, env)
-	}
-
-	execStart = append(execStart, containerImage)
-
-	return execStart, nil
 }
 
 // createVolumeAfter creates the `After=` sequence for the volume unit
