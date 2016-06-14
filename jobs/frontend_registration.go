@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/nyarla/go-crypt"
+	"github.com/pulcy/robin-api"
 
 	"github.com/pulcy/j2/pkg/sdunits"
 )
@@ -28,36 +29,6 @@ import (
 var (
 	FixedPwhashSalt string // If set, this salt will be used for all pwhash's (only used for testing)
 )
-
-type frontendRecord struct {
-	Selectors       []frontendSelectorRecord `json:"selectors"`
-	Service         string                   `json:"service,omitempty"`
-	Mode            string                   `json:"mode,omitempty"` // http|tcp
-	HttpCheckPath   string                   `json:"http-check-path,omitempty"`
-	HttpCheckMethod string                   `json:"http-check-method,omitempty"`
-	Sticky          bool                     `json:"sticky,omitempty"`
-}
-
-type frontendSelectorRecord struct {
-	Weight       int           `json:"weight,omitempty"`
-	Domain       string        `json:"domain,omitempty"`
-	PathPrefix   string        `json:"path-prefix,omitempty"`
-	SslCert      string        `json:"ssl-cert,omitempty"`
-	Port         int           `json:"port,omitempty"`
-	Private      bool          `json:"private,omitempty"`
-	Users        []userRecord  `json:"users,omitempty"`
-	RewriteRules []rewriteRule `json:"rewrite-rules,omitempty"`
-}
-
-type userRecord struct {
-	Name         string `json:"user"`
-	PasswordHash string `json:"pwhash"`
-}
-
-type rewriteRule struct {
-	PathPrefix string `json:"path-prefix,omitempty"`
-	Domain     string `json:"domain,omitempty"`
-}
 
 // addFrontEndRegistration adds registration code for frontends to the given units
 func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext) error {
@@ -70,22 +41,22 @@ func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext)
 		targetServiceName = t.Target.etcdServiceName()
 	}
 	key := fmt.Sprintf("/pulcy/frontend/%s-%d", serviceName, ctx.ScalingGroup)
-	record := frontendRecord{
+	record := api.FrontendRecord{
 		Service:         targetServiceName,
 		HttpCheckPath:   t.HttpCheckPath,
 		HttpCheckMethod: t.HttpCheckMethod,
 		Sticky:          t.Sticky,
 	}
 	instanceKey := fmt.Sprintf("/pulcy/frontend/%s-%d-inst", serviceName, ctx.ScalingGroup)
-	instanceRecord := frontendRecord{
+	instanceRecord := api.FrontendRecord{
 		Service:       fmt.Sprintf("%s-%d", targetServiceName, ctx.ScalingGroup),
 		HttpCheckPath: t.HttpCheckPath,
 		Sticky:        t.Sticky,
 	}
-	var rwRules []rewriteRule
+	var rwRules []api.RewriteRule
 	if t.Type == "proxy" && len(t.Rewrites) > 0 {
 		for _, rw := range t.Rewrites {
-			rwRules = append(rwRules, rewriteRule{
+			rwRules = append(rwRules, api.RewriteRule{
 				PathPrefix: rw.PathPrefix,
 				Domain:     rw.Domain,
 			})
@@ -93,7 +64,7 @@ func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext)
 	}
 
 	for _, fr := range t.PublicFrontEnds {
-		selRecord := frontendSelectorRecord{
+		selRecord := api.FrontendSelectorRecord{
 			Weight:       fr.Weight,
 			Domain:       fr.Domain,
 			PathPrefix:   fr.PathPrefix,
@@ -101,7 +72,7 @@ func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext)
 			Port:         fr.Port,
 			RewriteRules: rwRules,
 		}
-		if err := selRecord.addUsers(t, fr.Users); err != nil {
+		if err := addUsers(t, &selRecord, fr.Users); err != nil {
 			return maskAny(err)
 		}
 		record.Selectors = append(record.Selectors, selRecord)
@@ -110,13 +81,13 @@ func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext)
 		if fr.Mode == "tcp" {
 			record.Mode = "tcp"
 		}
-		selRecord := frontendSelectorRecord{
+		selRecord := api.FrontendSelectorRecord{
 			Domain:       t.privateDomainName(),
 			Port:         fr.Port,
 			Private:      true,
 			RewriteRules: rwRules,
 		}
-		if err := selRecord.addUsers(t, fr.Users); err != nil {
+		if err := addUsers(t, &selRecord, fr.Users); err != nil {
 			return maskAny(err)
 		}
 		record.Selectors = append(record.Selectors, selRecord)
@@ -140,7 +111,7 @@ func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext)
 	return nil
 }
 
-func (t *Task) addFrontEndRegistrationRecord(main *sdunits.Unit, key string, record frontendRecord, projectSettingKey string) error {
+func (t *Task) addFrontEndRegistrationRecord(main *sdunits.Unit, key string, record api.FrontendRecord, projectSettingKey string) error {
 	json, err := json.Marshal(&record)
 	if err != nil {
 		return maskAny(err)
@@ -157,7 +128,7 @@ func (t *Task) addFrontEndRegistrationRecord(main *sdunits.Unit, key string, rec
 }
 
 // addUsers adds the given users to the selector record, while encrypting the passwords.
-func (selRecord *frontendSelectorRecord) addUsers(t *Task, users []User) error {
+func addUsers(t *Task, selRecord *api.FrontendSelectorRecord, users []User) error {
 	if len(users) == 0 {
 		return nil
 	}
@@ -168,7 +139,7 @@ func (selRecord *frontendSelectorRecord) addUsers(t *Task, users []User) error {
 	saltPrefix := fmt.Sprintf("%x", sha256.Sum256(raw))
 	for _, u := range users {
 		salt := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%s/%s", u.Name, saltPrefix))))
-		userRec := userRecord{
+		userRec := api.UserRecord{
 			Name:         u.Name,
 			PasswordHash: crypt.Crypt(u.Password, salt),
 		}
