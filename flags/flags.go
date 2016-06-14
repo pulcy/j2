@@ -17,7 +17,7 @@ package flags
 import (
 	"time"
 
-	"github.com/pulcy/j2/vault"
+	"github.com/pulcy/j2/pkg/vault"
 )
 
 type Flags struct {
