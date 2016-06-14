@@ -127,6 +127,20 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			"proxy.hcl",
+			false,
+			[]string{
+				"proxy-p1-redis-mn@1.service",
+				"proxy-p2-p2-mn@1.service",
+				"proxy-p2-p2-pr0@1.service",
+			},
+			[]string{
+				"proxy-p1-redis-mn@1.service",
+				"proxy-p2-p2-mn@1.service",
+				"proxy-p2-p2-pr0@1.service",
+			},
+		},
+		{
 			"extra-fields.hcl",
 			true,
 			[]string{},
@@ -292,6 +306,9 @@ func testUnits(t *testing.T, job jobs.Job, cl cluster.Cluster, expectedUnitNames
 	}
 	docker.SetupImages(docker.Images{
 		VaultMonkey: "pulcy/vault-monkey:latest",
+		Wormhole:    "pulcy/wormhole:latest",
+		Alpine:      "alpine:3.3",
+		CephVolume:  "pulcy/ceph-volume:latest",
 	})
 	units, err := generator.GenerateUnits(ctx, cl.InstanceCount)
 	if err != nil {

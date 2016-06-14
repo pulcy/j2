@@ -1,0 +1,41 @@
+{
+    "name": "proxy",
+    "groups": [{
+        "name": "p1",
+        "count": 1,
+        "tasks": [{
+            "name": "redis",
+            "image": "pulcy/ha-redis",
+            "volumes": [
+                "/var/lib/proxy/p1/redis/data:/data",
+                "/var/run/docker.sock:/var/run/docker.sock"
+            ],
+            "args": [
+                "--etcd-url=http://${COREOS_PRIVATE_IPV4}:4001/pulcy/service/proxy-p1-master/the:master:6379",
+                "--container-name proxy-p1-redis-%i",
+                "--docker-url unix:///var/run/docker.sock",
+                "--redis-appendonly"
+            ],
+            "ports": [
+                "${COREOS_PRIVATE_IPV4}::6379"
+            ]
+        }]
+    }, {
+        "name": "p2",
+        "count": 1,
+        "tasks": [{
+            "name": "p2",
+            "image": "v2:latest",
+            "args": [
+                "--p1-url=tcp://proxy.p1.redis.private:6379"
+            ],
+            "links": [{
+                "target": "proxy.p1.redis",
+                "type": "tcp",
+                "ports": [
+                    6379
+                ]
+            }]
+        }]
+    }]
+}

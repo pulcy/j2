@@ -1,0 +1,31 @@
+[Unit]
+Description=Main unit for proxy/p2/p2 [slice 1]
+Requires=docker.service
+Requires=proxy-p2-p2-pr0@1.service
+After=docker.service
+After=proxy-p2-p2-pr0@1.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=proxy-p2-p2"
+Environment="A01=--link proxy-p2-p2-1-pr0:proxy.p1.redis.private"
+Environment="A02=--log-driver=test"
+Environment="A03=--p1-url=tcp://proxy.p1.redis.private:6379"
+ExecStartPre=/usr/bin/docker pull v2:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 proxy-p2-p2-1
+ExecStartPre=-/usr/bin/docker rm -f proxy-p2-p2-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name proxy-p2-p2-1 -P $A00 $A01 $A02 v2:latest $A03
+ExecStop=-/usr/bin/docker stop -t 10 proxy-p2-p2-1
+ExecStopPost=-/usr/bin/docker rm -f proxy-p2-p2-1
+
+[X-Fleet]
+MachineOf=proxy-p2-p2-pr0@1.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

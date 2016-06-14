@@ -50,10 +50,6 @@ func createDefaultUnit(t *jobs.Task, name, description, unitType, unitKind strin
 	unit.ExecOptions.Require(commonRequires...)
 	unit.ExecOptions.After(commonAfter...)
 
-	if err := addFrontEndRegistration(t, unit, ctx); err != nil {
-		return nil, maskAny(err)
-	}
-
 	if err := setupConstraints(t, unit); err != nil {
 		return nil, maskAny(err)
 	}
