@@ -22,7 +22,6 @@ import (
 	"github.com/ryanuber/columnize"
 
 	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/jobs/render"
 	"github.com/pulcy/j2/scheduler"
 )
 
@@ -117,7 +116,7 @@ func (d *Deployment) Run() error {
 
 		// Now launch everything
 		unitsToLaunch := sg.selectByNames(modifiedUnitNames, failedUnitNames, newUnitNames)
-		if len(unitsToLaunch) > 0 {
+		if unitsToLaunch.Len() > 0 {
 			if err := launchUnits(f, unitsToLaunch, ui); err != nil {
 				return maskAny(err)
 			}
@@ -234,23 +233,11 @@ func normalizeUnitContent(content string) []string {
 	return result
 }
 
-type unitDataList struct {
-	units []render.UnitData
-}
-
-func (l *unitDataList) Len() int {
-	return len(l.units)
-}
-
-func (l *unitDataList) Get(index int) scheduler.UnitData {
-	return l.units[index]
-}
-
-func launchUnits(f scheduler.Scheduler, units []render.UnitData, ui *stateUI) error {
+func launchUnits(f scheduler.Scheduler, units scheduler.UnitDataList, ui *stateUI) error {
 	ui.Verbosef("Starting %#v\n", units)
 
-	ui.MessageSink <- fmt.Sprintf("Starting %d unit(s)", len(units))
-	if err := f.Start(ui.EventSink, &unitDataList{units: units}); err != nil {
+	ui.MessageSink <- fmt.Sprintf("Starting %d unit(s)", units.Len())
+	if err := f.Start(ui.EventSink, units); err != nil {
 		return maskAny(err)
 	}
 

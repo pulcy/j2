@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/pulcy/j2/jobs/render"
+	"github.com/pulcy/j2/scheduler"
 )
 
 type scalingGroupUnits struct {
@@ -42,7 +43,7 @@ func (sgu scalingGroupUnits) get(unitName string) (render.UnitData, error) {
 	return nil, maskAny(fmt.Errorf("unit '%s' not found", unitName))
 }
 
-func (sgu scalingGroupUnits) selectByNames(unitNames ...[]string) []render.UnitData {
+func (sgu scalingGroupUnits) selectByNames(unitNames ...[]string) scheduler.UnitDataList {
 	names := make(map[string]struct{})
 	for _, list := range unitNames {
 		for _, name := range list {
@@ -55,7 +56,15 @@ func (sgu scalingGroupUnits) selectByNames(unitNames ...[]string) []render.UnitD
 			result = append(result, u)
 		}
 	}
-	return result
+	return scalingGroupUnits{scalingGroup: sgu.scalingGroup, units: result}
+}
+
+func (sgu scalingGroupUnits) Len() int {
+	return len(sgu.units)
+}
+
+func (sgu scalingGroupUnits) Get(index int) scheduler.UnitData {
+	return sgu.units[index]
 }
 
 // generateScalingGroupUnits generates the unit files for the given scaling group and returns
