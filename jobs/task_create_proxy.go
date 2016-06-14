@@ -19,24 +19,24 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 // createProxyUnit
-func (t *Task) createProxyUnit(link Link, linkIndex int, ctx generatorContext) (*units.Unit, error) {
+func (t *Task) createProxyUnit(link Link, linkIndex int, ctx generatorContext) (*sdunits.Unit, error) {
 	namePostfix := fmt.Sprintf("%s%d", unitKindProxy, linkIndex)
 	containerName := t.containerName(ctx.ScalingGroup) + namePostfix
 	image := ctx.Images.Wormhole
 
-	unit := &units.Unit{
+	unit := &sdunits.Unit{
 		Name:         t.unitName(namePostfix, strconv.Itoa(int(ctx.ScalingGroup))),
 		FullName:     t.unitName(namePostfix, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
 		Description:  t.unitDescription(fmt.Sprintf("Proxy %d", linkIndex), ctx.ScalingGroup),
 		Type:         "service",
 		Scalable_:    true, //t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  units.NewExecOptions(),
-		FleetOptions: units.NewFleetOptions(),
+		ExecOptions:  sdunits.NewExecOptions(),
+		FleetOptions: sdunits.NewFleetOptions(),
 	}
 	execStart, err := t.createProxyDockerCmdLine(containerName, image, link, unit.ExecOptions.Environment, ctx)
 	if err != nil {

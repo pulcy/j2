@@ -32,7 +32,6 @@ import (
 	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/units"
 	"github.com/pulcy/j2/vault"
 )
 
@@ -255,6 +254,24 @@ func TestParse(t *testing.T) {
 	}
 }
 
+type renderContext struct {
+	projectName    string
+	projectVersion string
+	projectBuild   string
+}
+
+func (r *renderContext) ProjectName() string {
+	return r.projectName
+}
+
+func (r *renderContext) ProjectVersion() string {
+	return r.projectVersion
+}
+
+func (r *renderContext) ProjectBuild() string {
+	return r.projectBuild
+}
+
 func testUnits(t *testing.T, job *jobs.Job, cl cluster.Cluster, expectedUnitNames []string, testName string) {
 	jobs.FixedPwhashSalt = "test-salt"
 	config := jobs.GeneratorConfig{
@@ -266,10 +283,10 @@ func testUnits(t *testing.T, job *jobs.Job, cl cluster.Cluster, expectedUnitName
 		FleetOptions: cl.FleetOptions,
 	}
 	generator := job.Generate(config)
-	ctx := units.RenderContext{
-		ProjectName:    "testproject",
-		ProjectVersion: "test-version",
-		ProjectBuild:   "test-build",
+	ctx := &renderContext{
+		projectName:    "testproject",
+		projectVersion: "test-version",
+		projectBuild:   "test-build",
 	}
 	images := jobs.Images{
 		VaultMonkey: "pulcy/vault-monkey:latest",

@@ -23,7 +23,7 @@ import (
 	"github.com/juju/errgo"
 
 	"github.com/pulcy/j2/cluster"
-	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 const (
@@ -194,8 +194,8 @@ func (t Task) Validate() error {
 }
 
 // createUnits creates all units needed to run this task.
-func (t *Task) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
-	mainChain := units.UnitChain{}
+func (t *Task) createUnits(ctx generatorContext) ([]sdunits.UnitChain, error) {
+	mainChain := sdunits.UnitChain{}
 
 	sidekickUnitNames := []string{}
 	for _, l := range t.Links {
@@ -234,9 +234,9 @@ func (t *Task) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
 		return nil, maskAny(err)
 	}
 
-	chains := []units.UnitChain{mainChain}
+	chains := []sdunits.UnitChain{mainChain}
 	if timer != nil {
-		timerChain := units.UnitChain{timer}
+		timerChain := sdunits.UnitChain{timer}
 		chains = append(chains, timerChain)
 	}
 

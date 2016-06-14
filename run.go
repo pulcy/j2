@@ -19,7 +19,6 @@ import (
 
 	"github.com/pulcy/j2/deployment"
 	fg "github.com/pulcy/j2/flags"
-	"github.com/pulcy/j2/units"
 )
 
 var (
@@ -31,11 +30,6 @@ var (
 	}
 	runFlags struct {
 		fg.Flags
-	}
-	renderContext = units.RenderContext{
-		ProjectName:    projectName,
-		ProjectVersion: projectVersion,
-		ProjectBuild:   projectBuild,
 	}
 )
 
@@ -61,8 +55,15 @@ func runRun(cmd *cobra.Command, args []string) {
 		DestroyDelay: runFlags.DestroyDelay,
 		SliceDelay:   runFlags.SliceDelay,
 	}
-	d := deployment.NewDeployment(*job, *cluster, groups(&runFlags.Flags),
-		deployment.ScalingGroupSelection(runFlags.ScalingGroup), runFlags.Force, runFlags.AutoContinue, globalFlags.verbose, delays, renderContext, images)
+	d := deployment.NewDeployment(*job, *cluster,
+		groups(&runFlags.Flags),
+		deployment.ScalingGroupSelection(runFlags.ScalingGroup),
+		runFlags.Force,
+		runFlags.AutoContinue,
+		globalFlags.verbose,
+		delays,
+		&renderContext{},
+		images)
 
 	if runFlags.DryRun {
 		assert(d.DryRun())
@@ -72,4 +73,19 @@ func runRun(cmd *cobra.Command, args []string) {
 }
 
 func runValidators(f *fg.Flags) {
+}
+
+type renderContext struct {
+}
+
+func (r *renderContext) ProjectName() string {
+	return projectName
+}
+
+func (r *renderContext) ProjectVersion() string {
+	return projectVersion
+}
+
+func (r *renderContext) ProjectBuild() string {
+	return projectBuild
 }

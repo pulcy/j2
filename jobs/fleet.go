@@ -16,11 +16,11 @@ package jobs
 
 import (
 	"github.com/pulcy/j2/cluster"
-	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 // CreateFleetAfter creates a list of unit names to add to the `After` setting of each unit of the given task.
-func (t *Task) AddFleetOptions(fleetOptions cluster.FleetOptions, unit *units.Unit) {
+func (t *Task) AddFleetOptions(fleetOptions cluster.FleetOptions, unit *sdunits.Unit) {
 	unit.ExecOptions.After(t.group.job.excludeUnitsOfJob(fleetOptions.After)...)
 	unit.ExecOptions.Want(t.group.job.excludeUnitsOfJob(fleetOptions.Wants)...)
 	unit.ExecOptions.Require(t.group.job.excludeUnitsOfJob(fleetOptions.Requires)...)

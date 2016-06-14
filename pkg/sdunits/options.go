@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package units
+package sdunits
 
 import (
 	"strings"

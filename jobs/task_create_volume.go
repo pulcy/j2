@@ -20,26 +20,26 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 // createVolumeUnit
-func (t *Task) createVolumeUnit(vol Volume, volIndex int, ctx generatorContext) (*units.Unit, error) {
+func (t *Task) createVolumeUnit(vol Volume, volIndex int, ctx generatorContext) (*sdunits.Unit, error) {
 	namePostfix := t.createVolumeUnitNamePostfix(volIndex)
 	containerName := t.createVolumeUnitContainerName(volIndex, ctx)
 	image := ctx.Images.CephVolume
 	volPrefix := path.Join(fmt.Sprintf("%s/%d", t.fullName(), int(ctx.ScalingGroup)), vol.Path)
 	volHostPath := fmt.Sprintf("/media/%s", volPrefix)
 
-	unit := &units.Unit{
+	unit := &sdunits.Unit{
 		Name:         t.unitName(namePostfix, strconv.Itoa(int(ctx.ScalingGroup))),
 		FullName:     t.unitName(namePostfix, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
 		Description:  t.unitDescription(fmt.Sprintf("Volume %d", volIndex), ctx.ScalingGroup),
 		Type:         "service",
 		Scalable_:    true, //t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  units.NewExecOptions(),
-		FleetOptions: units.NewFleetOptions(),
+		ExecOptions:  sdunits.NewExecOptions(),
+		FleetOptions: sdunits.NewFleetOptions(),
 	}
 	execStart, err := t.createVolumeDockerCmdLine(containerName, image, vol, volPrefix, volHostPath, unit.ExecOptions.Environment, ctx)
 	if err != nil {

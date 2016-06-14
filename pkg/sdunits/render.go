@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package units
+package sdunits
 
 import (
 	"fmt"
@@ -21,10 +21,10 @@ import (
 	"strings"
 )
 
-type RenderContext struct {
-	ProjectName    string
-	ProjectVersion string
-	ProjectBuild   string
+type RenderContext interface {
+	ProjectName() string
+	ProjectVersion() string
+	ProjectBuild() string
 }
 
 func (u *Unit) Render(ctx RenderContext) string {
@@ -121,8 +121,8 @@ func (u *Unit) Render(ctx RenderContext) string {
 	lines = append(lines, "")
 
 	lines = append(lines,
-		fmt.Sprintf("[X-%s]", ctx.ProjectName),
-		fmt.Sprintf("GeneratedBy=\"%s %s, build %s\"", ctx.ProjectName, ctx.ProjectVersion, ctx.ProjectBuild),
+		fmt.Sprintf("[X-%s]", ctx.ProjectName()),
+		fmt.Sprintf("GeneratedBy=\"%s %s, build %s\"", ctx.ProjectName(), ctx.ProjectVersion(), ctx.ProjectBuild()),
 	)
 	projectSettingsLines := []string{}
 	for k, v := range u.projectSettings {

@@ -23,7 +23,7 @@ import (
 	"github.com/juju/errgo"
 
 	"github.com/pulcy/j2/cluster"
-	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 const (
@@ -154,7 +154,7 @@ func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
 
 type taskUnitChain struct {
 	Task      *Task
-	MainChain units.UnitChain
+	MainChain sdunits.UnitChain
 }
 
 type taskUnitChainList []taskUnitChain
@@ -169,15 +169,15 @@ func (l taskUnitChainList) find(taskName TaskName) (taskUnitChain, error) {
 }
 
 // createUnits creates all units needed to run this taskgroup.
-func (tg *TaskGroup) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
+func (tg *TaskGroup) createUnits(ctx generatorContext) ([]sdunits.UnitChain, error) {
 	if ctx.ScalingGroup > tg.Count {
 		return nil, nil
 	}
 
 	// Create all units for my tasks
-	allChains := []units.UnitChain{}
+	allChains := []sdunits.UnitChain{}
 	taskUnitChains := taskUnitChainList{}
-	allUnits := []*units.Unit{}
+	allUnits := []*sdunits.Unit{}
 	for _, t := range tg.Tasks {
 		tuc, err := t.createUnits(ctx)
 		if err != nil {
@@ -225,7 +225,7 @@ func (tg *TaskGroup) createUnits(ctx generatorContext) ([]units.UnitChain, error
 
 	// Force units to be on the same machine
 	if !tg.Global {
-		units.GroupUnitsOnMachine(allUnits...)
+		sdunits.GroupUnitsOnMachine(allUnits...)
 	}
 
 	return allChains, nil

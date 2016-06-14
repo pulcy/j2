@@ -16,7 +16,6 @@ package jobs
 
 import (
 	"github.com/pulcy/j2/cluster"
-	"github.com/pulcy/j2/units"
 )
 
 type GeneratorConfig struct {
@@ -38,6 +37,12 @@ type Images struct {
 	CephVolume  string // Docker image name of ceph-volume
 }
 
+type RenderContext interface {
+	ProjectName() string
+	ProjectVersion() string
+	ProjectBuild() string
+}
+
 func newGenerator(job *Job, config GeneratorConfig) *Generator {
 	return &Generator{
 		job:             job,
@@ -53,7 +58,7 @@ type generatorContext struct {
 	FleetOptions  cluster.FleetOptions
 }
 
-func (g *Generator) GenerateUnits(ctx units.RenderContext, images Images, instanceCount int) ([]UnitData, error) {
+func (g *Generator) GenerateUnits(ctx RenderContext, images Images, instanceCount int) ([]UnitData, error) {
 	units := []UnitData{}
 	maxCount := g.job.MaxCount()
 	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {

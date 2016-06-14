@@ -22,26 +22,26 @@ import (
 
 	"github.com/juju/errgo"
 
-	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 // createMainUnit
-func (t *Task) createMainUnit(sidekickUnitNames []string, ctx generatorContext) (*units.Unit, error) {
+func (t *Task) createMainUnit(sidekickUnitNames []string, ctx generatorContext) (*sdunits.Unit, error) {
 	name := t.containerName(ctx.ScalingGroup)
 	image := t.Image.String()
 	if t.Type == "proxy" {
 		image = ctx.Images.Alpine
 	}
 
-	main := &units.Unit{
+	main := &sdunits.Unit{
 		Name:         t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))),
 		FullName:     t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))) + ".service",
 		Description:  t.unitDescription("Main", ctx.ScalingGroup),
 		Type:         "service",
 		Scalable_:    true, //t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  units.NewExecOptions(),
-		FleetOptions: units.NewFleetOptions(),
+		ExecOptions:  sdunits.NewExecOptions(),
+		FleetOptions: sdunits.NewFleetOptions(),
 	}
 	execStart, err := t.createMainDockerCmdLine(image, main.ExecOptions.Environment, ctx)
 	if err != nil {
@@ -254,7 +254,7 @@ func (t *Task) createMainRequires(sidekickUnitNames []string, ctx generatorConte
 	return requires, nil
 }
 
-func (t *Task) setupInstanceConstraints(unit *units.Unit, unitKind string, ctx generatorContext) error {
+func (t *Task) setupInstanceConstraints(unit *sdunits.Unit, unitKind string, ctx generatorContext) error {
 	unit.FleetOptions.IsGlobal = t.group.Global
 	if ctx.InstanceCount > 1 {
 		if t.group.Global {
@@ -275,7 +275,7 @@ func (t *Task) setupInstanceConstraints(unit *units.Unit, unitKind string, ctx g
 }
 
 // setupConstraints creates constraint keys for the `X-Fleet` section for the main unit
-func (t *Task) setupConstraints(unit *units.Unit) error {
+func (t *Task) setupConstraints(unit *sdunits.Unit) error {
 	constraints := t.group.job.Constraints.Merge(t.group.Constraints)
 
 	metadata := []string{}

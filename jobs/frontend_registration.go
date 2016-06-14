@@ -22,7 +22,7 @@ import (
 
 	"github.com/nyarla/go-crypt"
 
-	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 var (
@@ -60,7 +60,7 @@ type rewriteRule struct {
 }
 
 // addFrontEndRegistration adds registration code for frontends to the given units
-func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) error {
+func (t *Task) addFrontEndRegistration(main *sdunits.Unit, ctx generatorContext) error {
 	if len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
 		return nil
 	}
@@ -140,7 +140,7 @@ func (t *Task) addFrontEndRegistration(main *units.Unit, ctx generatorContext) e
 	return nil
 }
 
-func (t *Task) addFrontEndRegistrationRecord(main *units.Unit, key string, record frontendRecord, projectSettingKey string) error {
+func (t *Task) addFrontEndRegistrationRecord(main *sdunits.Unit, key string, record frontendRecord, projectSettingKey string) error {
 	json, err := json.Marshal(&record)
 	if err != nil {
 		return maskAny(err)

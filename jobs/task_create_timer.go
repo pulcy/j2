@@ -17,23 +17,23 @@ package jobs
 import (
 	"strconv"
 
-	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/pkg/sdunits"
 )
 
 // createTimerUnit
-func (t *Task) createTimerUnit(ctx generatorContext) (*units.Unit, error) {
+func (t *Task) createTimerUnit(ctx generatorContext) (*sdunits.Unit, error) {
 	if t.Timer == "" {
 		return nil, nil
 	}
-	unit := &units.Unit{
+	unit := &sdunits.Unit{
 		Name:         t.unitName(unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))),
 		FullName:     t.unitName(unitKindTimer, strconv.Itoa(int(ctx.ScalingGroup))) + ".timer",
 		Description:  t.unitDescription("Timer", ctx.ScalingGroup),
 		Type:         "timer",
 		Scalable_:    false, //    t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  units.NewExecOptions(),
-		FleetOptions: units.NewFleetOptions(),
+		ExecOptions:  sdunits.NewExecOptions(),
+		FleetOptions: sdunits.NewFleetOptions(),
 	}
 	unit.ExecOptions.OnCalendar = t.Timer
 	unit.ExecOptions.Unit = t.unitName(unitKindMain, strconv.Itoa(int(ctx.ScalingGroup))) + ".service"
