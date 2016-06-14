@@ -28,7 +28,7 @@ import (
 	"github.com/op/go-logging"
 	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
-	"github.com/pulcy/j2/vault"
+	"github.com/pulcy/j2/pkg/vault"
 )
 
 const (

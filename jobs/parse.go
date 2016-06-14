@@ -28,8 +28,8 @@ import (
 
 	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
-	"github.com/pulcy/j2/util"
-	"github.com/pulcy/j2/vault"
+	"github.com/pulcy/j2/pkg/hclutil"
+	"github.com/pulcy/j2/pkg/vault"
 )
 
 type parseJobOptions struct {
@@ -131,7 +131,7 @@ func (j *Job) parse(list *ast.ObjectList) error {
 	obj := list.Items[0]
 
 	// Decode the object
-	if err := util.Decode(obj.Val, []string{"group", "task", "constraint"}, nil, j); err != nil {
+	if err := hclutil.Decode(obj.Val, []string{"group", "task", "constraint"}, nil, j); err != nil {
 		return maskAny(err)
 	}
 
@@ -230,7 +230,7 @@ func (tg *TaskGroup) parse(obj *ast.ObjectType) error {
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
 	}
-	if err := util.Decode(obj, []string{"task", "constraint"}, defaultValues, tg); err != nil {
+	if err := hclutil.Decode(obj, []string{"task", "constraint"}, defaultValues, tg); err != nil {
 		return maskAny(err)
 	}
 
@@ -328,7 +328,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
 	}
-	if err := util.Decode(obj, excludedKeys, defaultValues, t); err != nil {
+	if err := hclutil.Decode(obj, excludedKeys, defaultValues, t); err != nil {
 		return maskAny(err)
 	}
 	if !anonymousGroup {
@@ -360,7 +360,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 	// If we have env, then parse them
 	if o := obj.List.Filter("env"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {
-			if err := util.Decode(o.Val, nil, nil, &t.Environment); err != nil {
+			if err := hclutil.Decode(o.Val, nil, nil, &t.Environment); err != nil {
 				return maskAny(err)
 			}
 		}
@@ -368,7 +368,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 
 	// Parse after
 	if o := obj.List.Filter("after"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("after of task %s", t.Name))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("after of task %s", t.Name))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -379,7 +379,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 
 	// Parse volumes
 	if o := obj.List.Filter("volumes"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("volumes of task %s", t.Name))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("volumes of task %s", t.Name))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -394,7 +394,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 
 	// Parse volumes-from
 	if o := obj.List.Filter("volumes-from"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("volumes-from of task %s", t.Name))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("volumes-from of task %s", t.Name))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -405,7 +405,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 
 	// Parse capabilities
 	if o := obj.List.Filter("capabilities"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("capabilities of task %s", t.Name))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("capabilities of task %s", t.Name))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -430,7 +430,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 
 	// Parse links
 	if o := obj.List.Filter("links"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("links of task %s", t.Name))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("links of task %s", t.Name))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -527,7 +527,7 @@ func (f *PublicFrontEnd) parse(obj *ast.ObjectType) error {
 	excludedKeys := []string{
 		"user",
 	}
-	if err := util.Decode(obj, excludedKeys, nil, f); err != nil {
+	if err := hclutil.Decode(obj, excludedKeys, nil, f); err != nil {
 		return maskAny(err)
 	}
 	if o := obj.List.Filter("user"); len(o.Items) > 0 {
@@ -557,7 +557,7 @@ func (f *PrivateFrontEnd) parse(obj *ast.ObjectType) error {
 	defaultValues := map[string]interface{}{
 		"port": 80,
 	}
-	if err := util.Decode(obj, excludedKeys, defaultValues, f); err != nil {
+	if err := hclutil.Decode(obj, excludedKeys, defaultValues, f); err != nil {
 		return maskAny(err)
 	}
 	if o := obj.List.Filter("user"); len(o.Items) > 0 {
@@ -581,7 +581,7 @@ func (f *PrivateFrontEnd) parse(obj *ast.ObjectType) error {
 // parse a constraint
 func (c *Constraint) parse(obj *ast.ObjectType) error {
 	// Build the constraint
-	if err := util.Decode(obj, nil, nil, c); err != nil {
+	if err := hclutil.Decode(obj, nil, nil, c); err != nil {
 		return maskAny(err)
 	}
 	return nil
@@ -590,7 +590,7 @@ func (c *Constraint) parse(obj *ast.ObjectType) error {
 // parse a secret
 func (s *Secret) parse(obj *ast.ObjectType) error {
 	// Build the secret
-	if err := util.Decode(obj, nil, nil, s); err != nil {
+	if err := hclutil.Decode(obj, nil, nil, s); err != nil {
 		return maskAny(err)
 	}
 
@@ -600,7 +600,7 @@ func (s *Secret) parse(obj *ast.ObjectType) error {
 // parse a user
 func (u *User) parse(obj *ast.ObjectType) error {
 	// Build the user
-	if err := util.Decode(obj, nil, nil, u); err != nil {
+	if err := hclutil.Decode(obj, nil, nil, u); err != nil {
 		return maskAny(err)
 	}
 
@@ -610,7 +610,7 @@ func (u *User) parse(obj *ast.ObjectType) error {
 // parse a link
 func (l *Link) parse(obj *ast.ObjectType) error {
 	// Build the link
-	if err := util.Decode(obj, nil, nil, l); err != nil {
+	if err := hclutil.Decode(obj, nil, nil, l); err != nil {
 		return maskAny(err)
 	}
 
@@ -620,7 +620,7 @@ func (l *Link) parse(obj *ast.ObjectType) error {
 // parse a rewrite
 func (r *Rewrite) parse(obj *ast.ObjectType) error {
 	// Build the rewrite
-	if err := util.Decode(obj, nil, nil, r); err != nil {
+	if err := hclutil.Decode(obj, nil, nil, r); err != nil {
 		return maskAny(err)
 	}
 

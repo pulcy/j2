@@ -23,23 +23,6 @@ import (
 	"github.com/juju/errgo"
 
 	"github.com/pulcy/j2/cluster"
-	"github.com/pulcy/j2/units"
-)
-
-const (
-	unitKindMain   = "-mn"
-	unitKindVolume = "-vl"
-	unitKindProxy  = "-pr"
-	unitKindTimer  = "-ti"
-)
-
-var (
-	commonAfter = []string{
-		"docker.service",
-	}
-	commonRequires = []string{
-		"docker.service",
-	}
 )
 
 type Task struct {
@@ -62,7 +45,7 @@ type Task struct {
 	Sticky           bool              `json:"sticky,omitempty" mapstructure:"sticky,omitempty"`
 	Capabilities     []string          `json:"capabilities,omitempty"`
 	Links            Links             `json:"links,omitempty"`
-	Secrets          []Secret          `json:"secrets,omitempty"`
+	Secrets          SecretList        `json:"secrets,omitempty"`
 	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
 	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`
 	Target           LinkName          `json:"target,omitempty" mapstructure:"target,omitempty"`
@@ -169,10 +152,8 @@ func (t Task) Validate() error {
 	if tcpFrontends > 0 && httpFrontends > 0 {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "cannot mix http and tcp frontends (in '%s')", t.Name))
 	}
-	for _, s := range t.Secrets {
-		if err := s.Validate(); err != nil {
-			return maskAny(err)
-		}
+	if err := t.Secrets.Validate(); err != nil {
+		return maskAny(err)
 	}
 	if t.Timer != "" {
 		if t.Type != "oneshot" {
@@ -193,119 +174,69 @@ func (t Task) Validate() error {
 	return nil
 }
 
-// createUnits creates all units needed to run this task.
-func (t *Task) createUnits(ctx generatorContext) ([]units.UnitChain, error) {
-	mainChain := units.UnitChain{}
-
-	sidekickUnitNames := []string{}
-	for _, l := range t.Links {
-		if !l.Type.IsTCP() {
-			continue
-		}
-		linkIndex := len(sidekickUnitNames)
-		unit, err := t.createProxyUnit(l, linkIndex, ctx)
-		if err != nil {
-			return nil, maskAny(err)
-		}
-		sidekickUnitNames = append(sidekickUnitNames, unit.FullName)
-		mainChain = append(mainChain, unit)
-	}
-
-	for i, v := range t.Volumes {
-		if !v.requiresMountUnit() {
-			continue
-		}
-		unit, err := t.createVolumeUnit(v, i, ctx)
-		if err != nil {
-			return nil, maskAny(err)
-		}
-		sidekickUnitNames = append(sidekickUnitNames, unit.FullName)
-		mainChain = append(mainChain, unit)
-	}
-
-	main, err := t.createMainUnit(sidekickUnitNames, ctx)
+// Task gets a task by the given name
+func (t *Task) Task(name TaskName) (*Task, error) {
+	result, err := t.group.Task(name)
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	mainChain = append(mainChain, main)
-
-	timer, err := t.createTimerUnit(ctx)
-	if err != nil {
-		return nil, maskAny(err)
-	}
-
-	chains := []units.UnitChain{mainChain}
-	if timer != nil {
-		timerChain := units.UnitChain{timer}
-		chains = append(chains, timerChain)
-	}
-
-	return chains, nil
+	return result, nil
 }
 
-// Gets the full name of this task: job/taskgroup/task
-func (t *Task) fullName() string {
-	return fmt.Sprintf("%s/%s", t.group.fullName(), t.Name)
+// JobID returns the ID of the job containing the group containing this task.
+func (t *Task) JobID() string {
+	return t.group.job.ID
 }
 
-// privateDomainName returns the DNS name (in the private namespace) for the given task.
-func (t *Task) privateDomainName() string {
+// JobName returns the name of the job containing the group containing this task.
+func (t *Task) JobName() JobName {
+	return t.group.job.Name
+}
+
+// GroupGlobal returns true if the Global flag of the containing group is set.
+func (t *Task) GroupGlobal() bool {
+	return t.group.Global
+}
+
+// GroupCount returns the Count flag of the containing group.
+func (t *Task) GroupCount() uint {
+	return t.group.Count
+}
+
+// FullName returns the full name of this task: job/taskgroup/task
+func (t *Task) FullName() string {
+	return fmt.Sprintf("%s/%s", t.group.FullName(), t.Name)
+}
+
+// PrivateDomainName returns the DNS name (in the private namespace) for the given task.
+func (t *Task) PrivateDomainName() string {
 	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name, "")
 	return ln.PrivateDomainName()
 }
 
-// instanceSpecificPrivateDomainName returns the DNS name (in the private namespace) for an instance of the given task.
-func (t *Task) instanceSpecificPrivateDomainName(scalingGroup uint) string {
+// InstanceSpecificPrivateDomainName returns the DNS name (in the private namespace) for an instance of the given task.
+func (t *Task) InstanceSpecificPrivateDomainName(scalingGroup uint) string {
 	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name, InstanceName(strconv.Itoa(int(scalingGroup))))
 	return ln.PrivateDomainName()
 }
 
-// unitName returns the name of the systemd unit for this task.
-func (t *Task) unitName(kind string, scalingGroup string) string {
-	base := strings.Replace(t.fullName(), "/", "-", -1) + kind
-	if t.group.Global && t.group.Count == 1 {
-		return base
-	}
-	return fmt.Sprintf("%s@%s", base, scalingGroup)
+// ServiceName returns the name used to register this service.
+func (t *Task) ServiceName() string {
+	return strings.Replace(t.FullName(), "/", "-", -1)
 }
 
-// unitDescription creates the description of a unit
-func (t *Task) unitDescription(prefix string, scalingGroup uint) string {
-	descriptionPostfix := fmt.Sprintf("[slice %d]", scalingGroup)
-	if t.group.Global {
-		descriptionPostfix = "[global]"
-	}
-	return fmt.Sprintf("%s unit for %s %s", prefix, t.fullName(), descriptionPostfix)
-}
-
-// containerName returns the name of the docker contained used for this task.
-func (t *Task) containerName(scalingGroup uint) string {
+// ContainerName returns the name of the docker container used for this task.
+func (t *Task) ContainerName(scalingGroup uint) string {
 	return t.containerNameExt(strconv.Itoa(int(scalingGroup)))
 }
 
 // containerName returns the name of the docker contained used for this task.
 func (t *Task) containerNameExt(instance string) string {
-	base := strings.Replace(t.fullName(), "/", "-", -1)
+	base := strings.Replace(t.FullName(), "/", "-", -1)
 	if t.group.Global {
 		return base
 	}
 	return fmt.Sprintf("%s-%s", base, instance)
-}
-
-// serviceName returns the name used to register this service.
-func (t *Task) serviceName() string {
-	return strings.Replace(t.fullName(), "/", "-", -1)
-}
-
-// hasEnvironmentSecrets returns true if the given task has secrets that should
-// be stored in an environment variable. False otherwise.
-func (t *Task) hasEnvironmentSecrets() bool {
-	for _, secret := range t.Secrets {
-		if ok, _ := secret.TargetEnviroment(); ok {
-			return true
-		}
-	}
-	return false
 }
 
 // resolveLink resolves the given (partial) linkname in the context of the given task.
@@ -324,4 +255,10 @@ func (t *Task) resolveLink(ln LinkName) LinkName {
 		tn = t.Name
 	}
 	return NewLinkName(jn, tgn, tn, in)
+}
+
+// MergedConstraints returns the constraints resulting from merging the job constraints
+// with the group constraints.
+func (t *Task) MergedConstraints() Constraints {
+	return t.group.job.Constraints.Merge(t.group.Constraints)
 }

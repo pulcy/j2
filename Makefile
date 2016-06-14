@@ -61,6 +61,7 @@ update-vendor:
 		github.com/mitchellh/go-homedir \
 		github.com/nyarla/go-crypt \
 		github.com/op/go-logging \
+		github.com/pulcy/robin-api \
 		github.com/ryanuber/columnize \
 		github.com/vishvananda/netns
 

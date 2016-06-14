@@ -111,10 +111,6 @@ func (j *Job) Validate() error {
 	return nil
 }
 
-func (j *Job) Generate(config GeneratorConfig) *Generator {
-	return newGenerator(j, config)
-}
-
 func (j *Job) MaxCount() uint {
 	count := uint(0)
 	for _, tg := range j.Groups {

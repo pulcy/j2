@@ -21,7 +21,7 @@ import (
 	"github.com/op/go-logging"
 	"github.com/spf13/cobra"
 
-	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/engine/docker"
 )
 
 const (
@@ -31,12 +31,6 @@ const (
 var (
 	projectVersion = "dev"
 	projectBuild   = "dev"
-	images         = jobs.Images{
-		VaultMonkey: "pulcy/vault-monkey:latest",
-		Wormhole:    "pulcy/wormhole:latest",
-		Alpine:      "alpine:3.3",
-		CephVolume:  "pulcy/ceph-volume:latest",
-	}
 )
 
 var (
@@ -58,6 +52,13 @@ var (
 )
 
 func init() {
+	docker.SetupImages(docker.Images{
+		VaultMonkey: "pulcy/vault-monkey:latest",
+		Wormhole:    "pulcy/wormhole:latest",
+		Alpine:      "alpine:3.3",
+		CephVolume:  "pulcy/ceph-volume:latest",
+	})
+
 	log = logging.MustGetLogger(projectName)
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.debug, "debug", "D", false, "Print debug output")
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.verbose, "verbose", "v", false, "Print verbose output")

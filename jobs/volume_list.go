@@ -31,9 +31,9 @@ func (l VolumeList) Len() int {
 func (l VolumeList) Less(i, j int) bool {
 	vi := l[i]
 	vj := l[j]
-	if vi.requiresMountUnit() && !vj.requiresMountUnit() {
+	if !vi.IsLocal() && vj.IsLocal() {
 		return true
-	} else if !vi.requiresMountUnit() && vj.requiresMountUnit() {
+	} else if vi.IsLocal() && !vj.IsLocal() {
 		return false
 	}
 	return strings.Compare(vi.Path, vj.Path) < 0

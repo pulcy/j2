@@ -18,12 +18,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pulcy/j2/fleet"
+	"github.com/pulcy/j2/scheduler"
 )
 
 // Destroy removes all unit files that belong to the configured job from the configured cluster.
 func (d *Deployment) Destroy() error {
-	f, err := d.newFleetTunnel()
+	f, err := d.newScheduler()
 	if err != nil {
 		return maskAny(err)
 	}
@@ -67,7 +67,7 @@ func (d *Deployment) confirmDestroy(units []string, obsolete bool, ui *stateUI) 
 	return nil
 }
 
-func (d *Deployment) destroyUnits(f fleet.FleetTunnel, units []string, ui *stateUI) error {
+func (d *Deployment) destroyUnits(f scheduler.Scheduler, units []string, ui *stateUI) error {
 	if len(units) == 0 {
 		return maskAny(fmt.Errorf("No units on cluster: %s", d.cluster.Stack))
 	}

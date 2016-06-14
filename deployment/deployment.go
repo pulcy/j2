@@ -27,7 +27,8 @@ import (
 
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/units"
+	"github.com/pulcy/j2/scheduler"
+	"github.com/pulcy/j2/scheduler/fleet"
 )
 
 type DeploymentDelays struct {
@@ -45,16 +46,21 @@ type Deployment struct {
 	force                 bool
 	autoContinue          bool
 	DeploymentDelays
-	renderContext units.RenderContext
-	images        jobs.Images
+	renderContext RenderContext
 
 	scalingGroups []scalingGroupUnits
+}
+
+type RenderContext interface {
+	ProjectName() string
+	ProjectVersion() string
+	ProjectBuild() string
 }
 
 // NewDeployment creates a new Deployment instances and generates all unit files for the given job.
 func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGroupSelection,
 	scalingGroupSelection ScalingGroupSelection, force, autoContinue, verbose bool, delays DeploymentDelays,
-	renderContext units.RenderContext, images jobs.Images) *Deployment {
+	renderContext RenderContext) *Deployment {
 	return &Deployment{
 		job:                   job,
 		cluster:               cluster,
@@ -65,7 +71,6 @@ func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGro
 		verbose:          verbose,
 		DeploymentDelays: delays,
 		renderContext:    renderContext,
-		images:           images,
 	}
 }
 
@@ -123,4 +128,12 @@ func (d *Deployment) generateScalingGroups() error {
 		d.scalingGroups = append(d.scalingGroups, sgu)
 	}
 	return nil
+}
+
+func (d *Deployment) newScheduler() (scheduler.Scheduler, error) {
+	s, err := fleetscheduler.NewScheduler(d.cluster.Tunnel)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return s, nil
 }

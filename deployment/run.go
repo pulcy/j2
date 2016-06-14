@@ -21,14 +21,15 @@ import (
 
 	"github.com/ryanuber/columnize"
 
-	"github.com/pulcy/j2/fleet"
 	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/jobs/render"
+	"github.com/pulcy/j2/scheduler"
 )
 
 // Run creates all applicable unit files and deploys them onto the configured cluster.
 func (d *Deployment) Run() error {
 	// Fetch all current units
-	f, err := d.newFleetTunnel()
+	f, err := d.newScheduler()
 	if err != nil {
 		return maskAny(err)
 	}
@@ -71,13 +72,9 @@ func (d *Deployment) Run() error {
 		notObsoleteUnitNames := selectUnitNames(loadedScalingGroupUnitNames, containsPredicate(sgUnitNames))
 
 		// Select the unit names that are modified and need an update
-		statusMap, err := f.Status()
-		if err != nil {
-			return maskAny(err)
-		}
-		isModifiedPredicate := d.isModifiedPredicate(sg, statusMap, f, ui)
+		isModifiedPredicate := d.isModifiedPredicate(sg, f, ui)
 		modifiedUnitNames := selectUnitNames(notObsoleteUnitNames, isModifiedPredicate)
-		isFailedPredicate := d.isFailedPredicate(sg, statusMap, f, ui)
+		isFailedPredicate := d.isFailedPredicate(sg, f, ui)
 		failedUnitNames := selectUnitNames(notObsoleteUnitNames, isFailedPredicate)
 		unitNamesToDestroy := append(append(obsoleteUnitNames, modifiedUnitNames...), failedUnitNames...)
 		newUnitNames := selectUnitNames(sgUnitNames, notPredicate(containsPredicate(loadedScalingGroupUnitNames)))
@@ -164,15 +161,17 @@ func (d *Deployment) Run() error {
 }
 
 // isFailedPredicate creates a predicate that returns true when the given unit file is in the failed status.
-func (d *Deployment) isFailedPredicate(sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel, ui *stateUI) func(string) bool {
+func (d *Deployment) isFailedPredicate(sg scalingGroupUnits, f scheduler.Scheduler, ui *stateUI) func(string) bool {
 	return func(unitName string) bool {
 		ui.MessageSink <- fmt.Sprintf("Checking state of %s", unitName)
-		unitState, found := status.Get(unitName)
-		if !found {
+		unitState, err := f.GetState(unitName)
+		if scheduler.IsNotFound(err) {
 			ui.Verbosef("Unit '%s' is not found\n", unitName)
 			return true
+		} else if err != nil {
+			ui.Warningf("GetState(%s) failed: %#v", unitName, err)
 		}
-		if unitState == "failed" {
+		if unitState.Failed {
 			ui.Verbosef("Unit '%s' is in failed state\n", unitName)
 			return true
 		}
@@ -181,7 +180,7 @@ func (d *Deployment) isFailedPredicate(sg scalingGroupUnits, status fleet.Status
 }
 
 // isModifiedPredicate creates a predicate that returns true when the given unit file is modified
-func (d *Deployment) isModifiedPredicate(sg scalingGroupUnits, status fleet.StatusMap, f fleet.FleetTunnel, ui *stateUI) func(string) bool {
+func (d *Deployment) isModifiedPredicate(sg scalingGroupUnits, f scheduler.Scheduler, ui *stateUI) func(string) bool {
 	return func(unitName string) bool {
 		if d.force {
 			return true
@@ -236,18 +235,18 @@ func normalizeUnitContent(content string) []string {
 }
 
 type unitDataList struct {
-	units []jobs.UnitData
+	units []render.UnitData
 }
 
 func (l *unitDataList) Len() int {
 	return len(l.units)
 }
 
-func (l *unitDataList) Get(index int) fleet.UnitData {
+func (l *unitDataList) Get(index int) scheduler.UnitData {
 	return l.units[index]
 }
 
-func launchUnits(f fleet.FleetTunnel, units []jobs.UnitData, ui *stateUI) error {
+func launchUnits(f scheduler.Scheduler, units []render.UnitData, ui *stateUI) error {
 	ui.Verbosef("Starting %#v\n", units)
 
 	ui.MessageSink <- fmt.Sprintf("Starting %d unit(s)", len(units))

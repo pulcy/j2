@@ -49,8 +49,8 @@ func (ln LinkName) PrivateDomainName() string {
 	return fmt.Sprintf("%s.private", strings.Replace(ln.String(), "@", ".", -1))
 }
 
-// etcdServiceName returns name of the service as it is used in ETCD.
-func (ln LinkName) etcdServiceName() string {
+// EtcdServiceName returns name of the service as it is used in ETCD.
+func (ln LinkName) EtcdServiceName() string {
 	return strings.Replace(strings.Replace(ln.String(), ".", "-", -1), "@", "-", -1)
 }
 

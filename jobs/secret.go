@@ -75,8 +75,8 @@ func (s Secret) VaultPath() string {
 	return path
 }
 
-// hash returns a has of the given secret config
-func (s Secret) hash() (string, error) {
+// Hash returns a hash of the given secret config
+func (s Secret) Hash() (string, error) {
 	data, err := json.Marshal(s)
 	if err != nil {
 		return "", maskAny(err)
