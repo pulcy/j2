@@ -75,7 +75,7 @@ func (e *dockerEngine) createMainDockerCmdLine(t *jobs.Task, image string, env m
 	for _, k := range envKeys {
 		cmd.Add(env, "-e "+strconv.Quote(fmt.Sprintf("%s=%s", k, t.Environment[k])))
 	}
-	if hasEnvironmentSecrets(t) {
+	if t.Secrets.AnyTargetEnviroment() {
 		cmd.Add(env, "--env-file="+secretEnvironmentPath(t, scalingGroup))
 	}
 	cmd.Add(env, fmt.Sprintf("-e SERVICE_NAME=%s", serviceName)) // Support registrator
@@ -113,15 +113,4 @@ func (e *dockerEngine) createMainDockerCmdLine(t *jobs.Task, image string, env m
 	}
 
 	return cmd, nil
-}
-
-// hasEnvironmentSecrets returns true if the given task has secrets that should
-// be stored in an environment variable. False otherwise.
-func hasEnvironmentSecrets(t *jobs.Task) bool {
-	for _, secret := range t.Secrets {
-		if ok, _ := secret.TargetEnviroment(); ok {
-			return true
-		}
-	}
-	return false
 }

@@ -45,7 +45,7 @@ type Task struct {
 	Sticky           bool              `json:"sticky,omitempty" mapstructure:"sticky,omitempty"`
 	Capabilities     []string          `json:"capabilities,omitempty"`
 	Links            Links             `json:"links,omitempty"`
-	Secrets          []Secret          `json:"secrets,omitempty"`
+	Secrets          SecretList        `json:"secrets,omitempty"`
 	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
 	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`
 	Target           LinkName          `json:"target,omitempty" mapstructure:"target,omitempty"`
@@ -152,10 +152,8 @@ func (t Task) Validate() error {
 	if tcpFrontends > 0 && httpFrontends > 0 {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "cannot mix http and tcp frontends (in '%s')", t.Name))
 	}
-	for _, s := range t.Secrets {
-		if err := s.Validate(); err != nil {
-			return maskAny(err)
-		}
+	if err := t.Secrets.Validate(); err != nil {
+		return maskAny(err)
 	}
 	if t.Timer != "" {
 		if t.Type != "oneshot" {
