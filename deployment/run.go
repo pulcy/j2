@@ -112,8 +112,11 @@ func (d *Deployment) Run() error {
 		}
 
 		// Now launch everything
-		if err := launchUnits(f, sg.units, ui); err != nil {
-			return maskAny(err)
+		unitsToLaunch := sg.selectByNames(modifiedUnitNames, failedUnitNames, newUnitNames)
+		if len(unitsToLaunch) > 0 {
+			if err := launchUnits(f, unitsToLaunch, ui); err != nil {
+				return maskAny(err)
+			}
 		}
 
 		// Wait a bit and ask for confirmation before continuing (only when more groups will follow)

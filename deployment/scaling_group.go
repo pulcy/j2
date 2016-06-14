@@ -42,6 +42,22 @@ func (sgu scalingGroupUnits) get(unitName string) (jobs.UnitData, error) {
 	return nil, maskAny(fmt.Errorf("unit '%s' not found", unitName))
 }
 
+func (sgu scalingGroupUnits) selectByNames(unitNames ...[]string) []jobs.UnitData {
+	names := make(map[string]struct{})
+	for _, list := range unitNames {
+		for _, name := range list {
+			names[name] = struct{}{}
+		}
+	}
+	var result []jobs.UnitData
+	for _, u := range sgu.units {
+		if _, ok := names[u.Name()]; ok {
+			result = append(result, u)
+		}
+	}
+	return result
+}
+
 // generateScalingGroupUnits generates the unit files for the given scaling group and returns
 // their names and file names.
 func (d *Deployment) generateScalingGroupUnits(scalingGroup uint) (scalingGroupUnits, error) {
