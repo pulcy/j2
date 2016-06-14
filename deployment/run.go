@@ -55,6 +55,7 @@ func (d *Deployment) Run() error {
 	// Go over every scale
 	step := 1
 	totalModifications := 0
+	waitBeforeNextStep := false
 	for sgIndex, sg := range d.scalingGroups {
 		// Select the loaded units that belong to this scaling group
 		correctScalingGroupPredicate := func(unitName string) bool {
@@ -83,6 +84,12 @@ func (d *Deployment) Run() error {
 
 		// Are there any changes?
 		anyModifications := (len(loadedScalingGroupUnitNames) != len(sg.units)) || (len(unitNamesToDestroy) > 0)
+
+		// Wait a bit before proceeding
+		if waitBeforeNextStep && anyModifications {
+			InterruptibleSleep(ui.MessageSink, d.SliceDelay, fmt.Sprintf("Waiting %s before continuing with scaling group %d of %d...", "%s", (sgIndex+1), maxScale))
+			ui.Clear()
+		}
 
 		// Confirm modifications
 		if anyModifications && !d.force {
@@ -119,14 +126,9 @@ func (d *Deployment) Run() error {
 			}
 		}
 
-		// Wait a bit and ask for confirmation before continuing (only when more groups will follow)
-		if anyModifications && sgIndex+1 < len(d.scalingGroups) {
-			nextScale := d.scalingGroups[sgIndex+1].scalingGroup
-			InterruptibleSleep(ui.MessageSink, d.SliceDelay, fmt.Sprintf("Waiting %s before continuing with scaling group %d of %d...", "%s", nextScale, maxScale))
-		}
-
 		// Update counters
 		if anyModifications {
+			waitBeforeNextStep = true
 			totalModifications++
 		}
 		step++
@@ -248,7 +250,7 @@ func (l *unitDataList) Get(index int) fleet.UnitData {
 func launchUnits(f fleet.FleetTunnel, units []jobs.UnitData, ui *stateUI) error {
 	ui.Verbosef("Starting %#v\n", units)
 
-	ui.MessageSink <- fmt.Sprintf("Starting %d units", len(units))
+	ui.MessageSink <- fmt.Sprintf("Starting %d unit(s)", len(units))
 	if err := f.Start(ui.EventSink, &unitDataList{units: units}); err != nil {
 		return maskAny(err)
 	}

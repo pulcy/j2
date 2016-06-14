@@ -72,7 +72,7 @@ func (d *Deployment) destroyUnits(f fleet.FleetTunnel, units []string, ui *state
 		return maskAny(fmt.Errorf("No units on cluster: %s", d.cluster.Stack))
 	}
 
-	ui.MessageSink <- fmt.Sprintf("Stopping %d units", len(units))
+	ui.MessageSink <- fmt.Sprintf("Stopping %d unit(s)", len(units))
 	stats, err := f.Stop(ui.EventSink, units...)
 	if err != nil {
 		ui.Warningf("Warning: stop failed.\n%s\n", err.Error())
@@ -82,7 +82,7 @@ func (d *Deployment) destroyUnits(f fleet.FleetTunnel, units []string, ui *state
 		InterruptibleSleep(ui.MessageSink, d.StopDelay, "Waiting for %s...")
 	}
 
-	ui.MessageSink <- fmt.Sprintf("Destroying %d units", len(units))
+	ui.MessageSink <- fmt.Sprintf("Destroying %d unit(s)", len(units))
 	if err := f.Destroy(ui.EventSink, units...); err != nil {
 		return maskAny(err)
 	}
