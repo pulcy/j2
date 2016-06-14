@@ -47,6 +47,7 @@ $(GOBUILDDIR):
 update-vendor:
 	@rm -Rf $(VENDORDIR)
 	@pulsar go vendor -V $(VENDORDIR) \
+		github.com/cenkalti/backoff \
 		github.com/coreos/etcd/client \
 		github.com/dchest/uniuri \
 		github.com/gosuri/uilive \

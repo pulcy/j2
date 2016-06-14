@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/fleet/client"
 	"github.com/coreos/fleet/job"
@@ -82,6 +83,63 @@ func (f *FleetTunnel) findUnits(names []string) (sus []schema.Unit, err error) {
 	}
 
 	return filtered, nil
+}
+
+// setUnitTargetStateWithRetry wraps SetUnitTargetState of the fleet API with a retry.
+func (f *FleetTunnel) setUnitTargetStateWithRetry(name, target string) error {
+	op := func() error {
+		return maskAny(f.cAPI.SetUnitTargetState(name, target))
+	}
+	if err := backoff.Retry(op, backoff.NewExponentialBackOff()); err != nil {
+		return maskAny(err)
+	}
+	return nil
+}
+
+// unitWithRetry wraps Unit of the fleet API with a retry.
+func (f *FleetTunnel) unitWithRetry(unitName string) (*schema.Unit, error) {
+	var u *schema.Unit
+	op := func() error {
+		var err error
+		u, err = f.cAPI.Unit(unitName)
+		return maskAny(err)
+	}
+	if err := backoff.Retry(op, backoff.NewExponentialBackOff()); err != nil {
+		return u, maskAny(err)
+	}
+	return u, nil
+}
+
+func (f *FleetTunnel) unitExists(unitName string) (bool, error) {
+	u, err := f.unitWithRetry(unitName)
+	return u != nil, maskAny(err)
+}
+
+// createUnitWithRetry wraps CreateUnit of the fleet API with a retry.
+func (f *FleetTunnel) createUnitWithRetry(unit *schema.Unit) error {
+	op := func() error {
+		return maskAny(f.cAPI.CreateUnit(unit))
+	}
+	if err := backoff.Retry(op, backoff.NewExponentialBackOff()); err != nil {
+		return maskAny(err)
+	}
+	return nil
+}
+
+// destroyUnitWithRetry wraps DestroyUnit of the fleet API with a retry.
+func (f *FleetTunnel) destroyUnitWithRetry(unitName string) (notFound bool, err error) {
+	op := func() error {
+		if err := f.cAPI.DestroyUnit(unitName); client.IsErrorUnitNotFound(err) {
+			// Ignore 'Unit does not exist' error
+			notFound = true
+			return nil
+		}
+		return maskAny(err)
+	}
+	if err := backoff.Retry(op, backoff.NewExponentialBackOff()); err != nil {
+		return notFound, maskAny(err)
+	}
+	return notFound, nil
 }
 
 // tryWaitForUnitStates tries to wait for units to reach the desired state.
@@ -165,7 +223,7 @@ func (f *FleetTunnel) checkUnitState(name string, js job.JobState, maxAttempts i
 func (f *FleetTunnel) assertUnitState(name string, js job.JobState, events chan Event) (ret bool) {
 	var state string
 
-	u, err := f.cAPI.Unit(name)
+	u, err := f.unitWithRetry(name)
 	if err != nil {
 		log.Warningf("Error retrieving Unit(%s) from Registry: %v", name, err)
 		return
@@ -250,7 +308,7 @@ func (f *FleetTunnel) setTargetStateOfUnits(units []string, state job.JobState) 
 		}
 
 		log.Debugf("Setting Unit(%s) target state to %s", u.Name, state)
-		if err := f.cAPI.SetUnitTargetState(u.Name, string(state)); err != nil {
+		if err := f.setUnitTargetStateWithRetry(u.Name, string(state)); err != nil {
 			return nil, maskAny(err)
 		}
 		triggered = append(triggered, u)

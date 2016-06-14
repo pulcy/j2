@@ -14,11 +14,24 @@
 
 package fleet
 
+import (
+	"github.com/cenkalti/backoff"
+	"github.com/coreos/fleet/schema"
+)
+
 func (f *FleetTunnel) Status() (StatusMap, error) {
 	log.Debugf("list unit status")
 
-	states, err := f.cAPI.UnitStates()
-	if err != nil {
+	var states []*schema.UnitState
+	op := func() error {
+		var err error
+		states, err = f.cAPI.UnitStates()
+		if err != nil {
+			return maskAny(err)
+		}
+		return nil
+	}
+	if err := backoff.Retry(op, backoff.NewExponentialBackOff()); err != nil {
 		return StatusMap{}, maskAny(err)
 	}
 

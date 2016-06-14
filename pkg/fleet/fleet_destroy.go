@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coreos/fleet/client"
 	aerr "github.com/ewoutp/go-aggregate-error"
 )
 
@@ -29,12 +28,9 @@ func (f *FleetTunnel) Destroy(events chan Event, unitNames ...string) error {
 
 	for _, unit := range unitNames {
 		events <- newEvent(unit, "destroying")
-		err := f.cAPI.DestroyUnit(unit)
-		if err != nil {
-			// Ignore 'Unit does not exist' error
-			if client.IsErrorUnitNotFound(err) {
-				continue
-			}
+		if notFound, err := f.destroyUnitWithRetry(unit); notFound {
+			continue
+		} else if err != nil {
 			ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
 			continue
 		}
@@ -53,13 +49,13 @@ func (f *FleetTunnel) Destroy(events chan Event, unitNames ...string) error {
 			}
 
 			for retry() {
-				u, err := f.cAPI.Unit(unit)
+				exists, err := f.unitExists(unit)
 				if err != nil {
 					ae.Add(maskAny(fmt.Errorf("Error destroying units: %v", err)))
 					break
 				}
 
-				if u == nil {
+				if !exists {
 					break
 				}
 				time.Sleep(defaultSleepTime)

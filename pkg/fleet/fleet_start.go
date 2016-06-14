@@ -124,16 +124,11 @@ func (f *FleetTunnel) lazyCreateUnits(units UnitDataList, events chan Event) err
 // checkUnitCreation checks if the unit with the given name should be created.
 func (f *FleetTunnel) checkUnitCreation(unitName string) (bool, error) {
 	// First, check if there already exists a Unit by the given name in the Registry
-	unit, err := f.cAPI.Unit(unitName)
+	exists, err := f.unitExists(unitName)
 	if err != nil {
 		return false, maskAny(fmt.Errorf("error retrieving Unit(%s) from Registry: %v", unitName, err))
 	}
-
-	// check if the unit is running
-	if unit == nil {
-		return true, nil
-	}
-	return false, nil
+	return !exists, nil
 }
 
 func (f *FleetTunnel) lazyStartUnits(units UnitDataList) ([]*schema.Unit, error) {
@@ -166,7 +161,7 @@ func (f *FleetTunnel) createUnit(name string, uf *unit.UnitFile) (*schema.Unit, 
 	if err := j.ValidateRequirements(); err != nil {
 		log.Warningf("Unit %s: %v", name, err)
 	}
-	err := f.cAPI.CreateUnit(&u)
+	err := f.createUnitWithRetry(&u)
 	if err != nil {
 		return nil, maskAny(fmt.Errorf("failed creating unit %s: %v", name, err))
 	}

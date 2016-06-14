@@ -15,7 +15,8 @@
 package fleet
 
 import (
-	"fmt"
+	"github.com/cenkalti/backoff"
+	"github.com/juju/errgo"
 
 	"github.com/coreos/fleet/schema"
 )
@@ -23,12 +24,17 @@ import (
 func (f *FleetTunnel) Cat(unitName string) (string, error) {
 	log.Debugf("cat unit %v", unitName)
 
-	u, err := f.cAPI.Unit(unitName)
-	if err != nil {
+	var u *schema.Unit
+	op := func() error {
+		var err error
+		u, err = f.cAPI.Unit(unitName)
+		return maskAny(err)
+	}
+	if err := backoff.Retry(op, backoff.NewExponentialBackOff()); err != nil {
 		return "", maskAny(err)
 	}
 	if u == nil {
-		return "", maskAny(fmt.Errorf("Unit %s not found", unitName))
+		return "", maskAny(errgo.WithCausef(nil, NotFoundError, unitName))
 	}
 
 	uf := schema.MapSchemaUnitOptionsToUnitFile(u.Options)

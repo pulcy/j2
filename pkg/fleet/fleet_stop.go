@@ -46,7 +46,9 @@ func (f *FleetTunnel) Stop(events chan Event, unitNames ...string) (StopStats, e
 		}
 
 		log.Debugf("Setting target state of Unit(%s) to %s", u.Name, job.JobStateLoaded)
-		f.cAPI.SetUnitTargetState(u.Name, string(job.JobStateLoaded))
+		if err := f.setUnitTargetStateWithRetry(u.Name, string(job.JobStateLoaded)); err != nil {
+			return StopStats{}, maskAny(err)
+		}
 		if suToGlobal(u) {
 			stats.StoppedGlobalUnits++
 			events <- newEvent(u.Name, "triggered global unit stop")
