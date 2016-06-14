@@ -29,7 +29,6 @@ func createTimerUnit(t *jobs.Task, ctx generatorContext) (*sdunits.Unit, error) 
 		FullName:     unitName(t, unitKindTimer, ctx.ScalingGroup) + ".timer",
 		Description:  unitDescription(t, "Timer", ctx.ScalingGroup),
 		Type:         "timer",
-		Scalable_:    false, //    t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
 		ExecOptions:  sdunits.NewExecOptions(),
 		FleetOptions: sdunits.NewFleetOptions(),

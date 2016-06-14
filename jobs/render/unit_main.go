@@ -27,7 +27,6 @@ func createMainUnit(t *jobs.Task, sidekickUnitNames []string, engine engine.Engi
 		FullName:     unitName(t, unitKindMain, ctx.ScalingGroup) + ".service",
 		Description:  unitDescription(t, "Main", ctx.ScalingGroup),
 		Type:         "service",
-		Scalable_:    true, //t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
 		ExecOptions:  sdunits.NewExecOptions(),
 		FleetOptions: sdunits.NewFleetOptions(),

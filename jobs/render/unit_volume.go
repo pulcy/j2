@@ -34,7 +34,6 @@ func createVolumeUnit(t *jobs.Task, vol jobs.Volume, volIndex int, engine engine
 		FullName:     unitName(t, namePostfix, ctx.ScalingGroup) + ".service",
 		Description:  unitDescription(t, fmt.Sprintf("Volume %d", volIndex), ctx.ScalingGroup),
 		Type:         "service",
-		Scalable_:    true, //t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
 		ExecOptions:  sdunits.NewExecOptions(),
 		FleetOptions: sdunits.NewFleetOptions(),

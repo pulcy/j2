@@ -31,7 +31,6 @@ func createProxyUnit(t *jobs.Task, link jobs.Link, linkIndex int, engine engine.
 		FullName:     unitName(t, namePostfix, ctx.ScalingGroup) + ".service",
 		Description:  unitDescription(t, fmt.Sprintf("Proxy %d", linkIndex), ctx.ScalingGroup),
 		Type:         "service",
-		Scalable_:    true, //t.group.IsScalable(),
 		ScalingGroup: ctx.ScalingGroup,
 		ExecOptions:  sdunits.NewExecOptions(),
 		FleetOptions: sdunits.NewFleetOptions(),
