@@ -25,36 +25,18 @@ import (
 // createProxyUnit
 func createProxyUnit(t *jobs.Task, link jobs.Link, linkIndex int, engine engine.Engine, ctx generatorContext) (*sdunits.Unit, error) {
 	namePostfix := fmt.Sprintf("%s%d", unitKindProxy, linkIndex)
-
-	unit := &sdunits.Unit{
-		Name:         unitName(t, namePostfix, ctx.ScalingGroup),
-		FullName:     unitName(t, namePostfix, ctx.ScalingGroup) + ".service",
-		Description:  unitDescription(t, fmt.Sprintf("Proxy %d", linkIndex), ctx.ScalingGroup),
-		Type:         "service",
-		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  sdunits.NewExecOptions(),
-		FleetOptions: sdunits.NewFleetOptions(),
+	unit, err := createDefaultUnit(t,
+		unitName(t, namePostfix, ctx.ScalingGroup),
+		unitDescription(t, fmt.Sprintf("Proxy %d", linkIndex), ctx.ScalingGroup),
+		"service", namePostfix, ctx)
+	if err != nil {
+		return nil, maskAny(err)
 	}
 	cmds, err := engine.CreateProxyCmds(t, link, linkIndex, unit.ExecOptions.Environment, ctx.ScalingGroup)
 	if err != nil {
 		return nil, maskAny(err)
 	}
 	setupUnitFromCmds(unit, cmds)
-	unit.ExecOptions.Restart = "always"
-
-	if err := setupInstanceConstraints(t, unit, namePostfix, ctx); err != nil {
-		return nil, maskAny(err)
-	}
-
-	// Service dependencies
-	unit.ExecOptions.Require(commonRequires...)
-	unit.ExecOptions.After(commonAfter...)
-
-	if err := setupConstraints(t, unit); err != nil {
-		return nil, maskAny(err)
-	}
-
-	addFleetOptions(t, ctx.FleetOptions, unit)
 
 	return unit, nil
 }

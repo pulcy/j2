@@ -22,14 +22,12 @@ import (
 
 // createMainUnit
 func createMainUnit(t *jobs.Task, sidekickUnitNames []string, engine engine.Engine, ctx generatorContext) (*sdunits.Unit, error) {
-	unit := &sdunits.Unit{
-		Name:         unitName(t, unitKindMain, ctx.ScalingGroup),
-		FullName:     unitName(t, unitKindMain, ctx.ScalingGroup) + ".service",
-		Description:  unitDescription(t, "Main", ctx.ScalingGroup),
-		Type:         "service",
-		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  sdunits.NewExecOptions(),
-		FleetOptions: sdunits.NewFleetOptions(),
+	unit, err := createDefaultUnit(t,
+		unitName(t, unitKindMain, ctx.ScalingGroup),
+		unitDescription(t, "Main", ctx.ScalingGroup),
+		"service", unitKindMain, ctx)
+	if err != nil {
+		return nil, maskAny(err)
 	}
 	cmds, err := engine.CreateMainCmds(t, unit.ExecOptions.Environment, ctx.ScalingGroup)
 	if err != nil {
@@ -46,14 +44,8 @@ func createMainUnit(t *jobs.Task, sidekickUnitNames []string, engine engine.Engi
 		unit.ExecOptions.Restart = "always"
 	}
 
-	if err := setupInstanceConstraints(t, unit, unitKindMain, ctx); err != nil {
-		return nil, maskAny(err)
-	}
-
-	// Service dependencies
-	unit.ExecOptions.Require(commonRequires...)
+	// Additional service dependencies
 	unit.ExecOptions.Require(sidekickUnitNames...)
-	unit.ExecOptions.After(commonAfter...)
 	unit.ExecOptions.After(sidekickUnitNames...)
 	for _, name := range t.VolumesFrom {
 		other, err := t.Task(name)
@@ -65,15 +57,10 @@ func createMainUnit(t *jobs.Task, sidekickUnitNames []string, engine engine.Engi
 		unit.ExecOptions.After(otherName)
 	}
 
+	// Add frontend registration commands
 	if err := addFrontEndRegistration(t, unit, ctx); err != nil {
 		return nil, maskAny(err)
 	}
-
-	if err := setupConstraints(t, unit); err != nil {
-		return nil, maskAny(err)
-	}
-
-	addFleetOptions(t, ctx.FleetOptions, unit)
 
 	return unit, nil
 }
