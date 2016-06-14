@@ -15,15 +15,31 @@
 package deployment
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/pulcy/j2/jobs"
 )
 
 type scalingGroupUnits struct {
 	scalingGroup uint
-	unitNames    []string
-	fileNames    []string
+	units        []jobs.UnitData
+}
+
+func (sgu scalingGroupUnits) unitNames() []string {
+	var names []string
+	for _, u := range sgu.units {
+		names = append(names, u.Name())
+	}
+	return names
+}
+
+func (sgu scalingGroupUnits) get(unitName string) (jobs.UnitData, error) {
+	for _, u := range sgu.units {
+		if u.Name() == unitName {
+			return u, nil
+		}
+	}
+	return nil, maskAny(fmt.Errorf("unit '%s' not found", unitName))
 }
 
 // generateScalingGroupUnits generates the unit files for the given scaling group and returns
@@ -36,23 +52,13 @@ func (d *Deployment) generateScalingGroupUnits(scalingGroup uint) (scalingGroupU
 		FleetOptions:        d.cluster.FleetOptions,
 	})
 
-	if err := generator.WriteTmpFiles(d.renderContext, d.images, d.cluster.InstanceCount); err != nil {
+	units, err := generator.GenerateUnits(d.renderContext, d.images, d.cluster.InstanceCount)
+	if err != nil {
 		return scalingGroupUnits{}, maskAny(err)
 	}
 
 	return scalingGroupUnits{
 		scalingGroup: scalingGroup,
-		unitNames:    generator.UnitNames(),
-		fileNames:    generator.FileNames(),
+		units:        units,
 	}, nil
-}
-
-// cleanup removes all generated files
-func (sgu *scalingGroupUnits) cleanup() error {
-	for _, fileName := range sgu.fileNames {
-		if err := os.Remove(fileName); err != nil && !os.IsNotExist(err) {
-			return maskAny(err)
-		}
-	}
-	return nil
 }

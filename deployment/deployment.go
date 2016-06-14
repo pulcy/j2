@@ -16,6 +16,8 @@ package deployment
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -75,17 +77,23 @@ func (d *Deployment) DryRun() error {
 	if err := d.generateScalingGroups(); err != nil {
 		return maskAny(err)
 	}
-	var dir string
-	units := []string{}
-	for _, sgu := range d.scalingGroups {
-		if dir == "" && len(sgu.fileNames) > 0 {
-			dir = filepath.Dir(sgu.fileNames[0])
-		}
-		units = append(units, sgu.unitNames...)
+	dir, err := ioutil.TempDir("", "j2")
+	if err != nil {
+		return maskAny(err)
 	}
-	sort.Strings(units)
+	unitNames := []string{}
+	for _, sgu := range d.scalingGroups {
+		for _, u := range sgu.units {
+			unitPath := filepath.Join(dir, u.Name())
+			if err := ioutil.WriteFile(unitPath, []byte(u.Content()), 0644); err != nil {
+				return maskAny(err)
+			}
+			unitNames = append(unitNames, u.Name())
+		}
+	}
+	sort.Strings(unitNames)
 	ui.HeaderSink <- fmt.Sprintf("The following units will be deployed.\n\n%s\n\nYou can review them in %s.\n",
-		strings.Join(units, "\n"),
+		strings.Join(unitNames, "\n"),
 		dir,
 	)
 
@@ -93,7 +101,7 @@ func (d *Deployment) DryRun() error {
 		return maskAny(err)
 	}
 
-	if err := d.cleanup(); err != nil {
+	if err := os.RemoveAll(dir); err != nil {
 		return maskAny(errgo.Notef(err, "Failed to cleanup files"))
 	}
 
@@ -113,16 +121,6 @@ func (d *Deployment) generateScalingGroups() error {
 			return maskAny(err)
 		}
 		d.scalingGroups = append(d.scalingGroups, sgu)
-	}
-	return nil
-}
-
-// cleanup removes all temp files.
-func (d *Deployment) cleanup() error {
-	for _, sgu := range d.scalingGroups {
-		if err := sgu.cleanup(); err != nil {
-			return maskAny(err)
-		}
 	}
 	return nil
 }

@@ -16,9 +16,6 @@ package fleet
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
 	"sync"
 
 	"github.com/coreos/fleet/api"
@@ -28,7 +25,17 @@ import (
 	aerr "github.com/ewoutp/go-aggregate-error"
 )
 
-func (f *FleetTunnel) Start(events chan Event, units ...string) error {
+type UnitData interface {
+	Name() string
+	Content() string
+}
+
+type UnitDataList interface {
+	Len() int
+	Get(index int) UnitData
+}
+
+func (f *FleetTunnel) Start(events chan Event, units UnitDataList) error {
 	log.Debugf("starting %v", units)
 
 	if err := f.lazyCreateUnits(units, events); err != nil {
@@ -65,14 +72,14 @@ func (f *FleetTunnel) Start(events chan Event, units ...string) error {
 // Any error encountered during these steps is returned immediately (i.e.
 // subsequent Jobs are not acted on). An error is also returned if none of the
 // above conditions match a given Job.
-func (f *FleetTunnel) lazyCreateUnits(args []string, events chan Event) error {
+func (f *FleetTunnel) lazyCreateUnits(units UnitDataList, events chan Event) error {
 	errchan := make(chan error)
 	blockAttempts := f.BlockAttempts
 	var wg sync.WaitGroup
-	for _, arg := range args {
-		name := path.Base(arg)
-
-		create, err := f.checkUnitCreation(arg)
+	for i := 0; i < units.Len(); i++ {
+		u := units.Get(i)
+		name := u.Name()
+		create, err := f.checkUnitCreation(name)
 		if err != nil {
 			return err
 		} else if !create {
@@ -82,7 +89,7 @@ func (f *FleetTunnel) lazyCreateUnits(args []string, events chan Event) error {
 		// Assume that the name references a local unit file on
 		// disk or if it is an instance unit and if so get its
 		// corresponding unit
-		uf, err := getUnitFile(arg)
+		uf, err := unit.NewUnitFile(u.Content())
 		if err != nil {
 			return err
 		}
@@ -114,17 +121,12 @@ func (f *FleetTunnel) lazyCreateUnits(args []string, events chan Event) error {
 	return nil
 }
 
-// checkUnitCreation checks if the unit should be created.
-// It takes a unit file path as a parameter.
-// It returns 0 on success and if the unit should be created, 1 if the
-// unit should not be created; and any error encountered.
-func (f *FleetTunnel) checkUnitCreation(arg string) (bool, error) {
-	name := path.Base(arg)
-
+// checkUnitCreation checks if the unit with the given name should be created.
+func (f *FleetTunnel) checkUnitCreation(unitName string) (bool, error) {
 	// First, check if there already exists a Unit by the given name in the Registry
-	unit, err := f.cAPI.Unit(name)
+	unit, err := f.cAPI.Unit(unitName)
 	if err != nil {
-		return false, maskAny(fmt.Errorf("error retrieving Unit(%s) from Registry: %v", name, err))
+		return false, maskAny(fmt.Errorf("error retrieving Unit(%s) from Registry: %v", unitName, err))
 	}
 
 	// check if the unit is running
@@ -134,90 +136,12 @@ func (f *FleetTunnel) checkUnitCreation(arg string) (bool, error) {
 	return false, nil
 }
 
-func (f *FleetTunnel) lazyStartUnits(args []string) ([]*schema.Unit, error) {
-	units := make([]string, 0, len(args))
-	for _, j := range args {
-		units = append(units, path.Base(j))
+func (f *FleetTunnel) lazyStartUnits(units UnitDataList) ([]*schema.Unit, error) {
+	unitNames := make([]string, 0, units.Len())
+	for i := 0; i < units.Len(); i++ {
+		unitNames = append(unitNames, units.Get(i).Name())
 	}
-	return f.setTargetStateOfUnits(units, job.JobStateLaunched)
-}
-
-// getUnitFile attempts to get a UnitFile configuration
-// It takes a unit file name as a parameter and tries first to lookup
-// the unit from the local disk. If it fails, it checks if the provided
-// file name may reference an instance of a template unit, if so, it
-// tries to get the template configuration either from the registry or
-// the local disk.
-// It returns a UnitFile configuration or nil; and any error ecountered
-func getUnitFile(file string) (*unit.UnitFile, error) {
-	var uf *unit.UnitFile
-	name := path.Base(file)
-
-	log.Debugf("Looking for Unit(%s) or its corresponding template", name)
-
-	// Assume that the file references a local unit file on disk and
-	// attempt to load it, if it exists
-	if _, err := os.Stat(file); !os.IsNotExist(err) {
-		uf, err = getUnitFromFile(file)
-		if err != nil {
-			return nil, maskAny(fmt.Errorf("failed getting Unit(%s) from file: %v", file, err))
-		}
-	} else {
-		// Otherwise (if the unit file does not exist), check if the
-		// name appears to be an instance of a template unit
-		info := unit.NewUnitNameInfo(name)
-		if info == nil {
-			return nil, maskAny(fmt.Errorf("error extracting information from unit name %s", name))
-		} else if !info.IsInstance() {
-			return nil, maskAny(fmt.Errorf("unable to find Unit(%s) in Registry or on filesystem", name))
-		}
-
-		// If it is an instance check for a corresponding template
-		// unit in the Registry or disk.
-		// If we found a template unit, later we create a
-		// near-identical instance unit in the Registry - same
-		// unit file as the template, but different name
-		uf, err = getUnitFileFromTemplate(info, file)
-		if err != nil {
-			return nil, maskAny(fmt.Errorf("failed getting Unit(%s) from template: %v", file, err))
-		}
-	}
-
-	log.Debugf("Found Unit(%s)", name)
-	return uf, nil
-}
-
-// getUnitFromFile attempts to load a Unit from a given filename
-// It returns the Unit or nil, and any error encountered
-func getUnitFromFile(file string) (*unit.UnitFile, error) {
-	out, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, maskAny(err)
-	}
-
-	unitName := path.Base(file)
-	log.Debugf("Unit(%s) found in local filesystem", unitName)
-
-	return unit.NewUnitFile(string(out))
-}
-
-// getUnitFileFromTemplate attempts to get a Unit from a template unit that
-// is either in the registry or on the file system
-// It takes two arguments, the template information and the unit file name
-// It returns the Unit or nil; and any error encountered
-func getUnitFileFromTemplate(uni *unit.UnitNameInfo, fileName string) (*unit.UnitFile, error) {
-	// Load template from disk
-	filePath := path.Join(path.Dir(fileName), uni.Template)
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, maskAny(fmt.Errorf("unable to find template Unit(%s) in Registry or on filesystem", uni.Template))
-	}
-
-	uf, err := getUnitFromFile(filePath)
-	if err != nil {
-		return nil, maskAny(fmt.Errorf("unable to load template Unit(%s) from file: %v", uni.Template, err))
-	}
-
-	return uf, nil
+	return f.setTargetStateOfUnits(unitNames, job.JobStateLaunched)
 }
 
 func (f *FleetTunnel) createUnit(name string, uf *unit.UnitFile) (*schema.Unit, error) {

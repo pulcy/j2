@@ -16,8 +16,6 @@ package deployment
 
 import (
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -47,7 +45,6 @@ func (d *Deployment) Run() error {
 	remainingLoadedJobUnitNames := selectUnitNames(allUnits, d.createUnitNamePredicate())
 
 	// Create scaling group units
-	defer d.cleanup()
 	if err := d.generateScalingGroups(); err != nil {
 		return maskAny(err)
 	}
@@ -68,8 +65,9 @@ func (d *Deployment) Run() error {
 		remainingLoadedJobUnitNames = selectUnitNames(remainingLoadedJobUnitNames, notPredicate(containsPredicate(loadedScalingGroupUnitNames)))
 
 		// Select the loaded unit name that have become obsolete
-		obsoleteUnitNames := selectUnitNames(loadedScalingGroupUnitNames, notPredicate(containsPredicate(sg.unitNames)))
-		notObsoleteUnitNames := selectUnitNames(loadedScalingGroupUnitNames, containsPredicate(sg.unitNames))
+		sgUnitNames := sg.unitNames()
+		obsoleteUnitNames := selectUnitNames(loadedScalingGroupUnitNames, notPredicate(containsPredicate(sgUnitNames)))
+		notObsoleteUnitNames := selectUnitNames(loadedScalingGroupUnitNames, containsPredicate(sgUnitNames))
 
 		// Select the unit names that are modified and need an update
 		statusMap, err := f.Status()
@@ -81,10 +79,10 @@ func (d *Deployment) Run() error {
 		isFailedPredicate := d.isFailedPredicate(sg, statusMap, f, ui)
 		failedUnitNames := selectUnitNames(notObsoleteUnitNames, isFailedPredicate)
 		unitNamesToDestroy := append(append(obsoleteUnitNames, modifiedUnitNames...), failedUnitNames...)
-		newUnitNames := selectUnitNames(sg.unitNames, notPredicate(containsPredicate(loadedScalingGroupUnitNames)))
+		newUnitNames := selectUnitNames(sgUnitNames, notPredicate(containsPredicate(loadedScalingGroupUnitNames)))
 
 		// Are there any changes?
-		anyModifications := (len(loadedScalingGroupUnitNames) != len(sg.fileNames)) || (len(unitNamesToDestroy) > 0)
+		anyModifications := (len(loadedScalingGroupUnitNames) != len(sg.units)) || (len(unitNamesToDestroy) > 0)
 
 		// Confirm modifications
 		if anyModifications && !d.force {
@@ -114,7 +112,7 @@ func (d *Deployment) Run() error {
 		}
 
 		// Now launch everything
-		if err := launchUnits(f, sg.fileNames, ui); err != nil {
+		if err := launchUnits(f, sg.units, ui); err != nil {
 			return maskAny(err)
 		}
 
@@ -189,31 +187,17 @@ func (d *Deployment) isModifiedPredicate(sg scalingGroupUnits, status fleet.Stat
 			ui.Verbosef("Failed to cat '%s': %#v\n", unitName, err)
 			return true // Assume it is modified
 		}
-		newCat, err := readUnit(unitName, sg.fileNames)
+		newUnit, err := sg.get(unitName)
 		if err != nil {
 			ui.Verbosef("Failed to read new '%s' unit: %#v\n", unitName, err)
 			return true // Assume it is modified
 		}
-		if !compareUnitContent(unitName, cat, newCat, ui) {
+		if !compareUnitContent(unitName, cat, newUnit.Content(), ui) {
 			return true
 		}
 		ui.Verbosef("Unit '%s' has not changed\n", unitName)
 		return false
 	}
-}
-
-func readUnit(unitName string, files []string) (string, error) {
-	for _, fileName := range files {
-		if unitName != filepath.Base(fileName) {
-			continue
-		}
-		data, err := ioutil.ReadFile(fileName)
-		if err != nil {
-			return "", maskAny(err)
-		}
-		return string(data), nil
-	}
-	return "", nil // This will ensure that the unit is considered different
 }
 
 func compareUnitContent(unitName, a, b string, ui *stateUI) bool {
@@ -246,11 +230,23 @@ func normalizeUnitContent(content string) []string {
 	return result
 }
 
-func launchUnits(f fleet.FleetTunnel, files []string, ui *stateUI) error {
-	ui.Verbosef("Starting %#v\n", files)
+type unitDataList struct {
+	units []jobs.UnitData
+}
 
-	ui.MessageSink <- fmt.Sprintf("Starting %d units", len(files))
-	if err := f.Start(ui.EventSink, files...); err != nil {
+func (l *unitDataList) Len() int {
+	return len(l.units)
+}
+
+func (l *unitDataList) Get(index int) fleet.UnitData {
+	return l.units[index]
+}
+
+func launchUnits(f fleet.FleetTunnel, units []jobs.UnitData, ui *stateUI) error {
+	ui.Verbosef("Starting %#v\n", units)
+
+	ui.MessageSink <- fmt.Sprintf("Starting %d units", len(units))
+	if err := f.Start(ui.EventSink, &unitDataList{units: units}); err != nil {
 		return maskAny(err)
 	}
 

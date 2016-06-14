@@ -15,11 +15,6 @@
 package jobs
 
 import (
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/units"
 )
@@ -34,9 +29,6 @@ type GeneratorConfig struct {
 type Generator struct {
 	job *Job
 	GeneratorConfig
-	files     []string
-	unitNames []string
-	tmpDir    string
 }
 
 type Images struct {
@@ -46,23 +38,10 @@ type Images struct {
 	CephVolume  string // Docker image name of ceph-volume
 }
 
-var (
-	defaultTmpDir string
-)
-
-func init() {
-	var err error
-	defaultTmpDir, err = ioutil.TempDir("", "j2")
-	if err != nil {
-		panic(err.Error())
-	}
-}
-
 func newGenerator(job *Job, config GeneratorConfig) *Generator {
 	return &Generator{
 		job:             job,
 		GeneratorConfig: config,
-		tmpDir:          defaultTmpDir,
 	}
 }
 
@@ -74,24 +53,9 @@ type generatorContext struct {
 	FleetOptions  cluster.FleetOptions
 }
 
-// NewTmpDir sets up a new temporary directory for the generated files.
-// Used for testing only.
-func (g *Generator) NewTmpDir() {
-	var err error
-	os.RemoveAll(g.tmpDir)
-	g.tmpDir, err = ioutil.TempDir("", "j2")
-	if err != nil {
-		panic(err.Error())
-	}
-}
-
-func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instanceCount int) error {
-	files := []string{}
-	unitNames := []string{}
+func (g *Generator) GenerateUnits(ctx units.RenderContext, images Images, instanceCount int) ([]UnitData, error) {
+	units := []UnitData{}
 	maxCount := g.job.MaxCount()
-	if err := os.MkdirAll(g.tmpDir, 0755); err != nil {
-		return maskAny(err)
-	}
 	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
 		if g.CurrentScalingGroup != 0 && g.CurrentScalingGroup != scalingGroup {
 			continue
@@ -110,48 +74,18 @@ func (g *Generator) WriteTmpFiles(ctx units.RenderContext, images Images, instan
 			}
 			unitChains, err := tg.createUnits(genCtx)
 			if err != nil {
-				return maskAny(err)
+				return nil, maskAny(err)
 			}
 			for _, chain := range unitChains {
 				for _, unit := range chain {
 					content := unit.Render(ctx)
 					unitName := unit.FullName
-					path := filepath.Join(g.tmpDir, unitName)
-					if _, err := os.Stat(path); err == nil {
-						return maskAny(fmt.Errorf("'%s' already exists"))
-					}
-					err := ioutil.WriteFile(path, []byte(content), 0644)
-					if err != nil {
-						return maskAny(err)
-					}
-					files = append(files, path)
-					unitNames = append(unitNames, unitName)
+					units = append(units, newUnitData(unitName, content))
 				}
 			}
 		}
 	}
-	g.files = files
-	g.unitNames = unitNames
-	return nil
-}
-
-func (g *Generator) RemoveTmpFiles() error {
-	for _, path := range g.files {
-		err := os.Remove(path)
-		if err != nil {
-			return maskAny(err)
-		}
-	}
-	os.Remove(g.tmpDir) // If this fails we don't care
-	return nil
-}
-
-func (g *Generator) FileNames() []string {
-	return g.files
-}
-
-func (g *Generator) UnitNames() []string {
-	return g.unitNames
+	return units, nil
 }
 
 // Should the group with given name be generated?
