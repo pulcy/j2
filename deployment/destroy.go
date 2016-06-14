@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pulcy/j2/fleet"
+	"github.com/pulcy/j2/pkg/fleet"
 )
 
 // Destroy removes all unit files that belong to the configured job from the configured cluster.

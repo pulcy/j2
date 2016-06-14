@@ -15,7 +15,7 @@
 package deployment
 
 import (
-	"github.com/pulcy/j2/fleet"
+	"github.com/pulcy/j2/pkg/fleet"
 )
 
 func (d *Deployment) newFleetTunnel() (fleet.FleetTunnel, error) {

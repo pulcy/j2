@@ -21,8 +21,8 @@ import (
 
 	"github.com/ryanuber/columnize"
 
-	"github.com/pulcy/j2/fleet"
 	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/pkg/fleet"
 )
 
 // Run creates all applicable unit files and deploys them onto the configured cluster.

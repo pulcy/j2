@@ -26,7 +26,7 @@ import (
 	"sync"
 
 	"github.com/gosuri/uilive"
-	"github.com/pulcy/j2/fleet"
+	"github.com/pulcy/j2/pkg/fleet"
 	"github.com/ryanuber/columnize"
 )
 

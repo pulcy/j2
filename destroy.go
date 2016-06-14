@@ -62,7 +62,7 @@ func destroyRun(cmd *cobra.Command, args []string) {
 		destroyFlags.AutoContinue,
 		globalFlags.verbose,
 		delays,
-		&renderContext{},
+		renderCtx,
 		images)
 
 	assert(d.Destroy())

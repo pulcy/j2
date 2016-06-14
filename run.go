@@ -31,6 +31,11 @@ var (
 	runFlags struct {
 		fg.Flags
 	}
+	renderCtx = &renderContext{
+		projectName:    projectName,
+		projectBuild:   projectBuild,
+		projectVersion: projectVersion,
+	}
 )
 
 func init() {
@@ -62,7 +67,7 @@ func runRun(cmd *cobra.Command, args []string) {
 		runFlags.AutoContinue,
 		globalFlags.verbose,
 		delays,
-		&renderContext{},
+		renderCtx,
 		images)
 
 	if runFlags.DryRun {
@@ -76,16 +81,19 @@ func runValidators(f *fg.Flags) {
 }
 
 type renderContext struct {
+	projectName    string
+	projectVersion string
+	projectBuild   string
 }
 
 func (r *renderContext) ProjectName() string {
-	return projectName
+	return r.projectName
 }
 
 func (r *renderContext) ProjectVersion() string {
-	return projectVersion
+	return r.projectVersion
 }
 
 func (r *renderContext) ProjectBuild() string {
-	return projectBuild
+	return r.projectBuild
 }
