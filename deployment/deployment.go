@@ -27,6 +27,8 @@ import (
 
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/scheduler"
+	"github.com/pulcy/j2/scheduler/fleet"
 )
 
 type DeploymentDelays struct {
@@ -126,4 +128,12 @@ func (d *Deployment) generateScalingGroups() error {
 		d.scalingGroups = append(d.scalingGroups, sgu)
 	}
 	return nil
+}
+
+func (d *Deployment) newScheduler() (scheduler.Scheduler, error) {
+	s, err := fleetscheduler.NewScheduler(d.cluster.Tunnel)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return s, nil
 }

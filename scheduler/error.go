@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package deployment
+package scheduler
 
 import (
-	"github.com/pulcy/j2/pkg/fleet"
+	"github.com/juju/errgo"
 )
 
-func (d *Deployment) newFleetTunnel() (fleet.FleetTunnel, error) {
-	config := fleet.DefaultConfig()
-	config.Tunnel = d.cluster.Tunnel
-	tun, err := fleet.NewTunnel(config)
-	if err != nil {
-		return fleet.FleetTunnel{}, maskAny(err)
-	}
-	return *tun, nil
+var (
+	NotFoundError = errgo.New("not found")
+	maskAny       = errgo.MaskFunc(errgo.Any)
+)
+
+func IsNotFound(err error) bool {
+	return errgo.Cause(err) == NotFoundError
 }

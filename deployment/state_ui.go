@@ -26,7 +26,7 @@ import (
 	"sync"
 
 	"github.com/gosuri/uilive"
-	"github.com/pulcy/j2/pkg/fleet"
+	"github.com/pulcy/j2/scheduler"
 	"github.com/ryanuber/columnize"
 )
 
@@ -37,7 +37,7 @@ const (
 
 type stateUI struct {
 	HeaderSink  chan string
-	EventSink   chan fleet.Event
+	EventSink   chan scheduler.Event
 	MessageSink chan string
 
 	mutex        sync.Mutex
@@ -54,7 +54,7 @@ type stateUI struct {
 func newStateUI(verbose bool) *stateUI {
 	s := &stateUI{
 		HeaderSink:  make(chan string),
-		EventSink:   make(chan fleet.Event),
+		EventSink:   make(chan scheduler.Event),
 		MessageSink: make(chan string),
 		states:      make(map[string]string),
 		writer:      uilive.New(),
@@ -142,7 +142,7 @@ func (s *stateUI) processHeader(header string) {
 	s.redraw()
 }
 
-func (s *stateUI) processEvent(evt fleet.Event) {
+func (s *stateUI) processEvent(evt scheduler.Event) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
