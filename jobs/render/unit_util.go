@@ -15,10 +15,51 @@
 package render
 
 import (
+	"fmt"
+
 	"github.com/pulcy/j2/engine"
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/cmdline"
 	"github.com/pulcy/j2/pkg/sdunits"
 )
+
+func createBaseUnit(t *jobs.Task, name, description, unitType string, ctx generatorContext) *sdunits.Unit {
+	unit := &sdunits.Unit{
+		Name:         name,
+		FullName:     fmt.Sprintf("%s.%s", name, unitType),
+		Description:  description,
+		Type:         unitType,
+		ScalingGroup: ctx.ScalingGroup,
+		ExecOptions:  sdunits.NewExecOptions(),
+		FleetOptions: sdunits.NewFleetOptions(),
+	}
+	addFleetOptions(t, ctx.FleetOptions, unit)
+
+	return unit
+}
+
+func createDefaultUnit(t *jobs.Task, name, description, unitType, unitKind string, ctx generatorContext) (*sdunits.Unit, error) {
+	unit := createBaseUnit(t, name, description, unitType, ctx)
+	unit.ExecOptions.Restart = "always"
+
+	if err := setupInstanceConstraints(t, unit, unitKind, ctx); err != nil {
+		return nil, maskAny(err)
+	}
+
+	// Service dependencies
+	unit.ExecOptions.Require(commonRequires...)
+	unit.ExecOptions.After(commonAfter...)
+
+	if err := addFrontEndRegistration(t, unit, ctx); err != nil {
+		return nil, maskAny(err)
+	}
+
+	if err := setupConstraints(t, unit); err != nil {
+		return nil, maskAny(err)
+	}
+
+	return unit, nil
+}
 
 func setupUnitFromCmds(unit *sdunits.Unit, cmds engine.Cmds) {
 	formatCmd := func(cmd cmdline.Cmdline) string {

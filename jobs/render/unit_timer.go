@@ -24,19 +24,12 @@ func createTimerUnit(t *jobs.Task, ctx generatorContext) (*sdunits.Unit, error) 
 	if t.Timer == "" {
 		return nil, nil
 	}
-	unit := &sdunits.Unit{
-		Name:         unitName(t, unitKindTimer, ctx.ScalingGroup),
-		FullName:     unitName(t, unitKindTimer, ctx.ScalingGroup) + ".timer",
-		Description:  unitDescription(t, "Timer", ctx.ScalingGroup),
-		Type:         "timer",
-		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  sdunits.NewExecOptions(),
-		FleetOptions: sdunits.NewFleetOptions(),
-	}
+	unit := createBaseUnit(t,
+		unitName(t, unitKindTimer, ctx.ScalingGroup),
+		unitDescription(t, "Timer", ctx.ScalingGroup),
+		"timer", ctx)
 	unit.ExecOptions.OnCalendar = t.Timer
 	unit.ExecOptions.Unit = unitName(t, unitKindMain, ctx.ScalingGroup) + ".service"
-
-	addFleetOptions(t, ctx.FleetOptions, unit)
 
 	return unit, nil
 }

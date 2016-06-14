@@ -29,35 +29,18 @@ func createVolumeUnit(t *jobs.Task, vol jobs.Volume, volIndex int, engine engine
 	volPrefix := path.Join(fmt.Sprintf("%s/%v", t.FullName(), ctx.ScalingGroup), vol.Path)
 	volHostPath := fmt.Sprintf("/media/%s", volPrefix)
 
-	unit := &sdunits.Unit{
-		Name:         unitName(t, namePostfix, ctx.ScalingGroup),
-		FullName:     unitName(t, namePostfix, ctx.ScalingGroup) + ".service",
-		Description:  unitDescription(t, fmt.Sprintf("Volume %d", volIndex), ctx.ScalingGroup),
-		Type:         "service",
-		ScalingGroup: ctx.ScalingGroup,
-		ExecOptions:  sdunits.NewExecOptions(),
-		FleetOptions: sdunits.NewFleetOptions(),
+	unit, err := createDefaultUnit(t,
+		unitName(t, namePostfix, ctx.ScalingGroup),
+		unitDescription(t, fmt.Sprintf("Volume %d", volIndex), ctx.ScalingGroup),
+		"service", namePostfix, ctx)
+	if err != nil {
+		return nil, maskAny(err)
 	}
 	cmds, err := engine.CreateVolumeCmds(t, vol, volIndex, volPrefix, volHostPath, unit.ExecOptions.Environment, ctx.ScalingGroup)
 	if err != nil {
 		return nil, maskAny(err)
 	}
 	setupUnitFromCmds(unit, cmds)
-	unit.ExecOptions.Restart = "always"
-
-	if err := setupInstanceConstraints(t, unit, namePostfix, ctx); err != nil {
-		return nil, maskAny(err)
-	}
-
-	// Service dependencies
-	unit.ExecOptions.Require(commonRequires...)
-	unit.ExecOptions.After(commonAfter...)
-
-	if err := setupConstraints(t, unit); err != nil {
-		return nil, maskAny(err)
-	}
-
-	addFleetOptions(t, ctx.FleetOptions, unit)
 
 	return unit, nil
 }
