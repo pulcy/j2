@@ -22,7 +22,7 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/juju/errgo"
 
-	"github.com/pulcy/j2/util"
+	"github.com/pulcy/j2/pkg/hclutil"
 )
 
 // ParseClusterFromFile reads a cluster from file
@@ -78,7 +78,7 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 		"fleet",
 		"quark",
 	}
-	if err := util.Decode(obj.Val, excludeList, nil, c); err != nil {
+	if err := hclutil.Decode(obj.Val, excludeList, nil, c); err != nil {
 		return maskAny(err)
 	}
 	c.Stack = obj.Keys[0].Token.Value().(string)
@@ -140,12 +140,12 @@ func (options *DockerOptions) parse(obj *ast.ObjectType, c Cluster) error {
 	excludeList := []string{
 		"log-args",
 	}
-	if err := util.Decode(obj, excludeList, nil, options); err != nil {
+	if err := hclutil.Decode(obj, excludeList, nil, options); err != nil {
 		return maskAny(err)
 	}
 	// Parse log-args
 	if o := obj.List.Filter("log-args"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("log-args of cluster '%s'", c.Stack))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("log-args of cluster '%s'", c.Stack))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -164,12 +164,12 @@ func (options *FleetOptions) parse(obj *ast.ObjectType, c Cluster) error {
 		"requires",
 		"global-instance-constraints",
 	}
-	if err := util.Decode(obj, excludeList, nil, options); err != nil {
+	if err := hclutil.Decode(obj, excludeList, nil, options); err != nil {
 		return maskAny(err)
 	}
 	// Parse after
 	if o := obj.List.Filter("after"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("after of cluster '%s'", c.Stack))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("after of cluster '%s'", c.Stack))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -177,7 +177,7 @@ func (options *FleetOptions) parse(obj *ast.ObjectType, c Cluster) error {
 	}
 	// Parse wants
 	if o := obj.List.Filter("wants"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("wants of cluster '%s'", c.Stack))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("wants of cluster '%s'", c.Stack))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -185,7 +185,7 @@ func (options *FleetOptions) parse(obj *ast.ObjectType, c Cluster) error {
 	}
 	// Parse requires
 	if o := obj.List.Filter("requires"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("requires of cluster '%s'", c.Stack))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("requires of cluster '%s'", c.Stack))
 		if err != nil {
 			return maskAny(err)
 		}
@@ -194,7 +194,7 @@ func (options *FleetOptions) parse(obj *ast.ObjectType, c Cluster) error {
 
 	// Parse global-instance-constraints
 	if o := obj.List.Filter("global-instance-constraints"); len(o.Items) > 0 {
-		list, err := util.ParseStringList(o, fmt.Sprintf("global-instance-constraints of cluster '%s'", c.Stack))
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("global-instance-constraints of cluster '%s'", c.Stack))
 		if err != nil {
 			return maskAny(err)
 		}
