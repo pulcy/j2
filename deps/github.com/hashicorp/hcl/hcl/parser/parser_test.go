@@ -303,6 +303,18 @@ func TestParse(t *testing.T) {
 			"unterminated_object.hcl",
 			true,
 		},
+		{
+			"unterminated_object_2.hcl",
+			true,
+		},
+		{
+			"key_without_value.hcl",
+			true,
+		},
+		{
+			"object_key_without_value.hcl",
+			true,
+		},
 	}
 
 	const fixtureDir = "./test-fixtures"

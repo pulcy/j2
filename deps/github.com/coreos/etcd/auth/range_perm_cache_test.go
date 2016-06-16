@@ -15,6 +15,7 @@
 package auth
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -28,7 +29,7 @@ func isPermsEqual(a, b []*rangePerm) bool {
 			return false
 		}
 
-		if a[i].begin != b[i].begin || a[i].end != b[i].end {
+		if !bytes.Equal(a[i].begin, b[i].begin) || !bytes.Equal(a[i].end, b[i].end) {
 			return false
 		}
 	}
@@ -36,54 +37,86 @@ func isPermsEqual(a, b []*rangePerm) bool {
 	return true
 }
 
-func TestUnifyParams(t *testing.T) {
+func TestGetMergedPerms(t *testing.T) {
 	tests := []struct {
 		params []*rangePerm
 		want   []*rangePerm
 	}{
 		{
-			[]*rangePerm{{"a", "b"}},
-			[]*rangePerm{{"a", "b"}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}},
 		},
 		{
-			[]*rangePerm{{"a", "b"}, {"b", "c"}},
-			[]*rangePerm{{"a", "c"}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("b"), []byte("c")}},
+			[]*rangePerm{{[]byte("a"), []byte("c")}},
 		},
 		{
-			[]*rangePerm{{"a", "c"}, {"b", "d"}},
-			[]*rangePerm{{"a", "d"}},
+			[]*rangePerm{{[]byte("a"), []byte("c")}, {[]byte("b"), []byte("d")}},
+			[]*rangePerm{{[]byte("a"), []byte("d")}},
 		},
 		{
-			[]*rangePerm{{"a", "b"}, {"b", "c"}, {"d", "e"}},
-			[]*rangePerm{{"a", "c"}, {"d", "e"}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("b"), []byte("c")}, {[]byte("d"), []byte("e")}},
+			[]*rangePerm{{[]byte("a"), []byte("c")}, {[]byte("d"), []byte("e")}},
 		},
 		{
-			[]*rangePerm{{"a", "b"}, {"c", "d"}, {"e", "f"}},
-			[]*rangePerm{{"a", "b"}, {"c", "d"}, {"e", "f"}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("c"), []byte("d")}, {[]byte("e"), []byte("f")}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("c"), []byte("d")}, {[]byte("e"), []byte("f")}},
 		},
 		{
-			[]*rangePerm{{"e", "f"}, {"c", "d"}, {"a", "b"}},
-			[]*rangePerm{{"a", "b"}, {"c", "d"}, {"e", "f"}},
+			[]*rangePerm{{[]byte("e"), []byte("f")}, {[]byte("c"), []byte("d")}, {[]byte("a"), []byte("b")}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("c"), []byte("d")}, {[]byte("e"), []byte("f")}},
 		},
 		{
-			[]*rangePerm{{"a", "b"}, {"c", "d"}, {"a", "z"}},
-			[]*rangePerm{{"a", "z"}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("c"), []byte("d")}, {[]byte("a"), []byte("z")}},
+			[]*rangePerm{{[]byte("a"), []byte("z")}},
 		},
 		{
-			[]*rangePerm{{"a", "b"}, {"c", "d"}, {"a", "z"}, {"1", "9"}},
-			[]*rangePerm{{"1", "9"}, {"a", "z"}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("c"), []byte("d")}, {[]byte("a"), []byte("z")}, {[]byte("1"), []byte("9")}},
+			[]*rangePerm{{[]byte("1"), []byte("9")}, {[]byte("a"), []byte("z")}},
 		},
 		{
-			[]*rangePerm{{"a", "b"}, {"c", "d"}, {"a", "z"}, {"1", "a"}},
-			[]*rangePerm{{"1", "z"}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("c"), []byte("d")}, {[]byte("a"), []byte("z")}, {[]byte("1"), []byte("a")}},
+			[]*rangePerm{{[]byte("1"), []byte("z")}},
 		},
 		{
-			[]*rangePerm{{"a", "b"}, {"a", "z"}, {"5", "6"}, {"1", "9"}},
-			[]*rangePerm{{"1", "9"}, {"a", "z"}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("a"), []byte("z")}, {[]byte("5"), []byte("6")}, {[]byte("1"), []byte("9")}},
+			[]*rangePerm{{[]byte("1"), []byte("9")}, {[]byte("a"), []byte("z")}},
 		},
 		{
-			[]*rangePerm{{"a", "b"}, {"b", "c"}, {"c", "d"}, {"d", "f"}, {"1", "9"}},
-			[]*rangePerm{{"1", "9"}, {"a", "f"}},
+			[]*rangePerm{{[]byte("a"), []byte("b")}, {[]byte("b"), []byte("c")}, {[]byte("c"), []byte("d")}, {[]byte("d"), []byte("f")}, {[]byte("1"), []byte("9")}},
+			[]*rangePerm{{[]byte("1"), []byte("9")}, {[]byte("a"), []byte("f")}},
+		},
+		// overlapping
+		{
+			[]*rangePerm{{[]byte("a"), []byte("f")}, {[]byte("b"), []byte("g")}},
+			[]*rangePerm{{[]byte("a"), []byte("g")}},
+		},
+		// keys
+		{
+			[]*rangePerm{{[]byte("a"), []byte("")}, {[]byte("b"), []byte("")}},
+			[]*rangePerm{{[]byte("a"), []byte("")}, {[]byte("b"), []byte("")}},
+		},
+		{
+			[]*rangePerm{{[]byte("a"), []byte("")}, {[]byte("a"), []byte("c")}},
+			[]*rangePerm{{[]byte("a"), []byte("c")}},
+		},
+		{
+			[]*rangePerm{{[]byte("a"), []byte("")}, {[]byte("a"), []byte("c")}, {[]byte("b"), []byte("")}},
+			[]*rangePerm{{[]byte("a"), []byte("c")}},
+		},
+		{
+			[]*rangePerm{{[]byte("a"), []byte("")}, {[]byte("b"), []byte("c")}, {[]byte("b"), []byte("")}, {[]byte("c"), []byte("")}, {[]byte("d"), []byte("")}},
+			[]*rangePerm{{[]byte("a"), []byte("")}, {[]byte("b"), []byte("c")}, {[]byte("d"), []byte("")}},
+		},
+		// duplicate ranges
+		{
+			[]*rangePerm{{[]byte("a"), []byte("f")}, {[]byte("a"), []byte("f")}},
+			[]*rangePerm{{[]byte("a"), []byte("f")}},
+		},
+		// duplicate keys
+		{
+			[]*rangePerm{{[]byte("a"), []byte("")}, {[]byte("a"), []byte("")}, {[]byte("a"), []byte("")}},
+			[]*rangePerm{{[]byte("a"), []byte("")}},
 		},
 	}
 

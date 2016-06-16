@@ -39,6 +39,10 @@ These libraries are provided by the community.
 * [vault-java](https://github.com/jhaals/vault-java)
 * [vault-java-driver](https://github.com/BetterCloud/vault-java-driver)
 
+### Kotlin
+
+* [vault-kotlin](https://github.com/kunickiaj/vault-kotlin)
+
 ### Node.js
 
 * [node-vault](https://github.com/kr1sp1n/node-vault)
@@ -46,7 +50,15 @@ These libraries are provided by the community.
 * [vaulted](https://github.com/chiefy/vaulted)
   * `npm install vaulted`
 
+### PHP
+
+* [vault-php-sdk](https://github.com/jippi/vault-php-sdk)
+  * `composer require jippi/vault-php-sdk`
+
 ### Python
 
 * [HVAC](https://github.com/ianunruh/hvac)
   * `pip install hvac`
+
+### Scala
+ * [scala-vault](https://github.com/janstenpickle/scala-vault)

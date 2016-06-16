@@ -3,12 +3,18 @@ package http
 import (
 	"bytes"
 	"io"
+	"log"
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/vault/physical"
 	"github.com/hashicorp/vault/vault"
+)
+
+var (
+	logger = log.New(os.Stderr, "", log.LstdFlags)
 )
 
 func TestLogical(t *testing.T) {
@@ -34,8 +40,9 @@ func TestLogical(t *testing.T) {
 		"data": map[string]interface{}{
 			"data": "bar",
 		},
-		"auth":     nil,
-		"warnings": nilWarnings,
+		"auth":      nil,
+		"wrap_info": nil,
+		"warnings":  nilWarnings,
 	}
 	testResponseStatus(t, resp, 200)
 	testResponseBody(t, resp, &actual)
@@ -69,7 +76,7 @@ func TestLogical_StandbyRedirect(t *testing.T) {
 	defer ln2.Close()
 
 	// Create an HA Vault
-	inmha := physical.NewInmemHA()
+	inmha := physical.NewInmemHA(logger)
 	conf := &vault.CoreConfig{
 		Physical:      inmha,
 		HAPhysical:    inmha,
@@ -84,6 +91,10 @@ func TestLogical_StandbyRedirect(t *testing.T) {
 	if _, err := core1.Unseal(vault.TestKeyCopy(key)); err != nil {
 		t.Fatalf("unseal err: %s", err)
 	}
+
+	// Attempt to fix raciness in this test by giving the first core a chance
+	// to grab the lock
+	time.Sleep(time.Second)
 
 	// Create a second HA Vault
 	conf2 := &vault.CoreConfig{
@@ -118,24 +129,28 @@ func TestLogical_StandbyRedirect(t *testing.T) {
 		"renewable":      false,
 		"lease_duration": float64(0),
 		"data": map[string]interface{}{
-			"meta":         nil,
-			"num_uses":     float64(0),
-			"path":         "auth/token/root",
-			"policies":     []interface{}{"root"},
-			"display_name": "root",
-			"orphan":       true,
-			"id":           root,
-			"ttl":          float64(0),
-			"creation_ttl": float64(0),
+			"meta":             nil,
+			"num_uses":         float64(0),
+			"path":             "auth/token/root",
+			"policies":         []interface{}{"root"},
+			"display_name":     "root",
+			"orphan":           true,
+			"id":               root,
+			"ttl":              float64(0),
+			"creation_ttl":     float64(0),
+			"role":             "",
+			"explicit_max_ttl": float64(0),
 		},
-		"warnings": nilWarnings,
-		"auth":     nil,
+		"warnings":  nilWarnings,
+		"wrap_info": nil,
+		"auth":      nil,
 	}
 
 	testResponseStatus(t, resp, 200)
 	testResponseBody(t, resp, &actual)
 	actualDataMap := actual["data"].(map[string]interface{})
 	delete(actualDataMap, "creation_time")
+	delete(actualDataMap, "accessor")
 	actual["data"] = actualDataMap
 	delete(actual, "lease_id")
 	if !reflect.DeepEqual(actual, expected) {
@@ -165,6 +180,7 @@ func TestLogical_CreateToken(t *testing.T) {
 		"renewable":      false,
 		"lease_duration": float64(0),
 		"data":           nil,
+		"wrap_info":      nil,
 		"auth": map[string]interface{}{
 			"policies":       []interface{}{"root"},
 			"metadata":       nil,
@@ -176,6 +192,7 @@ func TestLogical_CreateToken(t *testing.T) {
 	testResponseStatus(t, resp, 200)
 	testResponseBody(t, resp, &actual)
 	delete(actual["auth"].(map[string]interface{}), "client_token")
+	delete(actual["auth"].(map[string]interface{}), "accessor")
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("bad:\nexpected:\n%#v\nactual:\n%#v", expected, actual)
 	}

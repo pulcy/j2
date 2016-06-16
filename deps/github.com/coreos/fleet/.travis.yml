@@ -1,0 +1,14 @@
+language: go
+matrix:
+  include:
+    - go: 1.5.4
+      env: GO15VENDOREXPERIMENT=1
+    - go: 1.6.2
+
+script:
+ - ./test
+
+notifications:
+  email: false
+
+sudo: false

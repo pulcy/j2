@@ -6,14 +6,23 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/vault"
 )
 
-// AuthHeaderName is the name of the header containing the token.
-const AuthHeaderName = "X-Vault-Token"
+const (
+	// AuthHeaderName is the name of the header containing the token.
+	AuthHeaderName = "X-Vault-Token"
+
+	// WrapHeaderName is the name of the header containing a directive to wrap the
+	// response.
+	WrapTTLHeaderName = "X-Vault-Wrap-TTL"
+)
 
 // Handler returns an http.Handler for the API. This can be used on
 // its own to mount the Vault API within another web server.
@@ -23,35 +32,37 @@ func Handler(core *vault.Core) http.Handler {
 	mux.Handle("/v1/sys/init", handleSysInit(core))
 	mux.Handle("/v1/sys/seal-status", handleSysSealStatus(core))
 	mux.Handle("/v1/sys/seal", handleSysSeal(core))
+	mux.Handle("/v1/sys/step-down", handleSysStepDown(core))
 	mux.Handle("/v1/sys/unseal", handleSysUnseal(core))
-	mux.Handle("/v1/sys/mounts", proxySysRequest(core))
-	mux.Handle("/v1/sys/mounts/", proxySysRequest(core))
-	mux.Handle("/v1/sys/remount", proxySysRequest(core))
-	mux.Handle("/v1/sys/policy", handleSysListPolicies(core))
-	mux.Handle("/v1/sys/policy/", handleSysPolicy(core))
-	mux.Handle("/v1/sys/renew/", handleLogical(core, false))
-	mux.Handle("/v1/sys/revoke/", proxySysRequest(core))
-	mux.Handle("/v1/sys/revoke-prefix/", proxySysRequest(core))
-	mux.Handle("/v1/sys/auth", proxySysRequest(core))
-	mux.Handle("/v1/sys/auth/", proxySysRequest(core))
-	mux.Handle("/v1/sys/audit-hash/", proxySysRequest(core))
-	mux.Handle("/v1/sys/audit", proxySysRequest(core))
-	mux.Handle("/v1/sys/audit/", proxySysRequest(core))
+	mux.Handle("/v1/sys/renew/", handleLogical(core, false, nil))
 	mux.Handle("/v1/sys/leader", handleSysLeader(core))
 	mux.Handle("/v1/sys/health", handleSysHealth(core))
-	mux.Handle("/v1/sys/rotate", proxySysRequest(core))
-	mux.Handle("/v1/sys/key-status", proxySysRequest(core))
 	mux.Handle("/v1/sys/generate-root/attempt", handleSysGenerateRootAttempt(core))
 	mux.Handle("/v1/sys/generate-root/update", handleSysGenerateRootUpdate(core))
-	mux.Handle("/v1/sys/rekey/init", handleSysRekeyInit(core))
-	mux.Handle("/v1/sys/rekey/backup", proxySysRequest(core))
-	mux.Handle("/v1/sys/rekey/update", handleSysRekeyUpdate(core))
-	mux.Handle("/v1/", handleLogical(core, false))
+	mux.Handle("/v1/sys/rekey/init", handleSysRekeyInit(core, false))
+	mux.Handle("/v1/sys/rekey/update", handleSysRekeyUpdate(core, false))
+	mux.Handle("/v1/sys/rekey-recovery-key/init", handleSysRekeyInit(core, true))
+	mux.Handle("/v1/sys/rekey-recovery-key/update", handleSysRekeyUpdate(core, true))
+	mux.Handle("/v1/sys/capabilities-self", handleLogical(core, true, sysCapabilitiesSelfCallback))
+	mux.Handle("/v1/sys/", handleLogical(core, true, nil))
+	mux.Handle("/v1/", handleLogical(core, false, nil))
 
 	// Wrap the handler in another handler to trigger all help paths.
 	handler := handleHelpHandler(mux, core)
 
 	return handler
+}
+
+// ClientToken is required in the handler of sys/capabilities-self endpoint in
+// system backend. But the ClientToken gets obfuscated before the request gets
+// forwarded to any logical backend. So, setting the ClientToken in the data
+// field for this request.
+func sysCapabilitiesSelfCallback(req *logical.Request) error {
+	if req == nil || req.Data == nil {
+		return fmt.Errorf("invalid request")
+	}
+	req.Data["token"] = req.ClientToken
+	return nil
 }
 
 // stripPrefix is a helper to strip a prefix from the path. It will
@@ -82,7 +93,7 @@ func parseRequest(r *http.Request, out interface{}) error {
 // case of an error.
 func request(core *vault.Core, w http.ResponseWriter, rawReq *http.Request, r *logical.Request) (*logical.Response, bool) {
 	resp, err := core.HandleRequest(r)
-	if err == vault.ErrStandby {
+	if errwrap.Contains(err, vault.ErrStandby.Error()) {
 		respondStandby(core, w, rawReq.URL)
 		return resp, false
 	}
@@ -90,7 +101,7 @@ func request(core *vault.Core, w http.ResponseWriter, rawReq *http.Request, r *l
 		return resp, false
 	}
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, err)
+		respondErrorStatus(w, err)
 		return resp, false
 	}
 
@@ -150,9 +161,52 @@ func requestAuth(r *http.Request, req *logical.Request) *logical.Request {
 	return req
 }
 
+// requestWrapTTL adds the WrapTTL value to the logical.Request if it
+// exists.
+func requestWrapTTL(r *http.Request, req *logical.Request) (*logical.Request, error) {
+	// First try for the header value
+	wrapTTL := r.Header.Get(WrapTTLHeaderName)
+	if wrapTTL == "" {
+		return req, nil
+	}
+
+	// If it has an allowed suffix parse as a duration string
+	if strings.HasSuffix(wrapTTL, "s") || strings.HasSuffix(wrapTTL, "m") || strings.HasSuffix(wrapTTL, "h") {
+		dur, err := time.ParseDuration(wrapTTL)
+		if err != nil {
+			return req, err
+		}
+		req.WrapTTL = dur
+	} else {
+		// Parse as a straight number of seconds
+		seconds, err := strconv.ParseInt(wrapTTL, 10, 64)
+		if err != nil {
+			return req, err
+		}
+		req.WrapTTL = time.Duration(seconds) * time.Second
+	}
+	if int64(req.WrapTTL) < 0 {
+		return req, fmt.Errorf("requested wrap ttl cannot be negative")
+	}
+
+	return req, nil
+}
+
+// Determines the type of the error being returned and sets the HTTP
+// status code appropriately
+func respondErrorStatus(w http.ResponseWriter, err error) {
+	status := http.StatusInternalServerError
+	switch {
+	// Keep adding more error types here to appropriate the status codes
+	case err != nil && errwrap.ContainsType(err, new(vault.StatusBadRequest)):
+		status = http.StatusBadRequest
+	}
+	respondError(w, status, err)
+}
+
 func respondError(w http.ResponseWriter, status int, err error) {
 	// Adjust status code when sealed
-	if err == vault.ErrSealed {
+	if errwrap.Contains(err, vault.ErrSealed.Error()) {
 		status = http.StatusServiceUnavailable
 	}
 
@@ -179,19 +233,19 @@ func respondCommon(w http.ResponseWriter, resp *logical.Response, err error) boo
 	}
 
 	if resp.IsError() {
-		var statusCode int
+		statusCode := http.StatusBadRequest
 
-		switch err {
-		case logical.ErrPermissionDenied:
-			statusCode = http.StatusForbidden
-		case logical.ErrUnsupportedOperation:
-			statusCode = http.StatusMethodNotAllowed
-		case logical.ErrUnsupportedPath:
-			statusCode = http.StatusNotFound
-		case logical.ErrInvalidRequest:
-			statusCode = http.StatusBadRequest
-		default:
-			statusCode = http.StatusBadRequest
+		if err != nil {
+			switch err {
+			case logical.ErrPermissionDenied:
+				statusCode = http.StatusForbidden
+			case logical.ErrUnsupportedOperation:
+				statusCode = http.StatusMethodNotAllowed
+			case logical.ErrUnsupportedPath:
+				statusCode = http.StatusNotFound
+			case logical.ErrInvalidRequest:
+				statusCode = http.StatusBadRequest
+			}
 		}
 
 		err := fmt.Errorf("%s", resp.Data["error"].(string))
@@ -212,10 +266,6 @@ func respondOk(w http.ResponseWriter, body interface{}) {
 		enc := json.NewEncoder(w)
 		enc.Encode(body)
 	}
-}
-
-func proxySysRequest(core *vault.Core) http.Handler {
-	return handleLogical(core, true)
 }
 
 type ErrorResponse struct {

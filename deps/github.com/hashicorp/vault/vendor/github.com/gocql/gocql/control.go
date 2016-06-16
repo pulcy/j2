@@ -4,6 +4,7 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
+	"golang.org/x/net/context"
 	"log"
 	"math/rand"
 	"net"
@@ -88,6 +89,22 @@ func (c *controlConn) heartBeat() {
 	}
 }
 
+func hostInfo(addr string, defaultPort int) (*HostInfo, error) {
+	var port int
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+		port = defaultPort
+	} else {
+		port, err = strconv.Atoi(portStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &HostInfo{peer: host, port: port}, nil
+}
+
 func (c *controlConn) shuffleDial(endpoints []string) (conn *Conn, err error) {
 	perm := randr.Perm(len(endpoints))
 	shuffled := make([]string, len(endpoints))
@@ -100,24 +117,19 @@ func (c *controlConn) shuffleDial(endpoints []string) (conn *Conn, err error) {
 	// node.
 	for _, addr := range shuffled {
 		if addr == "" {
-			return nil, fmt.Errorf("control: invalid address: %q", addr)
+			return nil, fmt.Errorf("invalid address: %q", addr)
 		}
 
 		port := c.session.cfg.Port
 		addr = JoinHostPort(addr, port)
-		host, portStr, err := net.SplitHostPort(addr)
+
+		var host *HostInfo
+		host, err = hostInfo(addr, port)
 		if err != nil {
-			host = addr
-			port = c.session.cfg.Port
-			err = nil
-		} else {
-			port, err = strconv.Atoi(portStr)
-			if err != nil {
-				return nil, err
-			}
+			return nil, fmt.Errorf("invalid address: %q: %v", addr, err)
 		}
 
-		hostInfo, _ := c.session.ring.addHostIfMissing(&HostInfo{peer: host, port: port})
+		hostInfo, _ := c.session.ring.addHostIfMissing(host)
 		conn, err = c.session.connect(addr, c, hostInfo)
 		if err == nil {
 			return conn, err
@@ -126,7 +138,11 @@ func (c *controlConn) shuffleDial(endpoints []string) (conn *Conn, err error) {
 		log.Printf("gocql: unable to dial control conn %v: %v\n", addr, err)
 	}
 
-	return
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 func (c *controlConn) connect(endpoints []string) error {
@@ -136,9 +152,7 @@ func (c *controlConn) connect(endpoints []string) error {
 
 	conn, err := c.shuffleDial(endpoints)
 	if err != nil {
-		return fmt.Errorf("control: unable to connect: %v", err)
-	} else if conn == nil {
-		return errors.New("control: unable to connect to initial endpoints")
+		return fmt.Errorf("control: unable to connect to initial hosts: %v", err)
 	}
 
 	if err := c.setupConn(conn); err != nil {
@@ -193,9 +207,10 @@ func (c *controlConn) registerEvents(conn *Conn) error {
 		return nil
 	}
 
-	framer, err := conn.exec(&writeRegisterFrame{
-		events: events,
-	}, nil)
+	framer, err := conn.exec(context.Background(),
+		&writeRegisterFrame{
+			events: events,
+		}, nil)
 	if err != nil {
 		return err
 	}
@@ -238,14 +253,14 @@ func (c *controlConn) reconnect(refreshring bool) {
 	// TODO: should have our own roundrobbin for hosts so that we can try each
 	// in succession and guantee that we get a different host each time.
 	if newConn == nil {
-		_, conn := c.session.pool.Pick(nil)
-		if conn == nil {
+		host := c.session.ring.rrHost()
+		if host == nil {
 			c.connect(c.session.ring.endpoints)
 			return
 		}
 
 		var err error
-		newConn, err = c.session.connect(conn.addr, c, conn.host)
+		newConn, err = c.session.connect(host.Peer(), c, host)
 		if err != nil {
 			// TODO: add log handler for things like this
 			return
@@ -282,7 +297,7 @@ func (c *controlConn) writeFrame(w frameWriter) (frame, error) {
 		return nil, errNoControl
 	}
 
-	framer, err := conn.exec(w, nil)
+	framer, err := conn.exec(context.Background(), w, nil)
 	if err != nil {
 		return nil, err
 	}

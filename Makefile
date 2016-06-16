@@ -17,7 +17,7 @@ REPOPATH := $(ORGPATH)/$(REPONAME)
 BIN := $(BINDIR)/$(PROJECT)
 
 GOPATH := $(GOBUILDDIR)
-GOVERSION := 1.6.2
+GOVERSION := 1.7beta1-alpine
 
 ifndef GOOS
 	GOOS := $(shell go env GOOS)
@@ -41,7 +41,6 @@ deps:
 $(GOBUILDDIR):
 	@mkdir -p $(ORGDIR)
 	@rm -f $(REPODIR) && ln -s ../../../.. $(REPODIR)
-	@pulsar get https://github.com/coreos/fleet.git $(GOBUILDDIR)/src/github.com/coreos/fleet
 	@GOPATH=$(GOPATH) pulsar go flatten -V $(VENDORDIR)
 
 update-vendor:
@@ -49,12 +48,15 @@ update-vendor:
 	@pulsar go vendor -V $(VENDORDIR) \
 		github.com/cenkalti/backoff \
 		github.com/coreos/etcd/client \
+		github.com/coreos/fleet/client \
 		github.com/dchest/uniuri \
+		github.com/ewoutp/go-aggregate-error \
 		github.com/gosuri/uilive \
 		github.com/spf13/pflag \
 		github.com/spf13/cobra \
 		github.com/juju/errgo \
 		github.com/mitchellh/mapstructure \
+		github.com/hashicorp/go-rootcerts \
 		github.com/hashicorp/hcl \
 		github.com/hashicorp/vault/api \
 		github.com/kr/pretty \
@@ -63,8 +65,7 @@ update-vendor:
 		github.com/nyarla/go-crypt \
 		github.com/op/go-logging \
 		github.com/pulcy/robin-api \
-		github.com/ryanuber/columnize \
-		github.com/vishvananda/netns
+		github.com/ryanuber/columnize
 
 $(BIN): $(GOBUILDDIR) $(SOURCES)
 	docker run \

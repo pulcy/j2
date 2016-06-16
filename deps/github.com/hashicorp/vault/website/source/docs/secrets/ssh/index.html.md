@@ -79,7 +79,7 @@ Success! Data written to: ssh/roles/otp_key_role
 
 ### Create a Credential
 
-Create an OTP credential for an IP that belongs to `otp_key_role`.
+Create an OTP credential for an IP of the remote host that belongs to `otp_key_role`.
 
 ```text
 $ vault write ssh/creds/otp_key_role ip=x.x.x.x
@@ -105,7 +105,7 @@ username@ip:~$
 ### Automate it!
 
 A single CLI command can be used to create a new OTP and invoke SSH with the
-correct paramters to connect to the host.
+correct parameters to connect to the host.
 
 ```text
 $ vault ssh -role otp_key_role username@x.x.x.x
@@ -117,9 +117,12 @@ Password: <Enter OTP>
 The OTP will be entered automatically using `sshpass` if it is installed.
 
 ```text
-$ vault ssh -role otp_key_role username@x.x.x.x
-username@ip:~$
+$ vault ssh -role otp_key_role -strict-host-key-checking=no username@x.x.x.x
+username@<IP of remote host>:~$
 ```
+
+Note: `sshpass` cannot handle host key checking. Host key checking can be
+disabled by setting `-strict-host-key-checking=no`.
 
 ----------------------------------------------------
 ## II. Dynamic Key Type
@@ -206,8 +209,12 @@ $ vault write ssh/roles/dynamic_key_role \
 Success! Data written to: ssh/roles/dynamic_key_role
 ```
 
-`cidr_list` is optional and defaults to the zero address (0.0.0.0/0), e.g. all
-hosts.
+`cidr_list` is a comma separated list of CIDR blocks for which a role can generate
+credentials. If this is empty, the role can only generate credentials if it belongs
+to the set of zero-address roles.
+
+Zero-address roles, configured via `/ssh/config/zeroaddress` endpoint, takes comma separated list
+of role names that can generate credentials for any IP address.
 
 Use the `install_script` option to provide an install script if the remote
 hosts do not resemble a typical Linux machine. The default script is compiled
@@ -218,7 +225,7 @@ To see the default, see [linux_install_script.go](https://github.com/hashicorp/v
 
 ### Create a credential
 
-Create a dynamic key for an IP that is covered by `dynamic_key_role`'s CIDR
+Create a dynamic key for an IP of the remote host that is covered by `dynamic_key_role`'s CIDR
 list.
 
 ```text
@@ -266,8 +273,8 @@ Save the key to a file (e.g. `dyn_key.pem`) and then use it to establish an
 SSH session.
 
 ```text
-$ ssh -i dyn_key.pem username@ip
-username@ip:~$
+$ ssh -i dyn_key.pem username@<IP of remote host>
+username@<IP of remote host>:~$
 ```
 
 ### Automate it!
@@ -276,8 +283,8 @@ Creation of new key, saving to a file, and using it to establish an SSH session
 can all be done with a single Vault CLI command.
 
 ```text
-$ vault ssh -role dynamic_key_role username@ip
-username@ip:~$
+$ vault ssh -role dynamic_key_role username@<IP of remote host>
+username@<IP of remote host>:~$
 ```
 
 ----------------------------------------------------
@@ -388,7 +395,6 @@ username@ip:~$
 	      (String)
 	      Comma separated list of CIDR blocks for which the role is
         applicable for.	CIDR blocks can belong to more than one role.
-        Defaults to the zero address (0.0.0.0/0).
       </li>
       <li>
         <span class="param">exclude_cidr_list</span>
@@ -434,10 +440,11 @@ username@ip:~$
         <span class="param">allowed_users</span>
         <span class="param-flags">optional for both types</span>
 	      (String)
-	      If this option is not specified, a client can request credentials
-        to log into any valid user at the remote host, including the admin
-        user. If this field is set, credentials can only be created for
-        the values in this list and the value of the `default_user` field.
+	      If this option is not specified, credentials can be created only for
+              `default_user` at the remote host. If this field is set, credentials
+              can be created only for the users in this list and for the `default_user`.
+              If this option is explicitly set to `*`, then credentials can be created
+              for any username.
       </li>
       <li>
         <span class="param">key_option_specs</span>
@@ -559,6 +566,100 @@ username@ip:~$
   <dd>
     A `204` response code.
   </dd>
+
+### /ssh/config/zeroaddress
+
+#### GET
+
+<dl class="api">
+  <dt>Description</dt>
+  <dd>
+    Returns the list of configured zero-address roles.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>GET</dd>
+
+  <dt>URL</dt>
+  <dd>`/ssh/config/zeroaddress`</dd>
+
+  <dt>Parameters</dt>
+  <dd>None</dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+```json
+{  
+   "lease_id":"",
+   "renewable":false,
+   "lease_duration":0,
+   "data":{  
+      "roles":[  
+         "otp_key_role"
+      ]
+   },
+   "warnings":null,
+   "auth":null
+}
+```
+
+  </dd>
+#### POST
+
+<dl class="api">
+  <dt>Description</dt>
+  <dd>
+    Configures zero-address roles.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>POST</dd>
+
+  <dt>URL</dt>
+  <dd>`/ssh/config/zeroaddress`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+    <ul>
+      <li>
+        <span class="param">roles</span>
+        <span class="param-flags">required</span>
+        A string containing comma separated list of role names which allows credentials to be requested
+        for any IP address. CIDR blocks previously registered under these roles will be ignored.
+      </li>
+    </ul>
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+    A `204` response code.
+  </dd>
+
+#### DELETE
+
+<dl class="api">
+  <dt>Description</dt>
+  <dd>
+    Deletes the zero-address roles configuration.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>DELETE</dd>
+
+  <dt>URL</dt>
+  <dd>`/ssh/config/zeroaddress`</dd>
+
+  <dt>Parameters</dt>
+  <dd>None</dd>
+
+  <dt>Returns</dt>
+  <dd>
+    A `204` response code.
+  </dd>
+
+
+
 ### /ssh/creds/
 #### POST
 

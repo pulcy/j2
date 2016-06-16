@@ -7,27 +7,31 @@ import (
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/helper/flag-kv"
 	"github.com/hashicorp/vault/helper/flag-slice"
+	"github.com/hashicorp/vault/meta"
 )
 
 // TokenCreateCommand is a Command that mounts a new mount.
 type TokenCreateCommand struct {
-	Meta
+	meta.Meta
 }
 
 func (c *TokenCreateCommand) Run(args []string) int {
 	var format string
-	var id, displayName, lease, ttl string
-	var orphan, noDefaultPolicy bool
+	var id, displayName, lease, ttl, explicitMaxTTL, role string
+	var orphan, noDefaultPolicy, renewable bool
 	var metadata map[string]string
 	var numUses int
 	var policies []string
-	flags := c.Meta.FlagSet("mount", FlagSetDefault)
+	flags := c.Meta.FlagSet("mount", meta.FlagSetDefault)
 	flags.StringVar(&format, "format", "table", "")
 	flags.StringVar(&displayName, "display-name", "", "")
 	flags.StringVar(&id, "id", "", "")
 	flags.StringVar(&lease, "lease", "", "")
 	flags.StringVar(&ttl, "ttl", "", "")
+	flags.StringVar(&explicitMaxTTL, "explicit-max-ttl", "", "")
+	flags.StringVar(&role, "role", "", "")
 	flags.BoolVar(&orphan, "orphan", false, "")
+	flags.BoolVar(&renewable, "renewable", true, "")
 	flags.BoolVar(&noDefaultPolicy, "no-default-policy", false, "")
 	flags.IntVar(&numUses, "use-limit", 0, "")
 	flags.Var((*kvFlag.Flag)(&metadata), "metadata", "")
@@ -55,7 +59,8 @@ func (c *TokenCreateCommand) Run(args []string) int {
 	if ttl == "" {
 		ttl = lease
 	}
-	secret, err := client.Auth().Token().Create(&api.TokenCreateRequest{
+
+	tcr := &api.TokenCreateRequest{
 		ID:              id,
 		Policies:        policies,
 		Metadata:        metadata,
@@ -64,7 +69,17 @@ func (c *TokenCreateCommand) Run(args []string) int {
 		NoDefaultPolicy: noDefaultPolicy,
 		DisplayName:     displayName,
 		NumUses:         numUses,
-	})
+		Renewable:       new(bool),
+		ExplicitMaxTTL:  explicitMaxTTL,
+	}
+	*tcr.Renewable = renewable
+
+	var secret *api.Secret
+	if role != "" {
+		secret, err = client.Auth().Token().CreateWithRole(tcr, role)
+	} else {
+		secret, err = client.Auth().Token().Create(tcr)
+	}
 
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(
@@ -96,10 +111,10 @@ Usage: vault token-create [options]
   Metadata associated with the token (specified with "-metadata") is
   written to the audit log when the token is used.
 
+  If a role is specified, the role may override parameters specified here.
+
 General Options:
-
-  ` + generalOptionsUsage() + `
-
+` + meta.GeneralOptionsUsage() + `
 Token Options:
 
   -id="7699125c-d8...."   The token value that clients will use to authenticate
@@ -111,10 +126,19 @@ Token Options:
                           is a non-security sensitive value used to help
                           identify created secrets, i.e. prefixes.
 
-  -lease="1h"             Deprecated; use "-ttl" instead.
+  -ttl="1h"               Initial TTL to associate with the token; renewals can
+                          extend this value.
 
-  -ttl="1h"               TTL to associate with the token. This option enables
-                          the tokens to be renewable.
+  -explicit-max-ttl="1h"  An explicit maximum lifetime for the token. Unlike
+                          normal token TTLs, which can be renewed up until the
+                          maximum TTL set on the auth/token mount or the system
+                          configuration file, this lifetime is a hard limit set
+                          on the token itself and cannot be exceeded.
+
+  -renewable=true         Whether or not the token is renewable to extend its
+                          TTL up to Vault's configured maximum TTL for tokens.
+                          This defaults to true; set to false to disable
+                          renewal of this token.
 
   -metadata="key=value"   Metadata to associate with the token. This shows
                           up in the audit log. This can be specified multiple
@@ -136,6 +160,10 @@ Token Options:
   -format=table           The format for output. By default it is a whitespace-
                           delimited table. This can also be json or yaml.
 
+  -role=name              If set, the token will be created against the named
+                          role. The role may override other parameters. This
+                          requires the client to have permissions on the
+                          appropriate endpoint (auth/token/create/<name>).
 `
 	return strings.TrimSpace(helpText)
 }

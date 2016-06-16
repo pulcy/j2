@@ -15,7 +15,6 @@
 package vault
 
 import (
-	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -23,6 +22,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/hashicorp/go-rootcerts"
 	"github.com/hashicorp/vault/api"
 	"github.com/juju/errgo"
 	"github.com/mitchellh/go-homedir"
@@ -61,20 +61,13 @@ func NewVault(srvCfg VaultConfig, log *logging.Logger) (*Vault, error) {
 		serverName = host
 	}
 	if srvCfg.VaultCACert != "" || srvCfg.VaultCAPath != "" {
-		var newCertPool *x509.CertPool
-		var err error
-		if srvCfg.VaultCACert != "" {
-			log.Debugf("Loading CA cert: %s", srvCfg.VaultCACert)
-			newCertPool, err = api.LoadCACert(srvCfg.VaultCACert)
-		} else {
-			log.Debugf("Loading CA certs from: %s", srvCfg.VaultCAPath)
-			newCertPool, err = api.LoadCAPath(srvCfg.VaultCAPath)
-		}
-		if err != nil {
+		clientTLSConfig := config.HttpClient.Transport.(*http.Transport).TLSClientConfig
+		if err := rootcerts.ConfigureTLS(clientTLSConfig, &rootcerts.Config{
+			CAFile: srvCfg.VaultCACert,
+			CAPath: srvCfg.VaultCAPath,
+		}); err != nil {
 			return nil, maskAny(err)
 		}
-		clientTLSConfig := config.HttpClient.Transport.(*http.Transport).TLSClientConfig
-		clientTLSConfig.RootCAs = newCertPool
 		clientTLSConfig.ServerName = serverName
 	}
 	client, err := api.NewClient(config)

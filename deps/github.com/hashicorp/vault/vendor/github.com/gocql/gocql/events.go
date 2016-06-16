@@ -107,6 +107,17 @@ func (s *Session) handleEvent(framer *framer) {
 }
 
 func (s *Session) handleSchemaEvent(frames []frame) {
+	if s.schemaDescriber == nil {
+		return
+	}
+	for _, frame := range frames {
+		switch f := frame.(type) {
+		case *schemaChangeKeyspace:
+			s.schemaDescriber.clearSchema(f.keyspace)
+		case *schemaChangeTable:
+			s.schemaDescriber.clearSchema(f.keyspace)
+		}
+	}
 }
 
 func (s *Session) handleNodeEvent(frames []frame) {
@@ -164,7 +175,7 @@ func (s *Session) handleNewNode(host net.IP, port int, waitForBinary bool) {
 	// TODO(zariel): need to be able to filter discovered nodes
 
 	var hostInfo *HostInfo
-	if s.control != nil {
+	if s.control != nil && !s.cfg.IgnorePeerAddr {
 		var err error
 		hostInfo, err = s.control.fetchHostInfo(host, port)
 		if err != nil {
@@ -201,9 +212,10 @@ func (s *Session) handleNewNode(host net.IP, port int, waitForBinary bool) {
 	}
 
 	s.pool.addHost(hostInfo)
+	s.policy.AddHost(hostInfo)
 	hostInfo.setState(NodeUp)
 
-	if s.control != nil {
+	if s.control != nil && !s.cfg.IgnorePeerAddr {
 		s.hostSource.refreshRing()
 	}
 }
@@ -222,13 +234,19 @@ func (s *Session) handleRemovedNode(ip net.IP, port int) {
 	}
 
 	host.setState(NodeDown)
+	s.policy.RemoveHost(addr)
 	s.pool.removeHost(addr)
 	s.ring.removeHost(addr)
 
-	s.hostSource.refreshRing()
+	if !s.cfg.IgnorePeerAddr {
+		s.hostSource.refreshRing()
+	}
 }
 
 func (s *Session) handleNodeUp(ip net.IP, port int, waitForBinary bool) {
+	if gocqlDebug {
+		log.Printf("gocql: Session.handleNodeUp: %s:%d\n", ip.String(), port)
+	}
 	addr := ip.String()
 	host := s.ring.getHost(addr)
 	if host != nil {
@@ -251,6 +269,7 @@ func (s *Session) handleNodeUp(ip net.IP, port int, waitForBinary bool) {
 
 		host.setPort(port)
 		s.pool.hostUp(host)
+		s.policy.HostUp(host)
 		host.setState(NodeUp)
 		return
 	}
@@ -259,6 +278,9 @@ func (s *Session) handleNodeUp(ip net.IP, port int, waitForBinary bool) {
 }
 
 func (s *Session) handleNodeDown(ip net.IP, port int) {
+	if gocqlDebug {
+		log.Printf("gocql: Session.handleNodeDown: %s:%d\n", ip.String(), port)
+	}
 	addr := ip.String()
 	host := s.ring.getHost(addr)
 	if host == nil {
@@ -270,5 +292,6 @@ func (s *Session) handleNodeDown(ip net.IP, port int) {
 	}
 
 	host.setState(NodeDown)
+	s.policy.HostDown(addr)
 	s.pool.hostDown(addr)
 }

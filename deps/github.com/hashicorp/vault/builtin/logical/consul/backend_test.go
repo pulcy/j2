@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -18,14 +19,69 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+func TestBackend_config_access(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
+	accessConfig, process := testStartConsulServer(t)
+	defer testStopConsulServer(t, process)
+
+	config := logical.TestBackendConfig()
+	storage := &logical.InmemStorage{}
+	config.StorageView = storage
+
+	b := Backend()
+	_, err := b.Setup(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	confReq := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "config/access",
+		Storage:   storage,
+		Data:      accessConfig,
+	}
+
+	resp, err := b.HandleRequest(confReq)
+	if err != nil || (resp != nil && resp.IsError()) || resp != nil {
+		t.Fatalf("failed to write configuration: resp:%#v err:%s", resp, err)
+	}
+
+	confReq.Operation = logical.ReadOperation
+	resp, err = b.HandleRequest(confReq)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatalf("failed to write configuration: resp:%#v err:%s", resp, err)
+	}
+
+	expected := map[string]interface{}{
+		"address": "127.0.0.1:8500",
+		"scheme":  "http",
+	}
+	if !reflect.DeepEqual(expected, resp.Data) {
+		t.Fatalf("bad: expected:%#v\nactual:%#v\n", expected, resp.Data)
+	}
+	if resp.Data["token"] != nil {
+		t.Fatalf("token should not be set in the response")
+	}
+}
+
 func TestBackend_basic(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	config, process := testStartConsulServer(t)
 	defer testStopConsulServer(t, process)
 
 	b, _ := Factory(logical.TestBackendConfig())
 	logicaltest.Test(t, logicaltest.TestCase{
-		PreCheck: func() { testAccPreCheck(t) },
-		Backend:  b,
+		AcceptanceTest: true,
+		PreCheck:       func() { testAccPreCheck(t) },
+		Backend:        b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfig(t, config),
 			testAccStepWritePolicy(t, "test", testPolicy, ""),
@@ -34,14 +90,120 @@ func TestBackend_basic(t *testing.T) {
 	})
 }
 
+func TestBackend_renew_revoke(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
+	config, process := testStartConsulServer(t)
+	defer testStopConsulServer(t, process)
+
+	beConfig := logical.TestBackendConfig()
+	beConfig.StorageView = &logical.InmemStorage{}
+	b, _ := Factory(beConfig)
+
+	req := &logical.Request{
+		Storage:   beConfig.StorageView,
+		Operation: logical.UpdateOperation,
+		Path:      "config/access",
+		Data:      config,
+	}
+	resp, err := b.HandleRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Path = "roles/test"
+	req.Data = map[string]interface{}{
+		"policy": base64.StdEncoding.EncodeToString([]byte(testPolicy)),
+		"lease":  "6h",
+	}
+	resp, err = b.HandleRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Operation = logical.ReadOperation
+	req.Path = "creds/test"
+	resp, err = b.HandleRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp == nil || resp.IsError() {
+		t.Fatal("resp nil or error")
+	}
+
+	generatedSecret := resp.Secret
+	generatedSecret.IssueTime = time.Now()
+	generatedSecret.TTL = 6 * time.Hour
+
+	var d struct {
+		Token string `mapstructure:"token"`
+	}
+	if err := mapstructure.Decode(resp.Data, &d); err != nil {
+		t.Fatal(err)
+	}
+	log.Printf("[WARN] Generated token: %s", d.Token)
+
+	// Build a client and verify that the credentials work
+	apiConfig := api.DefaultConfig()
+	apiConfig.Address = config["address"].(string)
+	apiConfig.Token = d.Token
+	client, err := api.NewClient(apiConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("[WARN] Verifying that the generated token works...")
+	_, err = client.KV().Put(&api.KVPair{
+		Key:   "foo",
+		Value: []byte("bar"),
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Operation = logical.RenewOperation
+	req.Secret = generatedSecret
+	resp, err = b.HandleRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("got nil response from renew")
+	}
+
+	req.Operation = logical.RevokeOperation
+	resp, err = b.HandleRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("[WARN] Verifying that the generated token does not work...")
+	_, err = client.KV().Put(&api.KVPair{
+		Key:   "foo",
+		Value: []byte("bar"),
+	}, nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
 func TestBackend_management(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	config, process := testStartConsulServer(t)
 	defer testStopConsulServer(t, process)
 
 	b, _ := Factory(logical.TestBackendConfig())
 	logicaltest.Test(t, logicaltest.TestCase{
-		PreCheck: func() { testAccPreCheck(t) },
-		Backend:  b,
+		AcceptanceTest: true,
+		PreCheck:       func() { testAccPreCheck(t) },
+		Backend:        b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfig(t, config),
 			testAccStepWriteManagementPolicy(t, "test", ""),
@@ -51,13 +213,19 @@ func TestBackend_management(t *testing.T) {
 }
 
 func TestBackend_crud(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	_, process := testStartConsulServer(t)
 	defer testStopConsulServer(t, process)
 
 	b, _ := Factory(logical.TestBackendConfig())
 	logicaltest.Test(t, logicaltest.TestCase{
-		PreCheck: func() { testAccPreCheck(t) },
-		Backend:  b,
+		AcceptanceTest: true,
+		PreCheck:       func() { testAccPreCheck(t) },
+		Backend:        b,
 		Steps: []logicaltest.TestStep{
 			testAccStepWritePolicy(t, "test", testPolicy, ""),
 			testAccStepReadPolicy(t, "test", testPolicy, 0),
@@ -67,13 +235,19 @@ func TestBackend_crud(t *testing.T) {
 }
 
 func TestBackend_role_lease(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	_, process := testStartConsulServer(t)
 	defer testStopConsulServer(t, process)
 
 	b, _ := Factory(logical.TestBackendConfig())
 	logicaltest.Test(t, logicaltest.TestCase{
-		PreCheck: func() { testAccPreCheck(t) },
-		Backend:  b,
+		AcceptanceTest: true,
+		PreCheck:       func() { testAccPreCheck(t) },
+		Backend:        b,
 		Steps: []logicaltest.TestStep{
 			testAccStepWritePolicy(t, "test", testPolicy, "6h"),
 			testAccStepReadPolicy(t, "test", testPolicy, 6*time.Hour),
@@ -84,7 +258,7 @@ func TestBackend_role_lease(t *testing.T) {
 
 func testStartConsulServer(t *testing.T) (map[string]interface{}, *os.Process) {
 	if _, err := exec.LookPath("consul"); err != nil {
-		t.Skipf("consul not found: %s", err)
+		t.Errorf("consul not found: %s", err)
 	}
 
 	td, err := ioutil.TempDir("", "vault")

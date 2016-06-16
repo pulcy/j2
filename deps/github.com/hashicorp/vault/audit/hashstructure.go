@@ -29,8 +29,10 @@ func Hash(salter *salt.Salt, raw interface{}) error {
 			return nil
 		}
 		if s.ClientToken != "" {
-			token := fn(s.ClientToken)
-			s.ClientToken = token
+			s.ClientToken = fn(s.ClientToken)
+		}
+		if s.Accessor != "" {
+			s.Accessor = fn(s.Accessor)
 		}
 
 	case *logical.Request:
@@ -44,8 +46,7 @@ func Hash(salter *salt.Salt, raw interface{}) error {
 		}
 
 		if s.ClientToken != "" {
-			token := fn(s.ClientToken)
-			s.ClientToken = token
+			s.ClientToken = fn(s.ClientToken)
 		}
 
 		data, err := HashStructure(s.Data, fn)
@@ -66,12 +67,29 @@ func Hash(salter *salt.Salt, raw interface{}) error {
 			}
 		}
 
+		if s.WrapInfo != nil {
+			if err := Hash(salter, s.WrapInfo); err != nil {
+				return err
+			}
+		}
+
 		data, err := HashStructure(s.Data, fn)
 		if err != nil {
 			return err
 		}
 
 		s.Data = data.(map[string]interface{})
+
+	case *logical.WrapInfo:
+		if s == nil {
+			return nil
+		}
+
+		s.Token = fn(s.Token)
+
+		if s.WrappedAccessor != "" {
+			s.WrappedAccessor = fn(s.WrappedAccessor)
+		}
 	}
 
 	return nil
