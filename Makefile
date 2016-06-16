@@ -17,7 +17,7 @@ REPOPATH := $(ORGPATH)/$(REPONAME)
 BIN := $(BINDIR)/$(PROJECT)
 
 GOPATH := $(GOBUILDDIR)
-GOVERSION := 1.7beta1-alpine
+GOVERSION := 1.6.2-alpine
 
 ifndef GOOS
 	GOOS := $(shell go env GOOS)
