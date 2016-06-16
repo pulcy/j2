@@ -127,6 +127,15 @@ enforced. Software that can handle SHA256 signatures should also be able to
 handle 2048-bit keys, and 1024-bit keys are considered unsafe and are
 disallowed in the Internet PKI.
 
+### Token Lifetimes and Revocation
+
+When a token expires, it revokes all leases associated with it. This means that
+long-lived CA certs need correspondingly long-lived tokens, something that is
+easy to forget. Starting with 0.6, root and intermediate CA certs no longer
+have associated leases, to prevent unintended revocation when not using a token
+with a long enough lifetime. To revoke these certificates, use the `pki/revoke`
+endpoint.
+
 ## Quick Start
 
 #### Mount the backend
@@ -166,8 +175,6 @@ Now, we generate our root certificate:
 ```text
 $ vault write pki/root/generate/internal common_name=myvault.com ttl=87600h
 Key             Value
-lease_id        pki/root/generate/internal/aa959dd4-467e-e5ff-642b-371add518b40
-lease_duration  315359999
 certificate     -----BEGIN CERTIFICATE-----
 MIIDvTCCAqWgAwIBAgIUAsza+fvOw+Xh9ifYQ0gNN0ruuWcwDQYJKoZIhvcNAQEL
 BQAwFjEUMBIGA1UEAxMLbXl2YXVsdC5jb20wHhcNMTUxMTE5MTYwNDU5WhcNMjUx
@@ -409,6 +416,50 @@ subpath for interactive help output.
       "data": {
         "certificate": "-----BEGIN CERTIFICATE-----\nMIIGmDCCBYCgAwIBAgIHBzEB3fTzhTANBgkqhkiG9w0BAQsFADCBjDELMAkGA1UE\n..."
       }
+    }
+    ...
+    ```
+
+  </dd>
+</dl>
+
+### /pki/certs/
+#### LIST
+
+<dl class="api">
+  <dt>Description</dt>
+  <dd>
+    Returns a list of the current certificates by serial number only.
+  </dd>
+
+  <dt>Method</dt>
+  <dd>GET</dd>
+
+  <dt>URL</dt>
+  <dd>`/pki/certs/?list=true`</dd>
+
+  <dt>Parameters</dt>
+  <dd>
+     None
+  </dd>
+
+  <dt>Returns</dt>
+  <dd>
+
+    ```javascript
+    {
+      "lease_id":"",
+      "renewable":false,
+      "lease_duration":0,
+      "data":{
+        "keys":[
+          "17:67:16:b0:b9:45:58:c0:3a:29:e3:cb:d6:98:33:7a:a6:3b:66:c1",
+          "26:0f:76:93:73:cb:3f:a0:7a:ff:97:85:42:48:3a:aa:e5:96:03:21"
+        ]
+      },
+      "wrap_info":null,
+      "warnings":null,
+      "auth":null
     }
     ...
     ```
@@ -765,6 +816,14 @@ subpath for interactive help output.
         The number of bits to use. Defaults to `2048`. Must be changed to a
         valid value if the `key_type` is `ec`.
       </li>
+      <li>
+        <span class="param">exclude_cn_from_sans</span>
+        <span class="param-flags">optional</span>
+        If set, the given `common_name` will not be included in DNS or Email
+        Subject Alternate Names (as appropriate). Useful if the CN is not a
+        hostname or email address, but is instead some human-readable
+        identifier.
+      </li>
     </ul>
   </dd>
 
@@ -877,6 +936,14 @@ subpath for interactive help output.
         defaults to `pem`. If `der`, the output is base64 encoded. If
         `pem_bundle`, the `certificate` field will contain the private key,
         certificate, and issuing CA, concatenated.
+      </li>
+      <li>
+        <span class="param">exclude_cn_from_sans</span>
+        <span class="param-flags">optional</span>
+        If set, the given `common_name` will not be included in DNS or Email
+        Subject Alternate Names (as appropriate). Useful if the CN is not a
+        hostname or email address, but is instead some human-readable
+        identifier.
       </li>
     </ul>
   </dd>
@@ -1081,6 +1148,7 @@ subpath for interactive help output.
         If set, when used with the CSR signing endpoint, the common name in the
         CSR will be used instead of taken from the JSON data. This does `not`
         include any requested SANs in the CSR. Defaults to `false`.
+      </li>
     </ul>
   </dd>
 
@@ -1248,8 +1316,8 @@ subpath for interactive help output.
         max).
       </li>
       <li>
-      <span class="param">format</span>
-      <span class="param-flags">optional</span>
+        <span class="param">format</span>
+        <span class="param-flags">optional</span>
         Format for returned data. Can be `pem`, `der`, or `pem_bundle`;
         defaults to `pem`. If `der`, the output is base64 encoded. If
         `pem_bundle`, the `certificate` field will contain the private key (if exported),
@@ -1275,6 +1343,14 @@ subpath for interactive help output.
         one less than that of the signing certificate.  A limit of `0` means a
         literal path length of zero.
       </li>
+      <li>
+        <span class="param">exclude_cn_from_sans</span>
+        <span class="param-flags">optional</span>
+        If set, the given `common_name` will not be included in DNS or Email
+        Subject Alternate Names (as appropriate). Useful if the CN is not a
+        hostname or email address, but is instead some human-readable
+        identifier.
+      </li>
     </ul>
   </dd>
 
@@ -1283,8 +1359,8 @@ subpath for interactive help output.
 
     ```javascript
     {
-      "lease_id": "pki/root/generate/internal/aa959dd4-467e-e5ff-642b-371add518b40",
-      "lease_duration": 315359999,
+      "lease_id": "",
+      "lease_duration": 0,
       "renewable": false,
       "data": {
         "certificate": "-----BEGIN CERTIFICATE-----\nMIIDzDCCAragAwIBAgIUOd0ukLcjH43TfTHFG9qE0FtlMVgwCwYJKoZIhvcNAQEL\n...\numkqeYeO30g1uYvDuWLXVA==\n-----END CERTIFICATE-----\n",
@@ -1367,6 +1443,14 @@ subpath for interactive help output.
         literal path length of zero.
       </li>
       <li>
+        <span class="param">exclude_cn_from_sans</span>
+        <span class="param-flags">optional</span>
+        If set, the given `common_name` will not be included in DNS or Email
+        Subject Alternate Names (as appropriate). Useful if the CN is not a
+        hostname or email address, but is instead some human-readable
+        identifier.
+      </li>
+      <li>
         <span class="param">use_csr_values</span>
         <span class="param-flags">optional</span>
         If set to `true`, then: 1) Subject information, including names and
@@ -1385,9 +1469,9 @@ subpath for interactive help output.
 
     ```javascript
     {
-      "lease_id": "pki/root/sign-intermediate/bc23e3c6-8dcd-48c6-f3af-dd2db7f815c2",
+      "lease_id": "",
       "renewable": false,
-      "lease_duration": 21600,
+      "lease_duration": 0,
       "data": {
         "certificate": "-----BEGIN CERTIFICATE-----\nMIIDzDCCAragAwIBAgIUOd0ukLcjH43TfTHFG9qE0FtlMVgwCwYJKoZIhvcNAQEL\n...\numkqeYeO30g1uYvDuWLXVA==\n-----END CERTIFICATE-----\n",
         "issuing_ca": "-----BEGIN CERTIFICATE-----\nMIIDUTCCAjmgAwIBAgIJAKM+z4MSfw2mMA0GCSqGSIb3DQEBCwUAMBsxGTAXBgNV\n...\nG/7g4koczXLoUM3OQXd5Aq2cs4SS1vODrYmgbioFsQ3eDHd1fg==\n-----END CERTIFICATE-----\n",
@@ -1447,19 +1531,27 @@ subpath for interactive help output.
         valid if the role allows IP SANs (which is the default).
       </li>
       <li>
-      <span class="param">ttl</span>
-      <span class="param-flags">optional</span>
+        <span class="param">ttl</span>
+        <span class="param-flags">optional</span>
         Requested Time To Live. Cannot be greater than the role's `max_ttl`
         value. If not provided, the role's `ttl` value will be used. Note that
         the role values default to system values if not explicitly set.
       </li>
       <li>
-      <span class="param">format</span>
-      <span class="param-flags">optional</span>
+        <span class="param">format</span>
+        <span class="param-flags">optional</span>
         Format for returned data. Can be `pem`, `der`, or `pem_bundle`;
         defaults to `pem`. If `der`, the output is base64 encoded. If
         `pem_bundle`, the `certificate` field will contain the certificate and
         issuing CA, concatenated.
+      </li>
+      <li>
+        <span class="param">exclude_cn_from_sans</span>
+        <span class="param-flags">optional</span>
+        If set, the given `common_name` will not be included in DNS or Email
+        Subject Alternate Names (as appropriate). Useful if the CN is not a
+        hostname or email address, but is instead some human-readable
+        identifier.
       </li>
     </ul>
   </dd>

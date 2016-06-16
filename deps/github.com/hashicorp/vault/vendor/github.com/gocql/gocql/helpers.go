@@ -62,6 +62,60 @@ func dereference(i interface{}) interface{} {
 	return reflect.Indirect(reflect.ValueOf(i)).Interface()
 }
 
+func getCassandraType(name string) Type {
+	switch name {
+	case "ascii":
+		return TypeAscii
+	case "bigint":
+		return TypeBigInt
+	case "blob":
+		return TypeBlob
+	case "boolean":
+		return TypeBoolean
+	case "counter":
+		return TypeCounter
+	case "decimal":
+		return TypeDecimal
+	case "double":
+		return TypeDouble
+	case "float":
+		return TypeFloat
+	case "int":
+		return TypeInt
+	case "timestamp":
+		return TypeTimestamp
+	case "uuid":
+		return TypeUUID
+	case "varchar", "text":
+		return TypeVarchar
+	case "varint":
+		return TypeVarint
+	case "timeuuid":
+		return TypeTimeUUID
+	case "inet":
+		return TypeInet
+	case "MapType":
+		return TypeMap
+	case "ListType":
+		return TypeList
+	case "SetType":
+		return TypeSet
+	case "TupleType":
+		return TypeTuple
+	default:
+		if strings.HasPrefix(name, "set") {
+			return TypeSet
+		} else if strings.HasPrefix(name, "list") {
+			return TypeList
+		} else if strings.HasPrefix(name, "map") {
+			return TypeMap
+		} else if strings.HasPrefix(name, "tuple") {
+			return TypeTuple
+		}
+		return TypeCustom
+	}
+}
+
 func getApacheCassandraType(class string) Type {
 	switch strings.TrimPrefix(class, apacheCassandraTypePrefix) {
 	case "AsciiType":
@@ -82,6 +136,10 @@ func getApacheCassandraType(class string) Type {
 		return TypeFloat
 	case "Int32Type":
 		return TypeInt
+	case "ShortType":
+		return TypeSmallInt
+	case "ByteType":
+		return TypeTinyInt
 	case "DateType", "TimestampType":
 		return TypeTimestamp
 	case "UUIDType", "LexicalUUIDType":

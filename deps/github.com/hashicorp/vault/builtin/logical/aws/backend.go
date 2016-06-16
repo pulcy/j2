@@ -17,12 +17,6 @@ func Backend() *framework.Backend {
 	b.Backend = &framework.Backend{
 		Help: strings.TrimSpace(backendHelp),
 
-		PathsSpecial: &logical.Paths{
-			Root: []string{
-				"config/*",
-			},
-		},
-
 		Paths: []*framework.Path{
 			pathConfigRoot(),
 			pathConfigLease(&b),
@@ -35,8 +29,8 @@ func Backend() *framework.Backend {
 			secretAccessKeys(&b),
 		},
 
-		Rollback:       rollback,
-		RollbackMinAge: 5 * time.Minute,
+		WALRollback:       walRollback,
+		WALRollbackMinAge: 5 * time.Minute,
 	}
 
 	return b.Backend

@@ -2,6 +2,7 @@ package physical
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -24,17 +25,17 @@ import (
 
 const (
 	// DefaultDynamoDBRegion is used when no region is configured
-	// explicitely.
+	// explicitly.
 	DefaultDynamoDBRegion = "us-east-1"
 	// DefaultDynamoDBTableName is used when no table name
-	// is configured explicitely.
+	// is configured explicitly.
 	DefaultDynamoDBTableName = "vault-dynamodb-backend"
 
 	// DefaultDynamoDBReadCapacity is the default read capacity
-	// that is used when none is configured explicitely.
+	// that is used when none is configured explicitly.
 	DefaultDynamoDBReadCapacity = 5
 	// DefaultDynamoDBWriteCapacity is the default write capacity
-	// that is used when none is configured explicitely.
+	// that is used when none is configured explicitly.
 	DefaultDynamoDBWriteCapacity = 5
 
 	// DynamoDBEmptyPath is the string that is used instead of
@@ -63,6 +64,7 @@ type DynamoDBBackend struct {
 	table    string
 	client   *dynamodb.DynamoDB
 	recovery bool
+	logger   *log.Logger
 }
 
 // DynamoDBRecord is the representation of a vault entry in
@@ -85,7 +87,7 @@ type DynamoDBLock struct {
 
 // newDynamoDBBackend constructs a DynamoDB backend. If the
 // configured DynamoDB table does not exist, it creates it.
-func newDynamoDBBackend(conf map[string]string) (Backend, error) {
+func newDynamoDBBackend(conf map[string]string, logger *log.Logger) (Backend, error) {
 	table := os.Getenv("AWS_DYNAMODB_TABLE")
 	if table == "" {
 		table = conf["table"]
@@ -178,6 +180,7 @@ func newDynamoDBBackend(conf map[string]string) (Backend, error) {
 		table:    table,
 		client:   client,
 		recovery: recoveryMode == "1",
+		logger:   logger,
 	}, nil
 }
 

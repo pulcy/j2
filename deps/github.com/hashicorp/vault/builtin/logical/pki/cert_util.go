@@ -162,12 +162,14 @@ func fetchCertBySerial(req *logical.Request, prefix, serial string) (*logical.St
 	var path string
 
 	switch {
+	// Revoked goes first as otherwise ca/crl get hardcoded paths which fail if
+	// we actually want revocation info
+	case strings.HasPrefix(prefix, "revoked/"):
+		path = "revoked/" + strings.Replace(strings.ToLower(serial), "-", ":", -1)
 	case serial == "ca":
 		path = "ca"
 	case serial == "crl":
 		path = "crl"
-	case strings.HasPrefix(prefix, "revoked/"):
-		path = "revoked/" + strings.Replace(strings.ToLower(serial), "-", ":", -1)
 	default:
 		path = "certs/" + strings.Replace(strings.ToLower(serial), "-", ":", -1)
 	}
@@ -510,10 +512,6 @@ func signCert(b *backend,
 		return nil, err
 	}
 
-	if useCSRValues && !isCA {
-		return nil, certutil.UserError{Err: "cannot use CSR values with a non-CA certificate"}
-	}
-
 	creationBundle.IsCA = isCA
 	creationBundle.UseCSRValues = useCSRValues
 
@@ -557,15 +555,17 @@ func generateCreationBundle(b *backend,
 	dnsNames := []string{}
 	emailAddresses := []string{}
 	{
-		if strings.Contains(cn, "@") {
-			// Note: emails are not disallowed if the role's email protection
-			// flag is false, because they may well be included for
-			// informational purposes; it is up to the verifying party to
-			// ensure that email addresses in a subject alternate name can be
-			// used for the purpose for which they are presented
-			emailAddresses = append(emailAddresses, cn)
-		} else {
-			dnsNames = append(dnsNames, cn)
+		if !data.Get("exclude_cn_from_sans").(bool) {
+			if strings.Contains(cn, "@") {
+				// Note: emails are not disallowed if the role's email protection
+				// flag is false, because they may well be included for
+				// informational purposes; it is up to the verifying party to
+				// ensure that email addresses in a subject alternate name can be
+				// used for the purpose for which they are presented
+				emailAddresses = append(emailAddresses, cn)
+			} else {
+				dnsNames = append(dnsNames, cn)
+			}
 		}
 		cnAltInt, ok := data.GetOk("alt_names")
 		if ok {

@@ -61,6 +61,120 @@ oOyBJU/HMVvBfv4g+OVFLVgSwwm6owwsouZ0+D/LasbuHqYyqYqdyPJQYzWA2Y+F
 `
 )
 
+func TestBackend_allowed_users(t *testing.T) {
+	config := logical.TestBackendConfig()
+	config.StorageView = &logical.InmemStorage{}
+
+	b, err := Backend(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.Setup(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	roleData := map[string]interface{}{
+		"key_type":      "otp",
+		"default_user":  "ubuntu",
+		"cidr_list":     "52.207.235.245/16",
+		"allowed_users": "test",
+	}
+
+	roleReq := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "roles/role1",
+		Storage:   config.StorageView,
+		Data:      roleData,
+	}
+
+	resp, err := b.HandleRequest(roleReq)
+	if err != nil || (resp != nil && resp.IsError()) || resp != nil {
+		t.Fatalf("failed to create role: resp:%#v err:%s", resp, err)
+	}
+
+	credsData := map[string]interface{}{
+		"ip":       "52.207.235.245",
+		"username": "ubuntu",
+	}
+	credsReq := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Storage:   config.StorageView,
+		Path:      "creds/role1",
+		Data:      credsData,
+	}
+
+	resp, err = b.HandleRequest(credsReq)
+	if err != nil || (resp != nil && resp.IsError()) || resp == nil {
+		t.Fatalf("failed to create role: resp:%#v err:%s", resp, err)
+	}
+	if resp.Data["key"] == "" ||
+		resp.Data["key_type"] != "otp" ||
+		resp.Data["ip"] != "52.207.235.245" ||
+		resp.Data["username"] != "ubuntu" {
+		t.Fatalf("failed to create credential: resp:%#v", resp)
+	}
+
+	credsData["username"] = "test"
+	resp, err = b.HandleRequest(credsReq)
+	if err != nil || (resp != nil && resp.IsError()) || resp == nil {
+		t.Fatalf("failed to create role: resp:%#v err:%s", resp, err)
+	}
+	if resp.Data["key"] == "" ||
+		resp.Data["key_type"] != "otp" ||
+		resp.Data["ip"] != "52.207.235.245" ||
+		resp.Data["username"] != "test" {
+		t.Fatalf("failed to create credential: resp:%#v", resp)
+	}
+
+	credsData["username"] = "random"
+	resp, err = b.HandleRequest(credsReq)
+	if err != nil || resp == nil || (resp != nil && !resp.IsError()) {
+		t.Fatalf("expected failure: resp:%#v err:%s", resp, err)
+	}
+
+	delete(roleData, "allowed_users")
+	resp, err = b.HandleRequest(roleReq)
+	if err != nil || (resp != nil && resp.IsError()) || resp != nil {
+		t.Fatalf("failed to create role: resp:%#v err:%s", resp, err)
+	}
+
+	credsData["username"] = "ubuntu"
+	resp, err = b.HandleRequest(credsReq)
+	if err != nil || (resp != nil && resp.IsError()) || resp == nil {
+		t.Fatalf("failed to create role: resp:%#v err:%s", resp, err)
+	}
+	if resp.Data["key"] == "" ||
+		resp.Data["key_type"] != "otp" ||
+		resp.Data["ip"] != "52.207.235.245" ||
+		resp.Data["username"] != "ubuntu" {
+		t.Fatalf("failed to create credential: resp:%#v", resp)
+	}
+
+	credsData["username"] = "test"
+	resp, err = b.HandleRequest(credsReq)
+	if err != nil || resp == nil || (resp != nil && !resp.IsError()) {
+		t.Fatalf("expected failure: resp:%#v err:%s", resp, err)
+	}
+
+	roleData["allowed_users"] = "*"
+	resp, err = b.HandleRequest(roleReq)
+	if err != nil || (resp != nil && resp.IsError()) || resp != nil {
+		t.Fatalf("failed to create role: resp:%#v err:%s", resp, err)
+	}
+
+	resp, err = b.HandleRequest(credsReq)
+	if err != nil || (resp != nil && resp.IsError()) || resp == nil {
+		t.Fatalf("failed to create role: resp:%#v err:%s", resp, err)
+	}
+	if resp.Data["key"] == "" ||
+		resp.Data["key_type"] != "otp" ||
+		resp.Data["ip"] != "52.207.235.245" ||
+		resp.Data["username"] != "test" {
+		t.Fatalf("failed to create credential: resp:%#v", resp)
+	}
+}
+
 func testingFactory(conf *logical.BackendConfig) (logical.Backend, error) {
 	_, err := vault.StartSSHHostTestServer()
 	if err != nil {
@@ -99,7 +213,8 @@ func TestSSHBackend_Lookup(t *testing.T) {
 	resp3 := []string{testDynamicRoleName, testOTPRoleName}
 	resp4 := []string{testDynamicRoleName}
 	logicaltest.Test(t, logicaltest.TestCase{
-		Factory: testingFactory,
+		AcceptanceTest: true,
+		Factory:        testingFactory,
 		Steps: []logicaltest.TestStep{
 			testLookupRead(t, data, resp1),
 			testRoleWrite(t, testOTPRoleName, testOTPRoleData),
@@ -128,7 +243,8 @@ func TestSSHBackend_DynamicKeyCreate(t *testing.T) {
 		"ip":       testIP,
 	}
 	logicaltest.Test(t, logicaltest.TestCase{
-		Factory: testingFactory,
+		AcceptanceTest: true,
+		Factory:        testingFactory,
 		Steps: []logicaltest.TestStep{
 			testNamedKeysWrite(t, testKeyName, testSharedPrivateKey),
 			testRoleWrite(t, testDynamicRoleName, testDynamicRoleData),
@@ -150,7 +266,8 @@ func TestSSHBackend_OTPRoleCrud(t *testing.T) {
 		"cidr_list":    testCIDRList,
 	}
 	logicaltest.Test(t, logicaltest.TestCase{
-		Factory: testingFactory,
+		AcceptanceTest: true,
+		Factory:        testingFactory,
 		Steps: []logicaltest.TestStep{
 			testRoleWrite(t, testOTPRoleName, testOTPRoleData),
 			testRoleRead(t, testOTPRoleName, respOTPRoleData),
@@ -179,7 +296,8 @@ func TestSSHBackend_DynamicRoleCrud(t *testing.T) {
 		"key_type":       testDynamicKeyType,
 	}
 	logicaltest.Test(t, logicaltest.TestCase{
-		Factory: testingFactory,
+		AcceptanceTest: true,
+		Factory:        testingFactory,
 		Steps: []logicaltest.TestStep{
 			testNamedKeysWrite(t, testKeyName, testSharedPrivateKey),
 			testRoleWrite(t, testDynamicRoleName, testDynamicRoleData),
@@ -192,7 +310,8 @@ func TestSSHBackend_DynamicRoleCrud(t *testing.T) {
 
 func TestSSHBackend_NamedKeysCrud(t *testing.T) {
 	logicaltest.Test(t, logicaltest.TestCase{
-		Factory: testingFactory,
+		AcceptanceTest: true,
+		Factory:        testingFactory,
 		Steps: []logicaltest.TestStep{
 			testNamedKeysWrite(t, testKeyName, testSharedPrivateKey),
 			testNamedKeysDelete(t),
@@ -211,7 +330,8 @@ func TestSSHBackend_OTPCreate(t *testing.T) {
 		"ip":       testIP,
 	}
 	logicaltest.Test(t, logicaltest.TestCase{
-		Factory: testingFactory,
+		AcceptanceTest: true,
+		Factory:        testingFactory,
 		Steps: []logicaltest.TestStep{
 			testRoleWrite(t, testOTPRoleName, testOTPRoleData),
 			testCredsWrite(t, testOTPRoleName, data, false),
@@ -227,7 +347,8 @@ func TestSSHBackend_VerifyEcho(t *testing.T) {
 		"message": api.VerifyEchoResponse,
 	}
 	logicaltest.Test(t, logicaltest.TestCase{
-		Factory: testingFactory,
+		AcceptanceTest: true,
+		Factory:        testingFactory,
 		Steps: []logicaltest.TestStep{
 			testVerifyWrite(t, verifyData, expectedData),
 		},
@@ -264,7 +385,8 @@ func TestSSHBackend_ConfigZeroAddressCRUD(t *testing.T) {
 	}
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		Factory: testingFactory,
+		AcceptanceTest: true,
+		Factory:        testingFactory,
 		Steps: []logicaltest.TestStep{
 			testRoleWrite(t, testOTPRoleName, testOTPRoleData),
 			testConfigZeroAddressWrite(t, req1),
@@ -304,7 +426,8 @@ func TestSSHBackend_CredsForZeroAddressRoles(t *testing.T) {
 		"roles": fmt.Sprintf("%s,%s", testOTPRoleName, testDynamicRoleName),
 	}
 	logicaltest.Test(t, logicaltest.TestCase{
-		Factory: testingFactory,
+		AcceptanceTest: true,
+		Factory:        testingFactory,
 		Steps: []logicaltest.TestStep{
 			testRoleWrite(t, testOTPRoleName, otpRoleData),
 			testCredsWrite(t, testOTPRoleName, data, true),

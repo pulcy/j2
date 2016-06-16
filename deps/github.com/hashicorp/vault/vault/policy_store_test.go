@@ -10,7 +10,16 @@ import (
 func mockPolicyStore(t *testing.T) *PolicyStore {
 	_, barrier, _ := mockBarrier(t)
 	view := NewBarrierView(barrier, "foo/")
-	p := NewPolicyStore(view)
+	p := NewPolicyStore(view, logical.TestSystemView())
+	return p
+}
+
+func mockPolicyStoreNoCache(t *testing.T) *PolicyStore {
+	sysView := logical.TestSystemView()
+	sysView.CachingDisabledVal = true
+	_, barrier, _ := mockBarrier(t)
+	view := NewBarrierView(barrier, "foo/")
+	p := NewPolicyStore(view, sysView)
 	return p
 }
 
@@ -44,7 +53,13 @@ func TestPolicyStore_Root(t *testing.T) {
 
 func TestPolicyStore_CRUD(t *testing.T) {
 	ps := mockPolicyStore(t)
+	testPolicyStore_CRUD(t, ps)
 
+	ps = mockPolicyStoreNoCache(t)
+	testPolicyStore_CRUD(t, ps)
+}
+
+func testPolicyStore_CRUD(t *testing.T, ps *PolicyStore) {
 	// Get should return nothing
 	p, err := ps.GetPolicy("dev")
 	if err != nil {
@@ -107,6 +122,53 @@ func TestPolicyStore_CRUD(t *testing.T) {
 	}
 	if p != nil {
 		t.Fatalf("bad: %v", p)
+	}
+}
+
+// Test predefined policy handling
+func TestPolicyStore_Predefined(t *testing.T) {
+	core, _, _ := TestCoreUnsealed(t)
+	// Ensure both default policies are created
+	err := core.setupPolicyStore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	// List should be two elements
+	out, err := core.policyStore.ListPolicies()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(out) != 2 || out[0] != "default" || out[1] != "response-wrapping" {
+		t.Fatalf("bad: %v", out)
+	}
+
+	pCubby, err := core.policyStore.GetPolicy("response-wrapping")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if pCubby.Raw != cubbyholeResponseWrappingPolicy {
+		t.Fatalf("bad: expected\n%s\ngot\n%s\n", cubbyholeResponseWrappingPolicy, pCubby.Raw)
+	}
+	pRoot, err := core.policyStore.GetPolicy("root")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = core.policyStore.SetPolicy(pCubby)
+	if err == nil {
+		t.Fatalf("expected err setting %s", pCubby.Name)
+	}
+	err = core.policyStore.SetPolicy(pRoot)
+	if err == nil {
+		t.Fatalf("expected err setting %s", pRoot.Name)
+	}
+	err = core.policyStore.DeletePolicy(pCubby.Name)
+	if err == nil {
+		t.Fatalf("expected err deleting %s", pCubby.Name)
+	}
+	err = core.policyStore.DeletePolicy(pRoot.Name)
+	if err == nil {
+		t.Fatalf("expected err deleting %s", pRoot.Name)
 	}
 }
 

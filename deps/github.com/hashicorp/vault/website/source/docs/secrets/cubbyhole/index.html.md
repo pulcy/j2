@@ -15,16 +15,53 @@ the configured physical storage for Vault. It is mounted at the `cubbyhole/`
 prefix by default and cannot be mounted elsewhere or removed.
 
 This backend differs from the `generic` backend in that the `generic` backend's
-values are accessible to any token with read privileges on that path. In this
-backend, paths are scoped per token; no token can read secrets placed in
-another token's cubbyhole. When the token expires, its cubbyhole is destroyed.
+values are accessible to any token with read privileges on that path. In
+`cubbyhole`, paths are scoped per token; no token can access another token's
+cubbyhole, whether to read, write, list, or for any other operation. When the
+token expires, its cubbyhole is destroyed.
 
 Also unlike the `generic` backend, because the cubbyhole's lifetime is linked
-to an authentication token, there is no concept of a lease or lease TTL for
-values contained in the token's cubbyhole.
+to that of an authentication token, there is no concept of a TTL or refresh
+interval for values contained in the token's cubbyhole.
 
 Writing to a key in the `cubbyhole` backend will replace the old value;
 the sub-fields are not merged together.
+
+## Response Wrapping
+
+Starting in Vault 0.6, almost any response (except those from `sys/` endpoints)
+from Vault can be wrapped (see the [Response
+Wrapping](https://www.vaultproject.io/docs/concepts/response-wrapping.html)
+concept page for details).
+
+The TTL for the token is set by the client using the `X-Vault-Wrap-TTL` header
+and can be either an integer number of seconds or a string duration of seconds
+(`15s`), minutes (`20m`), or hours (`25h`). When using the Vault CLI, you can
+set this via the `-wrap-ttl` parameter. Response wrapping is per-request; it is
+the presence of a value in this header that activates wrapping of the response.
+
+If a client requests wrapping:
+
+1. The original response is serialized to JSON
+2. A new single-use token is generated with a TTL as supplied by the client
+3. The original response JSON is stored in `cubbyhole/response` under the key
+   `"response"`
+4. A new response is generated, with the token ID and the token TTL stored in
+   the new response's `wrap_info` dict
+5. The new response is returned to the caller
+
+To get the original value, if using the API, simply perform a read on
+`cubbyhole/response`. In the `data` dict in the Secret response, the value of
+the `response` key can be directly unmarshaled as JSON into a new API Secret.
+
+If using the CLI, passing the wrapping token's ID to the `vault unwrap` command
+will return the original value; `-format` and `-field` can be set like with
+`vault read`.
+
+If the original response is an authentication response containing a token, the
+token's accessor will be made available to the caller. This allows a privileged
+caller to generate tokens for clients and be able to manage the tokens'
+lifecycle while not being exposed to the actual client token IDs.
 
 ## Quick Start
 
@@ -96,9 +133,7 @@ As expected, the value previously set is returned to us.
   <dd>
     Returns a list of secret entries at the specified location. Folders are
     suffixed with `/`. The input must be a folder; list on a file will not
-    return a value. Note that no policy-based filtering is performed on
-    returned keys; it is not recommended to put sensitive or secret values as
-    key names. The values themselves are not accessible via this command.
+    return a value. The values themselves are not accessible via this command.
   </dd>
 
   <dt>Method</dt>

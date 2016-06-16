@@ -46,6 +46,7 @@ func (f *FormatJSON) FormatRequest(
 			Path:        req.Path,
 			Data:        req.Data,
 			RemoteAddr:  getRemoteAddr(req),
+			WrapTTL:     int(req.WrapTTL / time.Second),
 		},
 	})
 }
@@ -72,6 +73,7 @@ func (f *FormatJSON) FormatResponse(
 	if resp.Auth != nil {
 		respAuth = &JSONAuth{
 			ClientToken: resp.Auth.ClientToken,
+			Accessor:    resp.Auth.Accessor,
 			DisplayName: resp.Auth.DisplayName,
 			Policies:    resp.Auth.Policies,
 			Metadata:    resp.Auth.Metadata,
@@ -85,6 +87,16 @@ func (f *FormatJSON) FormatResponse(
 		}
 	}
 
+	var respWrapInfo *JSONWrapInfo
+	if resp.WrapInfo != nil {
+		respWrapInfo = &JSONWrapInfo{
+			TTL:             int(resp.WrapInfo.TTL / time.Second),
+			Token:           resp.WrapInfo.Token,
+			CreationTime:    resp.WrapInfo.CreationTime,
+			WrappedAccessor: resp.WrapInfo.WrappedAccessor,
+		}
+	}
+
 	// Encode!
 	enc := json.NewEncoder(w)
 	return enc.Encode(&JSONResponseEntry{
@@ -93,15 +105,18 @@ func (f *FormatJSON) FormatResponse(
 		Error: errString,
 
 		Auth: JSONAuth{
-			Policies: auth.Policies,
-			Metadata: auth.Metadata,
+			DisplayName: auth.DisplayName,
+			Policies:    auth.Policies,
+			Metadata:    auth.Metadata,
 		},
 
 		Request: JSONRequest{
-			Operation:  req.Operation,
-			Path:       req.Path,
-			Data:       req.Data,
-			RemoteAddr: getRemoteAddr(req),
+			ClientToken: req.ClientToken,
+			Operation:   req.Operation,
+			Path:        req.Path,
+			Data:        req.Data,
+			RemoteAddr:  getRemoteAddr(req),
+			WrapTTL:     int(req.WrapTTL / time.Second),
 		},
 
 		Response: JSONResponse{
@@ -109,6 +124,7 @@ func (f *FormatJSON) FormatResponse(
 			Secret:   respSecret,
 			Data:     resp.Data,
 			Redirect: resp.Redirect,
+			WrapInfo: respWrapInfo,
 		},
 	})
 }
@@ -138,6 +154,7 @@ type JSONRequest struct {
 	Path        string                 `json:"path"`
 	Data        map[string]interface{} `json:"data"`
 	RemoteAddr  string                 `json:"remote_address"`
+	WrapTTL     int                    `json:"wrap_ttl"`
 }
 
 type JSONResponse struct {
@@ -145,10 +162,12 @@ type JSONResponse struct {
 	Secret   *JSONSecret            `json:"secret,emitempty"`
 	Data     map[string]interface{} `json:"data"`
 	Redirect string                 `json:"redirect"`
+	WrapInfo *JSONWrapInfo          `json:"wrap_info,omitempty"`
 }
 
 type JSONAuth struct {
 	ClientToken string            `json:"client_token,omitempty"`
+	Accessor    string            `json:"accessor,omitempty"`
 	DisplayName string            `json:"display_name"`
 	Policies    []string          `json:"policies"`
 	Metadata    map[string]string `json:"metadata"`
@@ -156,6 +175,13 @@ type JSONAuth struct {
 
 type JSONSecret struct {
 	LeaseID string `json:"lease_id"`
+}
+
+type JSONWrapInfo struct {
+	TTL             int       `json:"ttl"`
+	Token           string    `json:"token"`
+	CreationTime    time.Time `json:"creation_time"`
+	WrappedAccessor string    `json:"wrapped_accessor,omitempty"`
 }
 
 // getRemoteAddr safely gets the remote address avoiding a nil pointer

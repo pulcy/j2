@@ -37,7 +37,7 @@ type routeEntry struct {
 	loginPaths  *radix.Tree
 }
 
-// SaltID is used to apply a salt and hash to an ID to make sure its not reversable
+// SaltID is used to apply a salt and hash to an ID to make sure its not reversible
 func (re *routeEntry) SaltID(id string) string {
 	return salt.SaltID(re.mountEntry.UUID, id, salt.SHA1Hash)
 }
@@ -105,7 +105,7 @@ func (r *Router) Remount(src, dst string) error {
 }
 
 // Taint is used to mark a path as tainted. This means only RollbackOperation
-// RenewOperation requests are allowed to proceed
+// RevokeOperation requests are allowed to proceed
 func (r *Router) Taint(path string) error {
 	r.l.Lock()
 	defer r.l.Unlock()

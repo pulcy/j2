@@ -36,6 +36,11 @@ var (
 // Performs basic tests on CA functionality
 // Uses the RSA CA key
 func TestBackend_RSAKey(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	defaultLeaseTTLVal := time.Hour * 24
 	maxLeaseTTLVal := time.Hour * 24 * 30
 	b, err := Factory(&logical.BackendConfig{
@@ -50,8 +55,9 @@ func TestBackend_RSAKey(t *testing.T) {
 	}
 
 	testCase := logicaltest.TestCase{
-		Backend: b,
-		Steps:   []logicaltest.TestStep{},
+		AcceptanceTest: true,
+		Backend:        b,
+		Steps:          []logicaltest.TestStep{},
 	}
 
 	stepCount = len(testCase.Steps)
@@ -66,6 +72,11 @@ func TestBackend_RSAKey(t *testing.T) {
 // Performs basic tests on CA functionality
 // Uses the EC CA key
 func TestBackend_ECKey(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	defaultLeaseTTLVal := time.Hour * 24
 	maxLeaseTTLVal := time.Hour * 24 * 30
 	b, err := Factory(&logical.BackendConfig{
@@ -80,8 +91,9 @@ func TestBackend_ECKey(t *testing.T) {
 	}
 
 	testCase := logicaltest.TestCase{
-		Backend: b,
-		Steps:   []logicaltest.TestStep{},
+		AcceptanceTest: true,
+		Backend:        b,
+		Steps:          []logicaltest.TestStep{},
 	}
 
 	stepCount = len(testCase.Steps)
@@ -94,6 +106,11 @@ func TestBackend_ECKey(t *testing.T) {
 }
 
 func TestBackend_CSRValues(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	defaultLeaseTTLVal := time.Hour * 24
 	maxLeaseTTLVal := time.Hour * 24 * 30
 	b, err := Factory(&logical.BackendConfig{
@@ -108,8 +125,9 @@ func TestBackend_CSRValues(t *testing.T) {
 	}
 
 	testCase := logicaltest.TestCase{
-		Backend: b,
-		Steps:   []logicaltest.TestStep{},
+		AcceptanceTest: true,
+		Backend:        b,
+		Steps:          []logicaltest.TestStep{},
 	}
 
 	stepCount = len(testCase.Steps)
@@ -122,6 +140,11 @@ func TestBackend_CSRValues(t *testing.T) {
 }
 
 func TestBackend_URLsCRUD(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	defaultLeaseTTLVal := time.Hour * 24
 	maxLeaseTTLVal := time.Hour * 24 * 30
 	b, err := Factory(&logical.BackendConfig{
@@ -136,8 +159,9 @@ func TestBackend_URLsCRUD(t *testing.T) {
 	}
 
 	testCase := logicaltest.TestCase{
-		Backend: b,
-		Steps:   []logicaltest.TestStep{},
+		AcceptanceTest: true,
+		Backend:        b,
+		Steps:          []logicaltest.TestStep{},
 	}
 
 	stepCount = len(testCase.Steps)
@@ -153,6 +177,11 @@ func TestBackend_URLsCRUD(t *testing.T) {
 // of role flags to ensure that they are properly restricted
 // Uses the RSA CA key
 func TestBackend_RSARoles(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	defaultLeaseTTLVal := time.Hour * 24
 	maxLeaseTTLVal := time.Hour * 24 * 30
 	b, err := Factory(&logical.BackendConfig{
@@ -167,7 +196,8 @@ func TestBackend_RSARoles(t *testing.T) {
 	}
 
 	testCase := logicaltest.TestCase{
-		Backend: b,
+		AcceptanceTest: true,
+		Backend:        b,
 		Steps: []logicaltest.TestStep{
 			logicaltest.TestStep{
 				Operation: logical.UpdateOperation,
@@ -195,6 +225,11 @@ func TestBackend_RSARoles(t *testing.T) {
 // of role flags to ensure that they are properly restricted
 // Uses the RSA CA key
 func TestBackend_RSARoles_CSR(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	defaultLeaseTTLVal := time.Hour * 24
 	maxLeaseTTLVal := time.Hour * 24 * 30
 	b, err := Factory(&logical.BackendConfig{
@@ -209,7 +244,8 @@ func TestBackend_RSARoles_CSR(t *testing.T) {
 	}
 
 	testCase := logicaltest.TestCase{
-		Backend: b,
+		AcceptanceTest: true,
+		Backend:        b,
 		Steps: []logicaltest.TestStep{
 			logicaltest.TestStep{
 				Operation: logical.UpdateOperation,
@@ -237,6 +273,11 @@ func TestBackend_RSARoles_CSR(t *testing.T) {
 // of role flags to ensure that they are properly restricted
 // Uses the EC CA key
 func TestBackend_ECRoles(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	defaultLeaseTTLVal := time.Hour * 24
 	maxLeaseTTLVal := time.Hour * 24 * 30
 	b, err := Factory(&logical.BackendConfig{
@@ -251,7 +292,8 @@ func TestBackend_ECRoles(t *testing.T) {
 	}
 
 	testCase := logicaltest.TestCase{
-		Backend: b,
+		AcceptanceTest: true,
+		Backend:        b,
 		Steps: []logicaltest.TestStep{
 			logicaltest.TestStep{
 				Operation: logical.UpdateOperation,
@@ -279,6 +321,11 @@ func TestBackend_ECRoles(t *testing.T) {
 // of role flags to ensure that they are properly restricted
 // Uses the EC CA key
 func TestBackend_ECRoles_CSR(t *testing.T) {
+	if os.Getenv(logicaltest.TestEnvVar) == "" {
+		t.Skip(fmt.Sprintf("Acceptance tests skipped unless env '%s' set", logicaltest.TestEnvVar))
+		return
+	}
+
 	defaultLeaseTTLVal := time.Hour * 24
 	maxLeaseTTLVal := time.Hour * 24 * 30
 	b, err := Factory(&logical.BackendConfig{
@@ -293,7 +340,8 @@ func TestBackend_ECRoles_CSR(t *testing.T) {
 	}
 
 	testCase := logicaltest.TestCase{
-		Backend: b,
+		AcceptanceTest: true,
+		Backend:        b,
 		Steps: []logicaltest.TestStep{
 			logicaltest.TestStep{
 				Operation: logical.UpdateOperation,
@@ -441,6 +489,12 @@ func generateURLSteps(t *testing.T, caCert, caKey string, intdata, reqdata map[s
 				"common_name": "Root Cert",
 				"ttl":         "180h",
 			},
+			Check: func(resp *logical.Response) error {
+				if resp.Secret != nil && resp.Secret.LeaseID != "" {
+					return fmt.Errorf("root returned with a lease")
+				}
+				return nil
+			},
 		},
 
 		logicaltest.TestStep{
@@ -508,6 +562,9 @@ func generateURLSteps(t *testing.T, caCert, caKey string, intdata, reqdata map[s
 				if certString == "" {
 					return fmt.Errorf("no certificate returned")
 				}
+				if resp.Secret != nil && resp.Secret.LeaseID != "" {
+					return fmt.Errorf("signed intermediate returned with a lease")
+				}
 				certBytes, _ := base64.StdEncoding.DecodeString(certString)
 				certs, err := x509.ParseCertificates(certBytes)
 				if err != nil {
@@ -525,6 +582,51 @@ func generateURLSteps(t *testing.T, caCert, caKey string, intdata, reqdata map[s
 					return fmt.Errorf("expected\n%#v\ngot\n%#v\n", expected.CRLDistributionPoints, cert.CRLDistributionPoints)
 				case !reflect.DeepEqual(expected.OCSPServers, cert.OCSPServer):
 					return fmt.Errorf("expected\n%#v\ngot\n%#v\n", expected.OCSPServers, cert.OCSPServer)
+				case !reflect.DeepEqual([]string{"Intermediate Cert"}, cert.DNSNames):
+					return fmt.Errorf("expected\n%#v\ngot\n%#v\n", []string{"Intermediate Cert"}, cert.DNSNames)
+				}
+
+				return nil
+			},
+		},
+
+		// Same as above but exclude adding to sans
+		logicaltest.TestStep{
+			Operation: logical.UpdateOperation,
+			Path:      "root/sign-intermediate",
+			Data: map[string]interface{}{
+				"common_name":          "Intermediate Cert",
+				"csr":                  string(csrPem2048),
+				"format":               "der",
+				"exclude_cn_from_sans": true,
+			},
+			Check: func(resp *logical.Response) error {
+				certString := resp.Data["certificate"].(string)
+				if certString == "" {
+					return fmt.Errorf("no certificate returned")
+				}
+				if resp.Secret != nil && resp.Secret.LeaseID != "" {
+					return fmt.Errorf("signed intermediate returned with a lease")
+				}
+				certBytes, _ := base64.StdEncoding.DecodeString(certString)
+				certs, err := x509.ParseCertificates(certBytes)
+				if err != nil {
+					return fmt.Errorf("returned cert cannot be parsed: %v", err)
+				}
+				if len(certs) != 1 {
+					return fmt.Errorf("unexpected returned length of certificates: %d", len(certs))
+				}
+				cert := certs[0]
+
+				switch {
+				case !reflect.DeepEqual(expected.IssuingCertificates, cert.IssuingCertificateURL):
+					return fmt.Errorf("expected\n%#v\ngot\n%#v\n", expected.IssuingCertificates, cert.IssuingCertificateURL)
+				case !reflect.DeepEqual(expected.CRLDistributionPoints, cert.CRLDistributionPoints):
+					return fmt.Errorf("expected\n%#v\ngot\n%#v\n", expected.CRLDistributionPoints, cert.CRLDistributionPoints)
+				case !reflect.DeepEqual(expected.OCSPServers, cert.OCSPServer):
+					return fmt.Errorf("expected\n%#v\ngot\n%#v\n", expected.OCSPServers, cert.OCSPServer)
+				case !reflect.DeepEqual([]string(nil), cert.DNSNames):
+					return fmt.Errorf("expected\n%#v\ngot\n%#v\n", []string(nil), cert.DNSNames)
 				}
 
 				return nil
@@ -882,6 +984,26 @@ func generateCATestingSteps(t *testing.T, caCert, caKey, otherCaCert string, int
 			Data:      reqdata,
 			Check: func(resp *logical.Response) error {
 				delete(reqdata, "certificate")
+
+				serialUnderTest = "cert/" + reqdata["rsa_int_serial_number"].(string)
+
+				return nil
+			},
+		},
+
+		// We expect to find a zero revocation time
+		logicaltest.TestStep{
+			Operation: logical.ReadOperation,
+			PreFlight: setSerialUnderTest,
+			Check: func(resp *logical.Response) error {
+				if resp.Data["error"] != nil && resp.Data["error"].(string) != "" {
+					return fmt.Errorf("got an error: %s", resp.Data["error"].(string))
+				}
+
+				if resp.Data["revocation_time"].(int64) != 0 {
+					return fmt.Errorf("expected a zero revocation time")
+				}
+
 				return nil
 			},
 		},
@@ -1019,10 +1141,29 @@ func generateCATestingSteps(t *testing.T, caCert, caKey, otherCaCert string, int
 			Data:      reqdata,
 			Check: func(resp *logical.Response) error {
 				delete(reqdata, "certificate")
+
+				serialUnderTest = "cert/" + reqdata["ec_int_serial_number"].(string)
+
 				return nil
 			},
 		},
 
+		// We expect to find a zero revocation time
+		logicaltest.TestStep{
+			Operation: logical.ReadOperation,
+			PreFlight: setSerialUnderTest,
+			Check: func(resp *logical.Response) error {
+				if resp.Data["error"] != nil && resp.Data["error"].(string) != "" {
+					return fmt.Errorf("got an error: %s", resp.Data["error"].(string))
+				}
+
+				if resp.Data["revocation_time"].(int64) != 0 {
+					return fmt.Errorf("expected a zero revocation time")
+				}
+
+				return nil
+			},
+		},
 		logicaltest.TestStep{
 			Operation: logical.UpdateOperation,
 			Path:      "revoke",
@@ -1070,6 +1211,10 @@ func generateCATestingSteps(t *testing.T, caCert, caKey, otherCaCert string, int
 					return fmt.Errorf("got an error: %s", resp.Data["error"].(string))
 				}
 
+				if resp.Data["revocation_time"].(int64) == 0 {
+					return fmt.Errorf("expected a non-zero revocation time")
+				}
+
 				serialUnderTest = "cert/" + reqdata["ec_int_serial_number"].(string)
 
 				return nil
@@ -1082,6 +1227,10 @@ func generateCATestingSteps(t *testing.T, caCert, caKey, otherCaCert string, int
 			Check: func(resp *logical.Response) error {
 				if resp.Data["error"] != nil && resp.Data["error"].(string) != "" {
 					return fmt.Errorf("got an error: %s", resp.Data["error"].(string))
+				}
+
+				if resp.Data["revocation_time"].(int64) == 0 {
+					return fmt.Errorf("expected a non-zero revocation time")
 				}
 
 				// Give time for the certificates to pass the safety buffer
@@ -1625,7 +1774,7 @@ func generateRoleSteps(t *testing.T, useCSRs bool) []logicaltest.TestStep {
 			}
 
 			if keys[0] != "test" {
-				return fmt.Errorf("unexpected key value of %d", keys[0])
+				return fmt.Errorf("unexpected key value of %s", keys[0])
 			}
 
 			return nil
@@ -1633,6 +1782,133 @@ func generateRoleSteps(t *testing.T, useCSRs bool) []logicaltest.TestStep {
 	})
 
 	return ret
+}
+
+func TestBackend_PathFetchCertList(t *testing.T) {
+	// create the backend
+	config := logical.TestBackendConfig()
+	storage := &logical.InmemStorage{}
+	config.StorageView = storage
+
+	b := Backend()
+	_, err := b.Setup(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// generate root
+	rootData := map[string]interface{}{
+		"common_name": "test.com",
+		"ttl":         "6h",
+	}
+
+	resp, err := b.HandleRequest(&logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "root/generate/internal",
+		Storage:   storage,
+		Data:      rootData,
+	})
+	if resp != nil && resp.IsError() {
+		t.Fatalf("failed to generate root, %#v", resp)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// config urls
+	urlsData := map[string]interface{}{
+		"issuing_certificates":    "http://127.0.0.1:8200/v1/pki/ca",
+		"crl_distribution_points": "http://127.0.0.1:8200/v1/pki/crl",
+	}
+
+	resp, err = b.HandleRequest(&logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "config/urls",
+		Storage:   storage,
+		Data:      urlsData,
+	})
+	if resp != nil && resp.IsError() {
+		t.Fatalf("failed to config urls, %#v", resp)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a role entry
+	roleData := map[string]interface{}{
+		"allowed_domains":  "test.com",
+		"allow_subdomains": "true",
+		"max_ttl":          "4h",
+	}
+
+	resp, err = b.HandleRequest(&logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "roles/test-example",
+		Storage:   storage,
+		Data:      roleData,
+	})
+	if resp != nil && resp.IsError() {
+		t.Fatalf("failed to create a role, %#v", resp)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// issue some certs
+	i := 1
+	for i < 10 {
+		certData := map[string]interface{}{
+			"common_name": "example.test.com",
+		}
+		resp, err = b.HandleRequest(&logical.Request{
+			Operation: logical.UpdateOperation,
+			Path:      "issue/test-example",
+			Storage:   storage,
+			Data:      certData,
+		})
+		if resp != nil && resp.IsError() {
+			t.Fatalf("failed to issue a cert, %#v", resp)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		i = i + 1
+	}
+
+	// list certs
+	resp, err = b.HandleRequest(&logical.Request{
+		Operation: logical.ListOperation,
+		Path:      "certs",
+		Storage:   storage,
+	})
+	if resp != nil && resp.IsError() {
+		t.Fatalf("failed to list certs, %#v", resp)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	// check that the root and 9 additional certs are all listed
+	if len(resp.Data["keys"].([]string)) != 10 {
+		t.Fatalf("failed to list all 10 certs")
+	}
+
+	// list certs/
+	resp, err = b.HandleRequest(&logical.Request{
+		Operation: logical.ListOperation,
+		Path:      "certs/",
+		Storage:   storage,
+	})
+	if resp != nil && resp.IsError() {
+		t.Fatalf("failed to list certs, %#v", resp)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	// check that the root and 9 additional certs are all listed
+	if len(resp.Data["keys"].([]string)) != 10 {
+		t.Fatalf("failed to list all 10 certs")
+	}
 }
 
 const (

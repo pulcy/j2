@@ -28,19 +28,22 @@ secret's path.
 
 ## Quick Start
 
-The generic backend allows for writing keys with arbitrary values. A `ttl` value
-can be provided, which affects the duration of generated leases. Specifically,
-this can be used as a hint from the writer of a secret to consumers of a secret
-that the consumer should wait no more than the `ttl` duration before checking
-for a new value. If you expect a secret to change frequently, or if you need
-clients to react quickly to a change in the secret's value, specify a low value
-of `ttl`. Keep in mind that a low `ttl` value may add significant additional load
-to the Vault server if it results in clients accessing the value very frequently.
-Also note that setting `ttl` does not actually expire the data; it is
-informational only.
+The generic backend allows for writing keys with arbitrary values. When data is
+returned, the `lease_duration` field (in the API JSON) or `refresh_interval`
+field (on the CLI) gives a hint as to how often a reader should look for a new
+value. This comes from the value of the `default_lease_ttl` set on the mount,
+or the system value.
 
-As an example, we can write a new key "foo" to the generic backend
-mounted at "secret/" by default:
+There is one piece of special data handling: if a `ttl` key is provided, it
+will be treated as normal data, but on read the backend will attempt to parse
+it as a duration (either as a string like `1h` or an integer number of seconds
+like `3600`). If successful, the backend will use this value in place of the
+normal `lease_duration`. However, the given value will also still be returned
+exactly as specified, so you are free to use that key in any way that you like
+if it fits your input data.
+
+As an example, we can write a new key "foo" to the generic backend mounted at
+"secret/" by default:
 
 ```
 $ vault write secret/foo \
@@ -54,13 +57,15 @@ We can test this by doing a read:
 
 ```
 $ vault read secret/foo
-Key             Value
-lease_duration  3600
-zip             zap
+Key               Value
+---               -----
+refresh_interval  3600
+ttl               1h
+zip               zap
 ```
 
-As expected, we get the value previously set back as well as our custom TTL
-both as specified and translated to seconds. The TTL has been set to 3600
+As expected, we get the values previously set back as well as our custom TTL
+both as specified and translated to seconds. The duration has been set to 3600
 seconds (one hour) as specified.
 
 ## API
@@ -107,11 +112,11 @@ seconds (one hour) as specified.
 <dl class="api">
   <dt>Description</dt>
   <dd>
-    Returns a list of secret entries at the specified location. Folders are
+    Returns a list of key names at the specified location. Folders are
     suffixed with `/`. The input must be a folder; list on a file will not
-    return a value. Note that no policy-based filtering is performed on
-    returned keys; it is not recommended to put sensitive or secret values as
-    key names. The values themselves are not accessible via this command.
+    return a value. Note that no policy-based filtering is performed on keys;
+    do not encode sensitive information in key names. The values themselves
+    are not accessible via this command.
   </dd>
 
   <dt>Method</dt>
@@ -169,19 +174,10 @@ seconds (one hour) as specified.
       <li>
         <span class="param">(key)</span>
         <span class="param-flags">optional</span>
-        A key, paired with an associated value, to be held at the
-        given location. Multiple key/value pairs can be specified,
-        and all will be returned on a read operation.
-      </li>
-      <li>
-        <span class="param">ttl</span>
-        <span class="param-flags">optional</span>
-        The Time To Live for the entry. This value, converted to
-        seconds, is round-tripped on read operations as the
-        `lease_duration` parameter. Vault takes no action when this
-        value expires; it is only meant as a way for a writer of
-        a value to indicate to readers how often they should check
-        for new entries.
+        A key, paired with an associated value, to be held at the given
+        location. Multiple key/value pairs can be specified, and all will be
+        returned on a read operation. A key called `ttl` will trigger some
+        special behavior; see above for details.
       </li>
     </ul>
   </dd>
