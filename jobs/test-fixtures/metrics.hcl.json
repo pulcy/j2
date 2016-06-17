@@ -1,0 +1,33 @@
+{
+    "name": "metrics",
+    "groups": [{
+        "name": "custom_web",
+        "count": 1,
+        "tasks": [{
+            "name": "server",
+            "image": "myserver:latest",
+            "metrics": {
+                "port": 90,
+                "path": "/custom"
+            }
+        }]
+    }, {
+        "name": "default_web",
+        "count": 1,
+        "tasks": [{
+            "name": "server",
+            "image": "myserver:latest",
+            "metrics": {}
+        }]
+    }, {
+        "name": "web",
+        "count": 2,
+        "tasks": [{
+            "name": "server",
+            "image": "myserver:latest",
+            "metrics": {
+                "port": 80
+            }
+        }]
+    }]
+}

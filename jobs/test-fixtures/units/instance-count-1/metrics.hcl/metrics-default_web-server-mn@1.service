@@ -1,0 +1,29 @@
+[Unit]
+Description=Main unit for metrics/default_web/server [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=metrics-default_web-server"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull myserver:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 metrics-default_web-server-1
+ExecStartPre=-/usr/bin/docker rm -f metrics-default_web-server-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name metrics-default_web-server-1 -P $A00 $A01 myserver:latest
+ExecStartPost=/bin/sh -c 'echo eyJzZXJ2aWNlIjoibWV0cmljcy1kZWZhdWx0X3dlYi1zZXJ2ZXIifQ== | base64 -d | /usr/bin/etcdctl set /pulcy/metrics/metrics-default_web-server-1'
+ExecStop=-/usr/bin/etcdctl rm /pulcy/metrics/metrics-default_web-server-1
+ExecStop=-/usr/bin/docker stop -t 10 metrics-default_web-server-1
+ExecStopPost=-/usr/bin/docker rm -f metrics-default_web-server-1
+
+[X-Fleet]
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
+MetricsRegistration="/pulcy/metrics/metrics-default_web-server-1={\"service\":\"metrics-default_web-server\"}"
