@@ -51,6 +51,7 @@ type Task struct {
 	Target           LinkName          `json:"target,omitempty" mapstructure:"target,omitempty"`
 	Rewrites         []Rewrite         `json:"rewrites,omitempty" mapstructure:"rewrites,omitempty"`
 	User             string            `json:"user,omitempty" mapstructure:"user,omitempty"`
+	Metrics          *Metrics          `json:"metrics,omitempty"`
 }
 
 // Link objects just after parsing
@@ -103,6 +104,10 @@ func (t *Task) replaceVariables() error {
 	t.LogDriver = LogDriver(ctx.replaceString(string(t.LogDriver)))
 	t.Target = LinkName(ctx.replaceString(string(t.Target)))
 	t.User = ctx.replaceString(t.User)
+	if t.Metrics != nil {
+		m := t.Metrics.replaceVariables(ctx)
+		t.Metrics = &m
+	}
 	return maskAny(ctx.Err())
 }
 
@@ -128,6 +133,11 @@ func (t Task) Validate() error {
 	}
 	for _, l := range t.Links {
 		if err := l.Validate(); err != nil {
+			return maskAny(err)
+		}
+	}
+	if t.Metrics != nil {
+		if err := t.Metrics.Validate(); err != nil {
 			return maskAny(err)
 		}
 	}

@@ -324,6 +324,7 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 		"secret",
 		"constraint",
 		"rewrite",
+		"metrics",
 	}
 	defaultValues := map[string]interface{}{
 		"count": defaultCount,
@@ -518,6 +519,24 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 		}
 	}
 
+	// Parse metrics
+	if o := obj.List.Filter("metrics"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return maskAny(errgo.WithCausef(nil, ValidationError, "cannot more than 1 metrics object in %s", t.Name))
+		}
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				m := Metrics{}
+				if err := m.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				t.Metrics = &m
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "metrics of task %s is not an object", t.Name))
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -621,6 +640,16 @@ func (l *Link) parse(obj *ast.ObjectType) error {
 func (r *Rewrite) parse(obj *ast.ObjectType) error {
 	// Build the rewrite
 	if err := hclutil.Decode(obj, nil, nil, r); err != nil {
+		return maskAny(err)
+	}
+
+	return nil
+}
+
+// parse a metrics object
+func (m *Metrics) parse(obj *ast.ObjectType) error {
+	// Build the rewrite
+	if err := hclutil.Decode(obj, nil, nil, m); err != nil {
 		return maskAny(err)
 	}
 

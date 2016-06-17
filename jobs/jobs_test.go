@@ -214,6 +214,22 @@ func TestParse(t *testing.T) {
 				"volumes-v4global-v4global-vl0.service",
 			},
 		},
+		{
+			"metrics.hcl",
+			false,
+			[]string{
+				"metrics-custom_web-server-mn@1.service",
+				"metrics-default_web-server-mn@1.service",
+				"metrics-web-server-mn@1.service",
+				"metrics-web-server-mn@2.service",
+			},
+			[]string{
+				"metrics-custom_web-server-mn@1.service",
+				"metrics-default_web-server-mn@1.service",
+				"metrics-web-server-mn@1.service",
+				"metrics-web-server-mn@2.service",
+			},
+		},
 	}
 
 	for _, tc := range cases {

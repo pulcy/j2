@@ -1,0 +1,30 @@
+[Unit]
+Description=Main unit for metrics/web/server [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=metrics-web-server"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull myserver:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 metrics-web-server-1
+ExecStartPre=-/usr/bin/docker rm -f metrics-web-server-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name metrics-web-server-1 -P $A00 $A01 myserver:latest
+ExecStartPost=/bin/sh -c 'echo eyJzZXJ2aWNlIjoibWV0cmljcy13ZWItc2VydmVyIiwicG9ydCI6ODB9 | base64 -d | /usr/bin/etcdctl set /pulcy/metrics/metrics-web-server-1'
+ExecStop=-/usr/bin/etcdctl rm /pulcy/metrics/metrics-web-server-1
+ExecStop=-/usr/bin/docker stop -t 10 metrics-web-server-1
+ExecStopPost=-/usr/bin/docker rm -f metrics-web-server-1
+
+[X-Fleet]
+Conflicts=metrics-web-server-mn@*.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
+MetricsRegistration="/pulcy/metrics/metrics-web-server-1={\"service\":\"metrics-web-server\",\"port\":80}"

@@ -57,6 +57,11 @@ func createMainUnit(t *jobs.Task, sidekickUnitNames []string, engine engine.Engi
 		unit.ExecOptions.After(otherName)
 	}
 
+	// Add metrics registration commands
+	if err := addMetricsRegistration(t, unit, ctx); err != nil {
+		return nil, maskAny(err)
+	}
+
 	// Add frontend registration commands
 	if err := addFrontEndRegistration(t, unit, ctx); err != nil {
 		return nil, maskAny(err)
