@@ -220,12 +220,14 @@ func TestParse(t *testing.T) {
 			[]string{
 				"metrics-custom_web-server-mn@1.service",
 				"metrics-default_web-server-mn@1.service",
+				"metrics-default_web-server_rules-mn@1.service",
 				"metrics-web-server-mn@1.service",
 				"metrics-web-server-mn@2.service",
 			},
 			[]string{
 				"metrics-custom_web-server-mn@1.service",
 				"metrics-default_web-server-mn@1.service",
+				"metrics-default_web-server_rules-mn@1.service",
 				"metrics-web-server-mn@1.service",
 				"metrics-web-server-mn@2.service",
 			},

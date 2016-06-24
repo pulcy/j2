@@ -16,12 +16,14 @@ package jobs
 
 // Metrics contains a specification of a metrics provides by a task.
 type Metrics struct {
-	Port int    `json:"port,omitempty" mapstructure:"port,omitempty"`
-	Path string `json:"path,omitempty" mapstructure:"path,omitempty"`
+	Port      int    `json:"port,omitempty" mapstructure:"port,omitempty"`
+	Path      string `json:"path,omitempty" mapstructure:"path,omitempty"`
+	RulesPath string `json:"rules-path,omitempty" mapstructure:"rules-path,omitempty"`
 }
 
 func (m Metrics) replaceVariables(ctx *variableContext) Metrics {
 	m.Path = ctx.replaceString(m.Path)
+	m.RulesPath = ctx.replaceString(m.RulesPath)
 	return m
 }
 

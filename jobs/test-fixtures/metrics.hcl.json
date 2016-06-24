@@ -18,6 +18,12 @@
             "name": "server",
             "image": "myserver:latest",
             "metrics": {}
+        }, {
+            "name": "server_rules",
+            "image": "myrules:latest",
+            "metrics": {
+                "rules-path": "/metrics/rules"
+            }
         }]
     }, {
         "name": "web",

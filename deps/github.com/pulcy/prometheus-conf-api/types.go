@@ -22,4 +22,5 @@ type MetricsServiceRecord struct {
 	ServiceName string `json:"service,omitempty"`
 	ServicePort int    `json:"port,omitempty"`
 	MetricsPath string `json:"path,omitempty"`
+	RulesPath   string `json:"rules_path,omitempty"`
 }

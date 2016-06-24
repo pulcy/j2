@@ -25,5 +25,11 @@ job "metrics" {
 			image = "myserver:latest"
 			metrics {}
 		}
+		task "server_rules" {
+			image = "myrules:latest"
+			metrics {
+				rules-path = "/metrics/rules"
+			}
+		}
 	}
 }

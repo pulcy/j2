@@ -40,6 +40,7 @@ func addMetricsRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorConte
 		ServiceName: targetServiceName,
 		ServicePort: t.Metrics.Port,
 		MetricsPath: t.Metrics.Path,
+		RulesPath:   t.Metrics.RulesPath,
 	}
 
 	json, err := json.Marshal(&record)
