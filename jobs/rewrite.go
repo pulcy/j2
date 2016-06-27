@@ -15,6 +15,7 @@
 package jobs
 
 type Rewrite struct {
-	PathPrefix string `json:"path-prefix,omitempty" mapstructure:"path-prefix,omitempty"`
-	Domain     string `json:"domain,omitempty" mapstructure:"domain,omitempty"`
+	PathPrefix       string `json:"path-prefix,omitempty" mapstructure:"path-prefix,omitempty"`
+	RemovePathPrefix string `json:"remove-path-prefix,omitempty" mapstructure:"remove-path-prefix,omitempty"`
+	Domain           string `json:"domain,omitempty" mapstructure:"domain,omitempty"`
 }
