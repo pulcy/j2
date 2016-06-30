@@ -145,6 +145,15 @@ func (tg *TaskGroup) Task(name TaskName) (*Task, error) {
 	return nil, maskAny(errgo.WithCausef(nil, TaskNotFoundError, name.String()))
 }
 
+// TaskGroup gets a taskgroup by the given name
+func (tg *TaskGroup) TaskGroup(name TaskGroupName) (*TaskGroup, error) {
+	result, err := tg.job.TaskGroup(name)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return result, nil
+}
+
 // Is this group scalable?
 // That mean "not global"
 /*func (tg *TaskGroup) IsScalable() bool {

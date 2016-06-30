@@ -1,0 +1,28 @@
+[Unit]
+Description=Main unit for constraints/group2/taskb [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=constraints-group2-taskb"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull myserver:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 constraints-group2-taskb-1
+ExecStartPre=-/usr/bin/docker rm -f constraints-group2-taskb-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name constraints-group2-taskb-1 -P $A00 $A01 myserver:latest
+ExecStop=-/usr/bin/docker stop -t 10 constraints-group2-taskb-1
+ExecStopPost=-/usr/bin/docker rm -f constraints-group2-taskb-1
+
+[X-Fleet]
+Conflicts=constraints-group1-taska-mn@*.service
+Conflicts=constraints-group2-taskb-mn@*.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

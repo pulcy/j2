@@ -1,0 +1,36 @@
+{
+    "name": "constraints",
+    "groups": [{
+        "name": "group1",
+        "count": 2,
+        "tasks": [{
+            "name": "taska",
+            "image": "myserver:latest"
+        }]
+    }, {
+        "name": "group2",
+        "count": 1,
+        "tasks": [{
+            "name": "taskb",
+            "image": "myserver:latest"
+        }],
+        "constraints": [{
+            "attribute": "taskgroup",
+            "value": "group1",
+            "operator": "!="
+        }]
+    }, {
+        "name": "group2global",
+        "count": 1,
+        "global": true,
+        "tasks": [{
+            "name": "taskgrobalb",
+            "image": "myserver:latest"
+        }],
+        "constraints": [{
+            "attribute": "taskgroup",
+            "value": "group1",
+            "operator": "!="
+        }]
+    }]
+}

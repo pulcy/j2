@@ -232,6 +232,22 @@ func TestParse(t *testing.T) {
 				"metrics-web-server-mn@2.service",
 			},
 		},
+		{
+			"constraints.hcl",
+			false,
+			[]string{
+				"constraints-group1-taska-mn@1.service",
+				"constraints-group1-taska-mn@2.service",
+				"constraints-group2-taskb-mn@1.service",
+				"constraints-group2global-taskgrobalb-mn.service",
+			},
+			[]string{
+				"constraints-group1-taska-mn@1.service",
+				"constraints-group1-taska-mn@2.service",
+				"constraints-group2-taskb-mn@1.service",
+				"constraints-group2global-taskgrobalb-mn.service",
+			},
+		},
 	}
 
 	for _, tc := range cases {

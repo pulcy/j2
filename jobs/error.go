@@ -19,10 +19,11 @@ import (
 )
 
 var (
-	TaskNotFoundError   = errgo.New("task not found")
-	InvalidNameError    = errgo.New("invalid name")
-	ValidationError     = errgo.New("validation failed")
-	OptionNotFoundError = errgo.New("option not found")
+	TaskNotFoundError      = errgo.New("task not found")
+	TaskGroupNotFoundError = errgo.New("taskgroup not found")
+	InvalidNameError       = errgo.New("invalid name")
+	ValidationError        = errgo.New("validation failed")
+	OptionNotFoundError    = errgo.New("option not found")
 
 	maskAny = errgo.MaskFunc(errgo.Any)
 )

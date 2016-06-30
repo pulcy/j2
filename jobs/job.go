@@ -129,3 +129,13 @@ func (j *Job) Json() ([]byte, error) {
 	}
 	return json, nil
 }
+
+// TaskGroup gets a taskgroup by the given name
+func (j *Job) TaskGroup(name TaskGroupName) (*TaskGroup, error) {
+	for _, tg := range j.Groups {
+		if tg.Name == name {
+			return tg, nil
+		}
+	}
+	return nil, maskAny(errgo.WithCausef(nil, TaskGroupNotFoundError, name.String()))
+}

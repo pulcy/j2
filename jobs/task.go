@@ -193,6 +193,15 @@ func (t *Task) Task(name TaskName) (*Task, error) {
 	return result, nil
 }
 
+// TaskGroup gets a taskgroup by the given name
+func (t *Task) TaskGroup(name TaskGroupName) (*TaskGroup, error) {
+	result, err := t.group.TaskGroup(name)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return result, nil
+}
+
 // JobID returns the ID of the job containing the group containing this task.
 func (t *Task) JobID() string {
 	return t.group.job.ID

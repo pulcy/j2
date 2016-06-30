@@ -52,12 +52,34 @@ func setupConstraints(t *jobs.Task, unit *sdunits.Unit) error {
 	for _, c := range constraints {
 		if strings.HasPrefix(c.Attribute, jobs.MetaAttributePrefix) {
 			// meta.<somekey>
+			if !c.OperatorEquals(jobs.OperatorEqual) {
+				return errgo.WithCausef(nil, ValidationError, "constraint with attribute '%s' has unsupported operator '%s'", c.Attribute, c.Operator)
+			}
 			key := c.Attribute[len(jobs.MetaAttributePrefix):]
 			metadata = append(metadata, fmt.Sprintf("%s=%s", key, c.Value))
 		} else {
 			switch c.Attribute {
 			case jobs.AttributeNodeID:
+				if !c.OperatorEquals(jobs.OperatorEqual) {
+					return errgo.WithCausef(nil, ValidationError, "constraint with attribute '%s' has unsupported operator '%s'", c.Attribute, c.Operator)
+				}
 				unit.FleetOptions.MachineID = c.Value
+			case jobs.AttributeTaskGroup:
+				name := jobs.TaskGroupName(c.Value)
+				if err := name.Validate(); err != nil {
+					return maskAny(err)
+				}
+				group, err := t.TaskGroup(name)
+				if err != nil {
+					return maskAny(err)
+				}
+				for _, groupTask := range group.Tasks {
+					if c.OperatorEquals(jobs.OperatorNotEqual) {
+						unit.FleetOptions.Conflicts(unitNameExt(groupTask, unitKindMain, "*") + ".service")
+					} else {
+						return errgo.WithCausef(nil, ValidationError, "constraint with attribute '%s' has unsupported operator '%s'", c.Attribute, c.Operator)
+					}
+				}
 			default:
 				return errgo.WithCausef(nil, ValidationError, "Unknown constraint attribute '%s'", c.Attribute)
 			}

@@ -23,17 +23,36 @@ import (
 const (
 	MetaAttributePrefix = "meta."
 	AttributeNodeID     = "node.id"
+	AttributeTaskGroup  = "taskgroup"
+
+	OperatorEqual    = "=="
+	OperatorNotEqual = "!="
 )
 
 // Constraint contains a specification of a scheduling constraint.
 type Constraint struct {
 	Attribute string `json:"attribute,omitempty" mapstructure:"attribute,omitempty"`
 	Value     string `json:"value,omitempty" mapstructure:"value,omitempty"`
+	Operator  string `json:"operator,omitempty" mapstructure:"operator,omitempty"`
+}
+
+// OperatorEquals returns true if the operator equals the given operator.
+// This method resolves empty operator to OperatorEqual.
+func (c Constraint) OperatorEquals(op string) bool {
+	cop := c.Operator
+	if cop == "" {
+		cop = OperatorEqual
+	}
+	if op == "" {
+		op = OperatorEqual
+	}
+	return cop == op
 }
 
 func (c Constraint) replaceVariables(ctx *variableContext) Constraint {
 	c.Attribute = ctx.replaceString(c.Attribute)
 	c.Value = ctx.replaceString(c.Value)
+	c.Operator = ctx.replaceString(c.Operator)
 	return c
 }
 
@@ -43,19 +62,27 @@ func (c Constraint) Validate() error {
 	if c.Attribute == "" {
 		return errgo.WithCausef(nil, ValidationError, "attribute cannot be empty")
 	}
+	switch c.Operator {
+	case "", OperatorEqual, OperatorNotEqual:
+		// Ok
+	default:
+		return errgo.WithCausef(nil, ValidationError, "unknown operator '%s'", c.Operator)
+	}
 	return nil
 }
 
 // Equals returns true if the given constraints are exactly the same.
 func (c Constraint) Equals(other Constraint) bool {
 	return c.Attribute == other.Attribute &&
-		c.Value == other.Value
+		c.Value == other.Value &&
+		c.Operator == other.Operator
 }
 
 // Conflicts returns true if the given constraints have the same attribute, but a different value.
 func (c Constraint) Conflicts(other Constraint) bool {
 	return c.Attribute == other.Attribute &&
-		c.Value != other.Value
+		(c.Value != other.Value) ||
+		(c.Operator != other.Operator)
 }
 
 // Constraints is a list of Constraint's

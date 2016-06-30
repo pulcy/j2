@@ -1,0 +1,27 @@
+[Unit]
+Description=Main unit for constraints/group1/taska [slice 2]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=constraints-group1-taska"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull myserver:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 constraints-group1-taska-2
+ExecStartPre=-/usr/bin/docker rm -f constraints-group1-taska-2
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name constraints-group1-taska-2 -P $A00 $A01 myserver:latest
+ExecStop=-/usr/bin/docker stop -t 10 constraints-group1-taska-2
+ExecStopPost=-/usr/bin/docker rm -f constraints-group1-taska-2
+
+[X-Fleet]
+Conflicts=constraints-group1-taska-mn@*.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
