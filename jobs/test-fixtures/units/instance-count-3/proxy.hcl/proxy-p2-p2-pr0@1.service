@@ -3,6 +3,7 @@ Description=Proxy 0 unit for proxy/p2/p2 [slice 1]
 Requires=docker.service
 Requires=proxy-p2-p2-mn@1.service
 After=docker.service
+StopWhenUnneeded=yes
 
 [Service]
 Restart=always

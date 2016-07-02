@@ -3,6 +3,7 @@ Description=Proxy 0 unit for test/web/storage [slice 1]
 Requires=docker.service
 Requires=test-web-storage-mn@1.service
 After=docker.service
+StopWhenUnneeded=yes
 
 [Service]
 Restart=always
