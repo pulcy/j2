@@ -44,6 +44,9 @@ func (u *Unit) Render(ctx RenderContext) string {
 	for _, x := range distinct(u.ExecOptions.after) {
 		lines = append(lines, "After="+x)
 	}
+	if u.ExecOptions.stopWhenUnneeded {
+		lines = append(lines, "StopWhenUnneeded=yes")
+	}
 	lines = append(lines, "")
 
 	if u.Type == "service" {

@@ -32,6 +32,7 @@ func createProxyUnit(t *jobs.Task, link jobs.Link, linkIndex int, engine engine.
 	if err != nil {
 		return nil, maskAny(err)
 	}
+	unit.ExecOptions.StopWhenUnneeded()
 	cmds, err := engine.CreateProxyCmds(t, link, linkIndex, unit.ExecOptions.Environment, ctx.ScalingGroup)
 	if err != nil {
 		return nil, maskAny(err)

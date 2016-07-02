@@ -23,6 +23,7 @@ type execOptions struct {
 	IsOneshot               bool
 	IsForking               bool
 	RemainsAfterExit        bool
+	stopWhenUnneeded        bool
 	Restart                 string
 	RestartSec              uint8
 	StartLimitInterval      string
@@ -51,6 +52,7 @@ func NewExecOptions(start ...string) *execOptions {
 		IsOneshot:               false,
 		IsForking:               false,
 		RemainsAfterExit:        false,
+		stopWhenUnneeded:        false,
 		Restart:                 "on-failure",
 		RestartSec:              1,
 		StartLimitInterval:      "60s",
@@ -73,6 +75,10 @@ func (e *execOptions) Forking() {
 
 func (e *execOptions) RemainAfterExit() {
 	e.RemainsAfterExit = true
+}
+
+func (e *execOptions) StopWhenUnneeded() {
+	e.stopWhenUnneeded = true
 }
 
 func (e *execOptions) SetRestartSec(seconds uint8) {
