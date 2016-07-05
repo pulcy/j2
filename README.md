@@ -194,6 +194,20 @@ cluster "production" {
     stack = "production"
     instance-count = 3
 
+    default-options {
+        "force-ssl" = "true"
+    }
+}
+```
+
+A cluster file for a cluster provisioned by [Gluon](https://github.com/pulcy/gluon) can look like this:
+
+```
+cluster "production" {
+    domain = "example.com"
+    stack = "production"
+    instance-count = 3
+
     docker {
         log-args = ["--log-driver=fluentd", "--log-opt fluentd-address=127.0.0.1:24284"]
     }
