@@ -248,6 +248,20 @@ func TestParse(t *testing.T) {
 				"constraints-group2global-taskgrobalb-mn.service",
 			},
 		},
+		{
+			"include.hcl",
+			false,
+			[]string{
+				"include-p1-redis-mn@1.service",
+				"include-p2-p2-mn@1.service",
+				"include-p2-p2-pr0@1.service",
+			},
+			[]string{
+				"include-p1-redis-mn@1.service",
+				"include-p2-p2-mn@1.service",
+				"include-p2-p2-pr0@1.service",
+			},
+		},
 	}
 
 	for _, tc := range cases {

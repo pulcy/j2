@@ -46,7 +46,7 @@ type parseTask struct {
 type parseTaskList []*parseTask
 
 // ParseJob takes input from a given reader and parses it into a Job.
-func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error) {
+func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
 	// Create a template, add the function map, and parse the text.
 	tmpl, err := template.New("job").Funcs(jf.Functions()).Parse(string(input))
 	if err != nil {
@@ -55,7 +55,7 @@ func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error
 
 	// Run the template to verify the output.
 	buffer := &bytes.Buffer{}
-	err = tmpl.Execute(buffer, opts)
+	err = tmpl.Execute(buffer, jf.Options())
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -93,7 +93,7 @@ func parseJob(input []byte, opts parseJobOptions, jf *jobFunctions) (*Job, error
 	job.link()
 
 	// Optimize job for cluster
-	job.optimizeFor(opts.Cluster)
+	job.optimizeFor(jf.cluster)
 
 	// Validate the job
 	if err := job.Validate(); err != nil {
@@ -111,10 +111,7 @@ func ParseJobFromFile(path string, cluster cluster.Cluster, options fg.Options,
 		return nil, maskAny(err)
 	}
 	jf := newJobFunctions(path, cluster, options, log, vaultConfig, ghLoginData)
-	opts := parseJobOptions{
-		Cluster: cluster,
-	}
-	job, err := parseJob(data, opts, jf)
+	job, err := parseJob(data, jf)
 	if err != nil {
 		return nil, maskAny(err)
 	}

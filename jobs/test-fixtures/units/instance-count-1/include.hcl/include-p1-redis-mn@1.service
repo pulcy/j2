@@ -1,0 +1,33 @@
+[Unit]
+Description=Main unit for include/p1/redis [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-v /var/lib/include/p1/redis/data:/data"
+Environment="A01=-v /var/run/docker.sock:/var/run/docker.sock"
+Environment="A02=-e SERVICE_NAME=include-p1-redis"
+Environment="A03=--log-driver=test"
+Environment="A04=--container-name include-p1-redis-%i"
+Environment="A05=--docker-url unix:///var/run/docker.sock"
+Environment="A06=--redis-appendonly"
+ExecStartPre=/usr/bin/docker pull pulcy/ha-redis
+ExecStartPre=-/usr/bin/docker stop -t 10 include-p1-redis-1
+ExecStartPre=-/usr/bin/docker rm -f include-p1-redis-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStartPre=/bin/sh -c 'test -e /var/lib/include/p1/redis/data || mkdir -p /var/lib/include/p1/redis/data'
+ExecStartPre=/bin/sh -c 'test -e /var/run/docker.sock || mkdir -p /var/run/docker.sock'
+ExecStart=/usr/bin/docker run --rm --name include-p1-redis-1 -p ${COREOS_PRIVATE_IPV4}::6379 $A00 $A01 $A02 $A03 pulcy/ha-redis --etcd-url=http://${COREOS_PRIVATE_IPV4}:4001/pulcy/service/include-p1-master/the:master:6379 $A04 $A05 $A06
+ExecStop=-/usr/bin/docker stop -t 10 include-p1-redis-1
+ExecStopPost=-/usr/bin/docker rm -f include-p1-redis-1
+
+[X-Fleet]
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

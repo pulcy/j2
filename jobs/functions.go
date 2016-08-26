@@ -15,6 +15,7 @@
 package jobs
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -76,6 +77,13 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 		"link_tcp":     linkTCP,
 		"link_tls":     linkTLS,
 		"secret":       jf.vaultExtract,
+		"include":      jf.include,
+	}
+}
+
+func (jf *jobFunctions) Options() parseJobOptions {
+	return parseJobOptions{
+		Cluster: jf.cluster,
 	}
 }
 
@@ -172,4 +180,43 @@ func (jf *jobFunctions) vaultExtract(vaultPath string) (string, error) {
 		return "", maskAny(err)
 	}
 	return secret, nil
+}
+
+func (jf *jobFunctions) include(name string) (string, error) {
+	includeData, includePath, err := jf.readInclude(name)
+	if err != nil {
+		return "", maskAny(err)
+	}
+
+	// Create a template, add the function map, and parse the text.
+	includeJF := *jf
+	includeJF.jobPath = includePath
+	tmpl, err := template.New("include-" + name).Funcs(includeJF.Functions()).Parse(string(includeData))
+	if err != nil {
+		return "", maskAny(err)
+	}
+
+	// Run the template to verify the output.
+	buffer := &bytes.Buffer{}
+	err = tmpl.Execute(buffer, includeJF.Options())
+	if err != nil {
+		return "", maskAny(err)
+	}
+
+	return buffer.String(), nil
+}
+
+func (jf *jobFunctions) readInclude(name string) ([]byte, string, error) {
+	path := name
+	if !filepath.IsAbs(name) {
+		path = filepath.Join(filepath.Dir(jf.jobPath), name)
+	}
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		path = path + ".hcl"
+	}
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, "", maskAny(err)
+	}
+	return data, path, nil
 }

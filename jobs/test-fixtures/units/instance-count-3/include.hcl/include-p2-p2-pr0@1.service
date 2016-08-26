@@ -1,0 +1,30 @@
+[Unit]
+Description=Proxy 0 unit for include/p2/p2 [slice 1]
+Requires=docker.service
+Requires=include-p2-p2-mn@1.service
+After=docker.service
+StopWhenUnneeded=yes
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=--expose 6379"
+Environment="A01=-e SERVICE_IGNORE=true"
+Environment="A02=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull pulcy/wormhole:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 include-p2-p2-1-pr0
+ExecStartPre=-/usr/bin/docker rm -f include-p2-p2-1-pr0
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name include-p2-p2-1-pr0 $A00 -P $A01 $A02 pulcy/wormhole:latest --etcd-addr http://${COREOS_PRIVATE_IPV4}:2379/pulcy/service/include-p1-redis
+ExecStop=-/usr/bin/docker stop -t 10 include-p2-p2-1-pr0
+ExecStopPost=-/usr/bin/docker rm -f include-p2-p2-1-pr0
+
+[X-Fleet]
+Conflicts=include-p2-p2-pr0@*.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
