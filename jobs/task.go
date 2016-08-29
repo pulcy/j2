@@ -43,6 +43,7 @@ type Task struct {
 	HttpCheckPath    string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
 	HttpCheckMethod  string            `json:"http-check-method,omitempty" mapstructure:"http-check-method,omitempty"`
 	Sticky           bool              `json:"sticky,omitempty" mapstructure:"sticky,omitempty"`
+	Backup           bool              `json:"backup,omitempty" mapstructure:"backup,omitempty"`
 	Capabilities     []string          `json:"capabilities,omitempty"`
 	Links            Links             `json:"links,omitempty"`
 	Secrets          SecretList        `json:"secrets,omitempty"`

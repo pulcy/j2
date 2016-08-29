@@ -47,12 +47,14 @@ func addFrontEndRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorCont
 		HttpCheckPath:   t.HttpCheckPath,
 		HttpCheckMethod: t.HttpCheckMethod,
 		Sticky:          t.Sticky,
+		Backup:          t.Backup,
 	}
 	instanceKey := fmt.Sprintf("/pulcy/frontend/%s-%d-inst", serviceName, ctx.ScalingGroup)
 	instanceRecord := api.FrontendRecord{
 		Service:       fmt.Sprintf("%s-%d", targetServiceName, ctx.ScalingGroup),
 		HttpCheckPath: t.HttpCheckPath,
 		Sticky:        t.Sticky,
+		Backup:        t.Backup,
 	}
 	var rwRules []api.RewriteRule
 	if t.Type == "proxy" && len(t.Rewrites) > 0 {
