@@ -23,9 +23,9 @@ job "base" {
 		}
 
 		task "lb" {
-			image = "pulcy/robin:0.21.0"
+			image = "pulcy/robin:0.22.0"
 			after = "certificates"
-			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "{{private_ipv4}}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088"]
+			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "{{private_ipv4}}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "{{private_ipv4}}::8022"]
 			volumes = "/tmp/base/lb/certs/:/certs/"
 			secret "secret/base/lb/stats-password" {
                 environment = "STATS_PASSWORD"
@@ -42,6 +42,13 @@ job "base" {
 			secret "secret/base/lb/acme-registration" {
 				file = "/acme/registration"
             }
+			metrics {
+	            port = 8022
+	            path = "/metrics"
+	        }
+			private-frontend {
+				port = 8022
+			}
 			args = ["run",
 				"--etcd-addr", "http://{{private_ipv4}}:4001/pulcy",
 				"--private-key-path", "/acme/private-key",
