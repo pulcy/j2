@@ -69,6 +69,7 @@ func (jf *jobFunctions) Functions() template.FuncMap {
 		"quote":        strconv.Quote,
 		"replace":      strings.Replace,
 		"trim":         strings.TrimSpace,
+		"split":        strings.Split,
 		"private_ipv4": func() string { return "${COREOS_PRIVATE_IPV4}" },
 		"public_ipv4":  func() string { return "${COREOS_PUBLIC_IPV4}" },
 		"hostname":     func() string { return "%H" },
