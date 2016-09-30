@@ -49,6 +49,7 @@ type stateUI struct {
 	stopWait     sync.WaitGroup
 	verbose      bool
 	bypassWriter io.Writer
+	autoConfirm  bool
 }
 
 func newStateUI(verbose bool) *stateUI {
@@ -60,6 +61,7 @@ func newStateUI(verbose bool) *stateUI {
 		writer:      uilive.New(),
 		stopChan:    make(chan bool),
 		verbose:     verbose,
+		autoConfirm: false,
 	}
 	s.bypassWriter = s.writer.Bypass()
 	//s.writer.Start()
@@ -90,15 +92,26 @@ func (s *stateUI) Clear() {
 func (s *stateUI) Confirm(question string) error {
 	prefix := ""
 	for {
-		s.MessageSink <- fmt.Sprintf("%s%s [yes|no]", prefix, question)
-		bufStdin := bufio.NewReader(os.Stdin)
-		line, _, err := bufStdin.ReadLine()
-		if err != nil {
-			return err
+		var line string
+		s.MessageSink <- fmt.Sprintf("%s%s [yes|no|all]", prefix, question)
+		if s.autoConfirm {
+			line = "yes"
+		} else {
+			bufStdin := bufio.NewReader(os.Stdin)
+			lineRaw, _, err := bufStdin.ReadLine()
+			if err != nil {
+				return err
+			}
+			line = string(lineRaw)
 		}
 		clearLine()
 
-		if string(line) == "yes" || string(line) == "y" {
+		switch line {
+		case "yes", "y":
+			s.MessageSink <- ""
+			return nil
+		case "all", "a":
+			s.autoConfirm = true
 			s.MessageSink <- ""
 			return nil
 		}
