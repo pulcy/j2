@@ -23,9 +23,9 @@ job "base" {
 		}
 
 		task "lb" {
-			image = "pulcy/robin:0.22.0"
+			image = "pulcy/robin:0.22.1"
 			after = "certificates"
-			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "{{private_ipv4}}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "{{private_ipv4}}::8022"]
+			ports = ["0.0.0.0:80:80", "{{private_ipv4}}:81:81", "{{private_ipv4}}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "{{private_ipv4}}:8055:8055"]
 			volumes = "/tmp/base/lb/certs/:/certs/"
 			secret "secret/base/lb/stats-password" {
                 environment = "STATS_PASSWORD"
@@ -43,11 +43,11 @@ job "base" {
 				file = "/acme/registration"
             }
 			metrics {
-	            port = 8022
+	            port = 8055
 	            path = "/metrics"
 	        }
 			private-frontend {
-				port = 8022
+				port = 8055
 			}
 			args = ["run",
 				"--etcd-addr", "http://{{private_ipv4}}:4001/pulcy",
@@ -56,7 +56,12 @@ job "base" {
 				"--stats-port", "7088",
 				"--force-ssl={{opt "force-ssl"}}",
 				"--private-host", "{{private_ipv4}}",
-				"--private-ssl-cert", "private.pem"
+				"--private-ssl-cert", "private.pem",
+				"--metrics-host", "{{private_ipv4}}",
+				"--metrics-port", "8055"
+			]
+			docker-args = [
+				"--net=host"
 			]
 		}
 	}
