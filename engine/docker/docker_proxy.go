@@ -17,9 +17,38 @@ package docker
 import (
 	"fmt"
 
+	"github.com/pulcy/j2/engine"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/cmdline"
 )
+
+// CreateProxyCmds creates the commands needed for a proxy unit.
+func (e *dockerEngine) CreateProxyCmds(t *jobs.Task, link jobs.Link, linkIndex int, env map[string]string, scalingGroup uint) (engine.Cmds, error) {
+	containerName := fmt.Sprintf("%s-pr%d", t.ContainerName(scalingGroup), linkIndex)
+	containerImage := images.Wormhole
+	execStart, err := e.createProxyDockerCmdLine(t, containerName, containerImage, link, env, scalingGroup)
+	if err != nil {
+		return engine.Cmds{}, maskAny(err)
+	}
+	var cmds engine.Cmds
+	cmds.Start = append(cmds.Start,
+		e.pullCmd(containerImage),
+		e.stopCmd(containerName),
+		e.removeCmd(containerName),
+		e.cleanupCmd(),
+	)
+	if e.options.EnvFile != "" {
+		cmds.Start = append(cmds.Start, *cmdline.New(nil, e.touchPath, e.options.EnvFile))
+	}
+	cmds.Start = append(cmds.Start, execStart)
+
+	cmds.Stop = append(cmds.Stop,
+		e.stopCmd(containerName),
+		e.removeCmd(containerName),
+	)
+
+	return cmds, nil
+}
 
 // createProxyDockerCmdLine creates the `ExecStart` line for
 // the proxy unit.

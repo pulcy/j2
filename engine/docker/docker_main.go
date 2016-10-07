@@ -19,9 +19,57 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/pulcy/j2/engine"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/cmdline"
 )
+
+// CreateMainCmds creates the commands needed for a main unit.
+func (e *dockerEngine) CreateMainCmds(t *jobs.Task, env map[string]string, scalingGroup uint) (engine.Cmds, error) {
+	containerName := t.ContainerName(scalingGroup)
+	containerImage := t.Image.String()
+	if t.Type == "proxy" {
+		containerImage = images.Alpine
+	}
+	execStart, err := e.createMainDockerCmdLine(t, containerImage, env, scalingGroup)
+	if err != nil {
+		return engine.Cmds{}, maskAny(err)
+	}
+
+	var cmds engine.Cmds
+	cmds.Start = append(cmds.Start,
+		e.pullCmd(containerImage),
+	)
+	if e.options.EnvFile != "" {
+		cmds.Start = append(cmds.Start, *cmdline.New(nil, e.touchPath, e.options.EnvFile))
+	}
+	// Add secret extraction commands
+	secretsCmds, err := e.createSecretsExecStartPre(t, images.VaultMonkey, env, scalingGroup)
+	if err != nil {
+		return engine.Cmds{}, maskAny(err)
+	}
+	cmds.Start = append(cmds.Start, secretsCmds...)
+	cmds.Start = append(cmds.Start,
+		e.stopCmd(containerName),
+		e.removeCmd(containerName),
+		e.cleanupCmd(),
+	)
+
+	for _, v := range t.Volumes {
+		if v.IsLocal() {
+			cmds.Start = append(cmds.Start, e.createTestLocalVolumeCmd(v.HostPath))
+		}
+	}
+
+	cmds.Start = append(cmds.Start, execStart)
+
+	cmds.Stop = append(cmds.Stop,
+		e.stopCmd(containerName),
+		e.removeCmd(containerName),
+	)
+
+	return cmds, nil
+}
 
 // createMainDockerCmdLine creates the `ExecStart` line for
 // the main unit.

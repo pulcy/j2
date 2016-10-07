@@ -17,9 +17,41 @@ package docker
 import (
 	"fmt"
 
+	"github.com/pulcy/j2/engine"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/cmdline"
 )
+
+// CreateVolumeCmds creates the commands needed for a volume unit.
+func (e *dockerEngine) CreateVolumeCmds(t *jobs.Task, vol jobs.Volume, volIndex int, volPrefix, volHostPath string, env map[string]string, scalingGroup uint) (engine.Cmds, error) {
+	containerImage := e.images.CephVolume
+	containerName := createVolumeUnitContainerName(t, volIndex, scalingGroup)
+	execStart, err := e.createVolumeDockerCmdLine(t, containerName, containerImage, vol, volPrefix, volHostPath, env, scalingGroup)
+	if err != nil {
+		return engine.Cmds{}, maskAny(err)
+	}
+	testVolHostPathCmd := e.createTestLocalVolumeCmd(volHostPath)
+
+	var cmds engine.Cmds
+	cmds.Start = append(cmds.Start,
+		e.pullCmd(containerImage),
+		testVolHostPathCmd,
+		e.stopCmd(containerName),
+		e.removeCmd(containerName),
+		e.cleanupCmd(),
+	)
+	if e.options.EnvFile != "" {
+		cmds.Start = append(cmds.Start, *cmdline.New(nil, e.touchPath, e.options.EnvFile))
+	}
+	cmds.Start = append(cmds.Start, execStart)
+
+	cmds.Stop = append(cmds.Stop,
+		e.stopCmd(containerName),
+		e.removeCmd(containerName),
+	)
+
+	return cmds, nil
+}
 
 // createVolumeDockerCmdLine creates the `ExecStart` line for
 // the volume unit.
@@ -49,4 +81,8 @@ func (e *dockerEngine) createVolumeDockerCmdLine(t *jobs.Task, containerName, co
 	cmd.Add(nil, containerImage)
 
 	return cmd, nil
+}
+
+func (e *dockerEngine) createTestLocalVolumeCmd(volHostPath string) cmdline.Cmdline {
+	return *cmdline.New(nil, e.shPath, "-c", fmt.Sprintf("'test -e %s || mkdir -p %s'", volHostPath, volHostPath))
 }

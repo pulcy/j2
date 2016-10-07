@@ -43,6 +43,8 @@ type dockerEngine struct {
 	options                 cluster.DockerOptions
 	images                  Images
 	dockerPath              string
+	shPath                  string
+	touchPath               string
 	cleanupScriptPath       string
 	containerTimeoutStopSec int
 }
@@ -52,114 +54,11 @@ func NewDockerEngine(options cluster.DockerOptions) engine.Engine {
 	return &dockerEngine{
 		options:                 options,
 		dockerPath:              "/usr/bin/docker",
+		shPath:                  "/bin/sh",
+		touchPath:               "/usr/bin/touch",
 		cleanupScriptPath:       "/home/core/bin/docker-cleanup.sh",
 		containerTimeoutStopSec: 10,
 	}
-}
-
-func (e *dockerEngine) CreateMainCmds(t *jobs.Task, env map[string]string, scalingGroup uint) (engine.Cmds, error) {
-	containerName := t.ContainerName(scalingGroup)
-	containerImage := t.Image.String()
-	if t.Type == "proxy" {
-		containerImage = images.Alpine
-	}
-	execStart, err := e.createMainDockerCmdLine(t, containerImage, env, scalingGroup)
-	if err != nil {
-		return engine.Cmds{}, maskAny(err)
-	}
-
-	var cmds engine.Cmds
-	cmds.Start = append(cmds.Start,
-		e.pullCmd(containerImage),
-	)
-	if e.options.EnvFile != "" {
-		cmds.Start = append(cmds.Start, *cmdline.New(nil, "/usr/bin/touch", e.options.EnvFile))
-	}
-	// Add secret extraction commands
-	secretsCmds, err := e.createSecretsExecStartPre(t, images.VaultMonkey, env, scalingGroup)
-	if err != nil {
-		return engine.Cmds{}, maskAny(err)
-	}
-	cmds.Start = append(cmds.Start, secretsCmds...)
-	cmds.Start = append(cmds.Start,
-		e.stopCmd(containerName),
-		e.removeCmd(containerName),
-		e.cleanupCmd(),
-	)
-
-	for _, v := range t.Volumes {
-		if v.IsLocal() {
-			hostPath := v.HostPath
-			cmds.Start = append(cmds.Start, *cmdline.New(nil, "/bin/sh", "-c", fmt.Sprintf("'test -e %s || mkdir -p %s'", hostPath, hostPath)))
-		}
-	}
-
-	cmds.Start = append(cmds.Start, execStart)
-
-	cmds.Stop = append(cmds.Stop,
-		e.stopCmd(containerName),
-		e.removeCmd(containerName),
-	)
-
-	return cmds, nil
-
-}
-
-func (e *dockerEngine) CreateProxyCmds(t *jobs.Task, link jobs.Link, linkIndex int, env map[string]string, scalingGroup uint) (engine.Cmds, error) {
-	containerName := fmt.Sprintf("%s-pr%d", t.ContainerName(scalingGroup), linkIndex)
-	containerImage := images.Wormhole
-	execStart, err := e.createProxyDockerCmdLine(t, containerName, containerImage, link, env, scalingGroup)
-	if err != nil {
-		return engine.Cmds{}, maskAny(err)
-	}
-	var cmds engine.Cmds
-	cmds.Start = append(cmds.Start,
-		e.pullCmd(containerImage),
-		e.stopCmd(containerName),
-		e.removeCmd(containerName),
-		e.cleanupCmd(),
-	)
-	if e.options.EnvFile != "" {
-		cmds.Start = append(cmds.Start, *cmdline.New(nil, "/usr/bin/touch", e.options.EnvFile))
-	}
-	cmds.Start = append(cmds.Start, execStart)
-
-	cmds.Stop = append(cmds.Stop,
-		e.stopCmd(containerName),
-		e.removeCmd(containerName),
-	)
-
-	return cmds, nil
-}
-
-func (e *dockerEngine) CreateVolumeCmds(t *jobs.Task, vol jobs.Volume, volIndex int, volPrefix, volHostPath string, env map[string]string, scalingGroup uint) (engine.Cmds, error) {
-	containerImage := e.images.CephVolume
-	containerName := createVolumeUnitContainerName(t, volIndex, scalingGroup)
-	execStart, err := e.createVolumeDockerCmdLine(t, containerName, containerImage, vol, volPrefix, volHostPath, env, scalingGroup)
-	if err != nil {
-		return engine.Cmds{}, maskAny(err)
-	}
-	testVolHostPathCmd := *cmdline.New(nil, "/bin/sh", "-c", fmt.Sprintf("'test -e %s || mkdir -p %s'", volHostPath, volHostPath))
-
-	var cmds engine.Cmds
-	cmds.Start = append(cmds.Start,
-		e.pullCmd(containerImage),
-		testVolHostPathCmd,
-		e.stopCmd(containerName),
-		e.removeCmd(containerName),
-		e.cleanupCmd(),
-	)
-	if e.options.EnvFile != "" {
-		cmds.Start = append(cmds.Start, *cmdline.New(nil, "/usr/bin/touch", e.options.EnvFile))
-	}
-	cmds.Start = append(cmds.Start, execStart)
-
-	cmds.Stop = append(cmds.Stop,
-		e.stopCmd(containerName),
-		e.removeCmd(containerName),
-	)
-
-	return cmds, nil
 }
 
 func (e *dockerEngine) pullCmd(image string) cmdline.Cmdline {
