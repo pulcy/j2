@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs_test
+package fleet_test
 
 import (
 	"encoding/json"
@@ -33,8 +33,9 @@ import (
 	"github.com/pulcy/j2/engine/docker"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/jobs/render"
 	"github.com/pulcy/j2/pkg/vault"
+	"github.com/pulcy/j2/render"
+	"github.com/pulcy/j2/render/fleet"
 )
 
 const (
@@ -337,8 +338,8 @@ func (r *renderContext) ProjectBuild() string {
 }
 
 func testUnits(t *testing.T, job jobs.Job, cl cluster.Cluster, expectedUnitNames []string, testName string) {
-	render.FixedPwhashSalt = "test-salt"
-	config := render.GeneratorConfig{
+	fleet.FixedPwhashSalt = "test-salt"
+	config := render.RenderConfig{
 		Groups:              nil,
 		CurrentScalingGroup: 0,
 		DockerOptions: cluster.DockerOptions{
@@ -346,7 +347,7 @@ func testUnits(t *testing.T, job jobs.Job, cl cluster.Cluster, expectedUnitNames
 		},
 		FleetOptions: cl.FleetOptions,
 	}
-	generator := render.NewGenerator(job, config)
+	generator := fleet.NewGenerator(job, config)
 	ctx := &renderContext{
 		projectName:    "testproject",
 		projectVersion: "test-version",

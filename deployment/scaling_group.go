@@ -17,7 +17,7 @@ package deployment
 import (
 	"fmt"
 
-	"github.com/pulcy/j2/jobs/render"
+	"github.com/pulcy/j2/render"
 	"github.com/pulcy/j2/scheduler"
 )
 
@@ -70,14 +70,17 @@ func (sgu scalingGroupUnits) Get(index int) scheduler.UnitData {
 // generateScalingGroupUnits generates the unit files for the given scaling group and returns
 // their names and file names.
 func (d *Deployment) generateScalingGroupUnits(scalingGroup uint) (scalingGroupUnits, error) {
-	generator := render.NewGenerator(d.job, render.GeneratorConfig{
+	renderer, err := d.renderProvider.CreateRenderer(d.job, render.RenderConfig{
 		Groups:              d.groupSelection,
 		CurrentScalingGroup: scalingGroup,
 		DockerOptions:       d.cluster.DockerOptions,
 		FleetOptions:        d.cluster.FleetOptions,
 	})
+	if err != nil {
+		return scalingGroupUnits{}, maskAny(err)
+	}
 
-	units, err := generator.GenerateUnits(d.renderContext, d.cluster.InstanceCount)
+	units, err := renderer.GenerateUnits(d.renderContext, d.cluster.InstanceCount)
 	if err != nil {
 		return scalingGroupUnits{}, maskAny(err)
 	}

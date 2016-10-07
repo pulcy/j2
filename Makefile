@@ -82,6 +82,7 @@ $(BIN): $(GOBUILDDIR) $(SOURCES)
 
 run-tests:
 	@make run-test test=$(REPOPATH)/jobs
+	@make run-test test=$(REPOPATH)/render/fleet
 
 update-tests:
 	@make run-tests UPDATE-FIXTURES=1

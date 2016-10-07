@@ -54,6 +54,7 @@ func runRun(cmd *cobra.Command, args []string) {
 	if err != nil {
 		Exitf("Cannot load job: %v\n", err)
 	}
+	renderProvider := renderProvider(&runFlags.Flags, *cluster)
 
 	delays := deployment.DeploymentDelays{
 		StopDelay:    runFlags.StopDelay,
@@ -67,7 +68,8 @@ func runRun(cmd *cobra.Command, args []string) {
 		runFlags.AutoContinue,
 		globalFlags.verbose,
 		delays,
-		renderCtx)
+		renderCtx,
+		renderProvider)
 
 	if runFlags.DryRun {
 		assert(d.DryRun())

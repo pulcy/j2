@@ -12,24 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package render
+package fleet
 
 import (
-	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/pkg/sdunits"
+	"github.com/juju/errgo"
 )
 
-// createTimerUnit
-func createTimerUnit(t *jobs.Task, ctx generatorContext) (*sdunits.Unit, error) {
-	if t.Timer == "" {
-		return nil, nil
-	}
-	unit := createBaseUnit(t,
-		unitName(t, unitKindTimer, ctx.ScalingGroup),
-		unitDescription(t, "Timer", ctx.ScalingGroup),
-		"timer", ctx)
-	unit.ExecOptions.OnCalendar = t.Timer
-	unit.ExecOptions.Unit = unitName(t, unitKindMain, ctx.ScalingGroup) + ".service"
+var (
+	TaskNotFoundError = errgo.New("task not found")
+	ValidationError   = errgo.New("validation failed")
 
-	return unit, nil
-}
+	maskAny = errgo.MaskFunc(errgo.Any)
+)

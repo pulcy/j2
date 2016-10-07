@@ -14,30 +14,18 @@
 
 package render
 
-type UnitData interface {
-	Name() string
-	Content() string
+import (
+	"github.com/pulcy/j2/cluster"
+	"github.com/pulcy/j2/jobs"
+)
+
+type RenderConfig struct {
+	Groups              []jobs.TaskGroupName
+	CurrentScalingGroup uint
+	DockerOptions       cluster.DockerOptions
+	FleetOptions        cluster.FleetOptions
 }
 
-type unitData struct {
-	name    string
-	content string
-}
-
-func newUnitData(name, content string) UnitData {
-	return &unitData{
-		name:    name,
-		content: content,
-	}
-}
-
-func (u *unitData) String() string {
-	return u.name
-}
-
-func (u *unitData) Name() string {
-	return u.name
-}
-func (u *unitData) Content() string {
-	return u.content
+type RenderProvider interface {
+	CreateRenderer(job jobs.Job, cfg RenderConfig) (Renderer, error)
 }

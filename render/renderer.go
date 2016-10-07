@@ -14,13 +14,17 @@
 
 package render
 
-import (
-	"github.com/juju/errgo"
-)
+type Renderer interface {
+	GenerateUnits(ctx RenderContext, instanceCount int) ([]UnitData, error)
+}
 
-var (
-	TaskNotFoundError = errgo.New("task not found")
-	ValidationError   = errgo.New("validation failed")
+type RenderContext interface {
+	ProjectName() string
+	ProjectVersion() string
+	ProjectBuild() string
+}
 
-	maskAny = errgo.MaskFunc(errgo.Any)
-)
+type UnitData interface {
+	Name() string
+	Content() string
+}

@@ -27,6 +27,7 @@ import (
 
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/render"
 	"github.com/pulcy/j2/scheduler"
 	"github.com/pulcy/j2/scheduler/fleet"
 )
@@ -46,7 +47,8 @@ type Deployment struct {
 	force                 bool
 	autoContinue          bool
 	DeploymentDelays
-	renderContext RenderContext
+	renderContext  RenderContext
+	renderProvider render.RenderProvider
 
 	scalingGroups []scalingGroupUnits
 }
@@ -60,7 +62,7 @@ type RenderContext interface {
 // NewDeployment creates a new Deployment instances and generates all unit files for the given job.
 func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGroupSelection,
 	scalingGroupSelection ScalingGroupSelection, force, autoContinue, verbose bool, delays DeploymentDelays,
-	renderContext RenderContext) *Deployment {
+	renderContext RenderContext, renderProvider render.RenderProvider) *Deployment {
 	return &Deployment{
 		job:                   job,
 		cluster:               cluster,
@@ -71,6 +73,7 @@ func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGro
 		verbose:          verbose,
 		DeploymentDelays: delays,
 		renderContext:    renderContext,
+		renderProvider:   renderProvider,
 	}
 }
 

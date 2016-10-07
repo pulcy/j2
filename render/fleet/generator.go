@@ -12,23 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package render
+package fleet
 
 import (
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/render"
 )
 
-type GeneratorConfig struct {
-	Groups              []jobs.TaskGroupName
-	CurrentScalingGroup uint
-	DockerOptions       cluster.DockerOptions
-	FleetOptions        cluster.FleetOptions
-}
-
-type Generator struct {
+type fleetRenderer struct {
 	job jobs.Job
-	GeneratorConfig
+	render.RenderConfig
 }
 
 type RenderContext interface {
@@ -37,10 +31,10 @@ type RenderContext interface {
 	ProjectBuild() string
 }
 
-func NewGenerator(job jobs.Job, config GeneratorConfig) *Generator {
-	return &Generator{
-		job:             job,
-		GeneratorConfig: config,
+func NewGenerator(job jobs.Job, config render.RenderConfig) render.Renderer {
+	return &fleetRenderer{
+		job:          job,
+		RenderConfig: config,
 	}
 }
 
@@ -51,8 +45,8 @@ type generatorContext struct {
 	FleetOptions  cluster.FleetOptions
 }
 
-func (g *Generator) GenerateUnits(ctx RenderContext, instanceCount int) ([]UnitData, error) {
-	units := []UnitData{}
+func (g *fleetRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int) ([]render.UnitData, error) {
+	units := []render.UnitData{}
 	maxCount := g.job.MaxCount()
 	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
 		if g.CurrentScalingGroup != 0 && g.CurrentScalingGroup != scalingGroup {
@@ -86,7 +80,7 @@ func (g *Generator) GenerateUnits(ctx RenderContext, instanceCount int) ([]UnitD
 }
 
 // Should the group with given name be generated?
-func (g *Generator) include(groupName jobs.TaskGroupName) bool {
+func (g *fleetRenderer) include(groupName jobs.TaskGroupName) bool {
 	if len(g.Groups) == 0 {
 		// include all
 		return true
