@@ -18,29 +18,31 @@ Environment="A02=-e \"containername=test-web-nginx-%i\""
 Environment="A03=-e \"envkey=test-env\""
 Environment="A04=-e \"groupfull=test.web\""
 Environment="A05=-e \"groupname=web\""
-Environment="A06=-e \"instancefull=test.web.nginx@%i\""
-Environment="A07=-e \"instancename=%i\""
-Environment="A08=-e \"jobid=1234\""
-Environment="A09=-e \"jobname=test\""
-Environment="A10=-e \"key=123\""
-Environment="A11=-e \"name=ewout\""
-Environment="A12=-e \"opttest1=value1\""
-Environment="A13=-e \"opttest2=value2\""
-Environment="A14=-e \"opttestenv=test-env\""
-Environment="A15=-e \"quotetest=hello\""
-Environment="A16=-e \"replacetest=1.2.3\""
-Environment="A17=-e \"taskfull=test.web.nginx\""
-Environment="A18=-e \"taskname=nginx\""
-Environment="A19=-e SERVICE_NAME=test-web-nginx"
-Environment="A20=--add-host"
-Environment="A21=--log-driver=test"
-Environment="A22=http://test.db.db.private:81"
+Environment="A06=-e \"hostname=%H\""
+Environment="A07=-e \"instancefull=test.web.nginx@%i\""
+Environment="A08=-e \"instancename=%i\""
+Environment="A09=-e \"jobid=1234\""
+Environment="A10=-e \"jobname=test\""
+Environment="A11=-e \"key=123\""
+Environment="A12=-e \"machine_id=%m\""
+Environment="A13=-e \"name=ewout\""
+Environment="A14=-e \"opttest1=value1\""
+Environment="A15=-e \"opttest2=value2\""
+Environment="A16=-e \"opttestenv=test-env\""
+Environment="A17=-e \"quotetest=hello\""
+Environment="A18=-e \"replacetest=1.2.3\""
+Environment="A19=-e \"taskfull=test.web.nginx\""
+Environment="A20=-e \"taskname=nginx\""
+Environment="A21=-e SERVICE_NAME=test-web-nginx"
+Environment="A22=--add-host"
+Environment="A23=--log-driver=test"
+Environment="A24=http://test.db.db.private:81"
 ExecStartPre=/usr/bin/docker pull alpine:3.2
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-nginx-2
 ExecStartPre=-/usr/bin/docker rm -f test-web-nginx-2
 ExecStartPre=-/home/core/bin/docker-cleanup.sh
-ExecStart=/usr/bin/docker run --rm --name test-web-nginx-2 -P $A00 $A01 $A02 $A03 $A04 $A05 $A06 $A07 $A08 $A09 $A10 $A11 $A12 $A13 $A14 $A15 $A16 $A17 $A18 $A19 $A20 test.db.db.private:${COREOS_PRIVATE_IPV4} $A21 alpine:3.2 ls -al --db $A22
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsid2VpZ2h0IjoxMCwiZG9tYWluIjoiZm9vLmNvbSJ9LHsid2VpZ2h0IjoxMiwiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6ImYxVXRjZHVGWTgvZk0ifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx-2'
+ExecStart=/usr/bin/docker run --rm --name test-web-nginx-2 -P $A00 $A01 $A02 $A03 $A04 $A05 $A06 $A07 $A08 $A09 $A10 $A11 $A12 $A13 $A14 $A15 $A16 -e "private_ipv4=${COREOS_PRIVATE_IPV4}" -e "public_ipv4=${COREOS_PUBLIC_IPV4}" $A17 $A18 $A19 $A20 $A21 $A22 test.db.db.private:${COREOS_PRIVATE_IPV4} $A23 alpine:3.2 ls -al --db $A24
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBhdGgtcHJlZml4IjoiLyJ9LHsid2VpZ2h0IjoxMCwiZG9tYWluIjoiZm9vLmNvbSJ9LHsid2VpZ2h0IjoxMiwiZG9tYWluIjoiZm9vMi5jb20iLCJwYXRoLXByZWZpeCI6Ii9mb28yIiwic3NsLWNlcnQiOiJwdWxjeS5wZW0iLCJ1c2VycyI6W3sidXNlciI6InRlc3RlciIsInB3aGFzaCI6ImY2NDRBU1F6Z2xpSmcifV19XSwic2VydmljZSI6InRlc3Qtd2ViLW5naW54IiwiaHR0cC1jaGVjay1wYXRoIjoiLyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-web-nginx-2'
 ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-web-nginx-2
 ExecStop=-/usr/bin/docker stop -t 10 test-web-nginx-2
 ExecStopPost=-/usr/bin/docker rm -f test-web-nginx-2
@@ -53,4 +55,4 @@ MachineMetadata="web=true" "core=test"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration="/pulcy/frontend/test-web-nginx-2={\"selectors\":[{\"path-prefix\":\"/\"},{\"weight\":10,\"domain\":\"foo.com\"},{\"weight\":12,\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\",\"users\":[{\"user\":\"tester\",\"pwhash\":\"f1UtcduFY8/fM\"}]}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"
+FrontEndRegistration="/pulcy/frontend/test-web-nginx-2={\"selectors\":[{\"path-prefix\":\"/\"},{\"weight\":10,\"domain\":\"foo.com\"},{\"weight\":12,\"domain\":\"foo2.com\",\"path-prefix\":\"/foo2\",\"ssl-cert\":\"pulcy.pem\",\"users\":[{\"user\":\"tester\",\"pwhash\":\"f644ASQzgliJg\"}]}],\"service\":\"test-web-nginx\",\"http-check-path\":\"/\"}"

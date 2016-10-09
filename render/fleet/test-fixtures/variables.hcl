@@ -35,6 +35,10 @@ job "test" {
 				instancename = "${instance}"
 				instancefull = "${instance.full}"
 				containername = "${container}"
+				private_ipv4 = "${private_ipv4}"
+				public_ipv4 = "${public_ipv4}"
+				hostname = "${hostname}"
+				machine_id = "${machine_id}"
 			}
 			http-check-path = "/"
 			frontend {

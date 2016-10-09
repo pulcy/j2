@@ -123,6 +123,7 @@ func (ctx *variableContext) replaceString(input string) string {
 			}
 		case "instance":
 			if ctx.assertTask(key) {
+				// TODO this is renderer specific
 				return "%i" // Will be expanded by Fleet/Systemd
 			}
 		case "instance.full":
@@ -131,8 +132,16 @@ func (ctx *variableContext) replaceString(input string) string {
 			}
 		case "container":
 			if ctx.assertTask(key) {
-				return ctx.Task.containerNameExt("%i")
+				return ctx.Task.containerNameExt("%i") // TODO this is renderer specific
 			}
+		case "private_ipv4":
+			return "${COREOS_PRIVATE_IPV4}"
+		case "public_ipv4":
+			return "${COREOS_PUBLIC_IPV4}"
+		case "hostname":
+			return "%H" // TODO this is renderer specific
+		case "machine_id":
+			return "%m" // TODO this is renderer specific
 		default:
 			parts := strings.Split(key, " ")
 			assertNoArgs := func(noArgs int) bool {
