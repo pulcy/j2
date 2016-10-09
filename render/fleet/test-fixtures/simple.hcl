@@ -124,4 +124,9 @@ job "test" {
 		image = "redis:latest"
 		network = "weave"
 	}
+
+	task "host" {
+		image = "redis:latest"
+		network = "host"
+	}
 }

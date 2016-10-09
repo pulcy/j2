@@ -73,6 +73,17 @@
             ]
         },
         {
+            "name": "host",
+            "count": 1,
+            "tasks": [
+                {
+                    "name": "host",
+                    "image": "redis:latest",
+                    "network": "host"
+                }
+            ]
+        },
+        {
             "name": "registrator",
             "count": 1,
             "global": true,

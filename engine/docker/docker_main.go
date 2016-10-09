@@ -80,6 +80,9 @@ func (e *dockerEngine) createMainDockerCmdLine(t *jobs.Task, image string, env m
 		return cmd, maskAny(err)
 	}
 	cmd.Add(nil, "run", "--rm", fmt.Sprintf("--name %s", t.ContainerName(scalingGroup)))
+	if err := e.addDockerNetworkArgs(&cmd, env, t); err != nil {
+		return cmd, maskAny(err)
+	}
 	if len(t.Ports) > 0 {
 		for _, p := range t.Ports {
 			cmd.Add(env, fmt.Sprintf("-p %s", p))

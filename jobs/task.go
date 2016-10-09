@@ -239,6 +239,12 @@ func (t *Task) PrivateDomainName() string {
 	return ln.PrivateDomainName()
 }
 
+// WeaveDomainName returns the DNS name (in the weave namespace) for the given task.
+func (t *Task) WeaveDomainName() string {
+	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name, "")
+	return ln.WeaveDomainName()
+}
+
 // InstanceSpecificPrivateDomainName returns the DNS name (in the private namespace) for an instance of the given task.
 func (t *Task) InstanceSpecificPrivateDomainName(scalingGroup uint) string {
 	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name, InstanceName(strconv.Itoa(int(scalingGroup))))

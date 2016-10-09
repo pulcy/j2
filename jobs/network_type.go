@@ -20,7 +20,9 @@ import "github.com/juju/errgo"
 type NetworkType string
 
 const (
-	NetworkTypeWeave = NetworkType("weave")
+	NetworkTypeDefault = NetworkType("default") // Default for engine
+	NetworkTypeHost    = NetworkType("host")    // Host network
+	NetworkTypeWeave   = NetworkType("weave")   // Weave network
 )
 
 // String returns a link name in format <job>.<taskgroup>.<task>
@@ -32,7 +34,7 @@ func (nt NetworkType) String() string {
 // Returns nil on ok.
 func (nt NetworkType) Validate() error {
 	switch nt {
-	case "", "weave":
+	case "", NetworkTypeDefault, NetworkTypeHost, NetworkTypeWeave:
 		return nil
 	default:
 		return maskAny(errgo.WithCausef(nil, ValidationError, "unknown network type '%s'", string(nt)))

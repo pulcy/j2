@@ -11,13 +11,14 @@ StartLimitBurst=3
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
 Environment="A00=-H=unix:///var/run/weave/weave.sock"
-Environment="A01=-e SERVICE_NAME=test-weave-weave"
-Environment="A02=--log-driver=test"
+Environment="A01=--hostname=test.weave.weave.weave.local"
+Environment="A02=-e SERVICE_NAME=test-weave-weave"
+Environment="A03=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull redis:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-weave-weave-1
 ExecStartPre=-/usr/bin/docker rm -f test-weave-weave-1
 ExecStartPre=-/home/core/bin/docker-cleanup.sh
-ExecStart=/usr/bin/docker $A00 run --rm --name test-weave-weave-1 -P $A01 $A02 redis:latest
+ExecStart=/usr/bin/docker $A00 run --rm --name test-weave-weave-1 $A01 -P $A02 $A03 redis:latest
 ExecStop=-/usr/bin/docker stop -t 10 test-weave-weave-1
 ExecStopPost=-/usr/bin/docker rm -f test-weave-weave-1
 

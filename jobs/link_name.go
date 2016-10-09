@@ -49,6 +49,11 @@ func (ln LinkName) PrivateDomainName() string {
 	return fmt.Sprintf("%s.private", strings.Replace(ln.String(), "@", ".", -1))
 }
 
+// WeaveDomainName returns the DNS name (in the weave namespace) for the given link name.
+func (ln LinkName) WeaveDomainName() string {
+	return fmt.Sprintf("%s.weave.local", strings.Replace(ln.String(), "@", ".", -1))
+}
+
 // EtcdServiceName returns name of the service as it is used in ETCD.
 func (ln LinkName) EtcdServiceName() string {
 	return strings.Replace(strings.Replace(ln.String(), ".", "-", -1), "@", "-", -1)

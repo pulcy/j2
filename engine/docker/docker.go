@@ -85,16 +85,32 @@ func (e *dockerEngine) cleanupCmd() cmdline.Cmdline {
 	return cmd
 }
 
-// createDockerCmd adds docker arguments for the given network type.
+// createDockerCmd creates a docker command suitable for the given network type.
 func (e *dockerEngine) createDockerCmd(env map[string]string, networkType jobs.NetworkType) (cmdline.Cmdline, error) {
 	c := cmdline.Cmdline{}
 	switch networkType {
-	case "":
+	case "", jobs.NetworkTypeDefault, jobs.NetworkTypeHost:
 		return *c.Add(nil, e.dockerPath), nil
 	case jobs.NetworkTypeWeave:
 		return *c.Add(nil, e.dockerPath).Add(env, fmt.Sprintf("-H=%s", e.weavePluginSocket)), nil
 	default:
 		return cmdline.Cmdline{}, maskAny(fmt.Errorf("Unknown network type '%s", networkType))
+	}
+}
+
+// addDockerNetworkArgs adds docker network arguments for the given task.
+func (e *dockerEngine) addDockerNetworkArgs(c *cmdline.Cmdline, env map[string]string, t *jobs.Task) error {
+	switch t.Network {
+	case "", jobs.NetworkTypeDefault:
+		return nil
+	case jobs.NetworkTypeHost:
+		c.Add(env, "--net=host")
+		return nil
+	case jobs.NetworkTypeWeave:
+		c.Add(env, fmt.Sprintf("--hostname=%s", t.WeaveDomainName()))
+		return nil
+	default:
+		return maskAny(fmt.Errorf("Unknown network type '%s", t.Network))
 	}
 }
 
