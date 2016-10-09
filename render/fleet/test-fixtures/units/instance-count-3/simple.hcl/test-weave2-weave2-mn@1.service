@@ -1,0 +1,30 @@
+[Unit]
+Description=Main unit for test/weave2/weave2 [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-H=unix:///var/run/weave/weave.sock"
+Environment="A01=--hostname=test.weave2.weave2.weave.local"
+Environment="A02=-e SERVICE_NAME=test-weave2-weave2"
+Environment="A03=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull redis:latest
+ExecStartPre=-/usr/bin/docker stop -t 10 test-weave2-weave2-1
+ExecStartPre=-/usr/bin/docker rm -f test-weave2-weave2-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker $A00 run --rm --name test-weave2-weave2-1 $A01 -P $A02 $A03 redis:latest
+ExecStop=-/usr/bin/docker stop -t 10 test-weave2-weave2-1
+ExecStopPost=-/usr/bin/docker rm -f test-weave2-weave2-1
+
+[X-Fleet]
+Conflicts=test-weave2-weave2-mn@*.service
+MachineMetadata="core=true"
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

@@ -65,6 +65,36 @@ func (ln LinkName) Validate() error {
 	return maskAny(err)
 }
 
+// Job returns the job part of the link name.
+func (ln LinkName) Job() (JobName, error) {
+	jn, _, _, _, err := ln.parse()
+	return jn, maskAny(err)
+}
+
+// TaskGroup returns the taskgroup part of the link name.
+func (ln LinkName) TaskGroup() (TaskGroupName, error) {
+	_, tg, _, _, err := ln.parse()
+	return tg, maskAny(err)
+}
+
+// Task returns the task part of the link name.
+func (ln LinkName) Task() (TaskName, error) {
+	_, _, tn, _, err := ln.parse()
+	return tn, maskAny(err)
+}
+
+// Instance returns the instance part of the link name.
+func (ln LinkName) Instance() (InstanceName, error) {
+	_, _, _, in, err := ln.parse()
+	return in, maskAny(err)
+}
+
+// HasInstance returns true if there is a specific instance in link name.
+func (ln LinkName) HasInstance() bool {
+	_, _, _, in, _ := ln.parse()
+	return !in.IsEmpty()
+}
+
 func (ln LinkName) parse() (JobName, TaskGroupName, TaskName, InstanceName, error) {
 	var instanceName InstanceName
 	parts := strings.Split(string(ln), "@")

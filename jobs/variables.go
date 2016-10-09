@@ -159,6 +159,15 @@ func (ctx *variableContext) replaceString(input string) string {
 					if err != nil {
 						ctx.errors = append(ctx.errors, fmt.Sprintf("variable '%s' expects a port argument, got '%s'", parts[0], parts[2]))
 					} else {
+						if ctx.Task.Network == NetworkTypeWeave && !target.HasInstance() {
+							targetTask, err := ctx.findTargetTask(key, parts[1])
+							if err != nil {
+								ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
+							}
+							if targetTask.Network == NetworkTypeWeave {
+								return fmt.Sprintf("tcp://%s:%d", targetTask.WeaveDomainName(), port)
+							}
+						}
 						ctx.Task.Links = ctx.Task.Links.Add(Link{
 							Type:   LinkTypeTCP,
 							Target: target,
@@ -171,6 +180,15 @@ func (ctx *variableContext) replaceString(input string) string {
 			case "link_url":
 				if ctx.assertTask(key) && assertNoArgs(1) {
 					target := ctx.findTarget(key, parts[1])
+					if ctx.Task.Network == NetworkTypeWeave && !target.HasInstance() {
+						targetTask, err := ctx.findTargetTask(key, parts[1])
+						if err != nil {
+							ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
+						}
+						if targetTask.Network == NetworkTypeWeave {
+							return fmt.Sprintf("http://%s", targetTask.WeaveDomainName())
+						}
+					}
 					ctx.Task.Links = ctx.Task.Links.Add(Link{
 						Target: target,
 					})
@@ -214,4 +232,27 @@ func (ctx *variableContext) findTarget(key, name string) LinkName {
 		t = ctx.Task.Name
 	}
 	return NewLinkName(j, tg, t, i)
+}
+
+func (ctx *variableContext) findTargetTask(key, name string) (*Task, error) {
+	ln := ctx.findTarget(key, name)
+	jn, _ := ln.Job()
+	if jn != ctx.Job.Name {
+		return nil, maskAny(errgo.WithCausef(nil, TaskNotFoundError, "Job '%s' not found", jn))
+	}
+	tgn, _ := ln.TaskGroup()
+	tg, err := ctx.Job.TaskGroup(tgn)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	tn, _ := ln.Task()
+	t, err := tg.Task(tn)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	in, _ := ln.Instance()
+	if !in.IsEmpty() {
+		return nil, maskAny(errgo.WithCausef(nil, TaskNotFoundError, "Instance of '%s' should be empty", ln))
+	}
+	return t, nil
 }

@@ -154,6 +154,23 @@
                 {
                     "name": "weave",
                     "image": "redis:latest",
+                    "network": "weave",
+                    "args": [
+                        "tcp://test.weave.weave.weave.local:6379"
+                    ],
+                    "environment": {
+                        "url": "http://test.weave.weave.weave.local"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "weave2",
+            "count": 1,
+            "tasks": [
+                {
+                    "name": "weave2",
+                    "image": "redis:latest",
                     "network": "weave"
                 }
             ]
