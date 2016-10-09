@@ -97,14 +97,16 @@ The following keys can be specified on a public frontend.
 The following keys can be specified on a all frontends.
 
 - `port` - The load-balancer will forward requests to this port of the task. If you do not specify a port, it will forward requests to any of the ports exposed by the container.
+- `host-port` - The load-balancer will listen on this port for requests intended for the task. If you do not specify a host-port, standard ports will be assumed.
+- `mode` - Specifies the mode the load-balancer will be configured for for this frontend. Mode can be `http` (default) or `tcp`.
+Frontends using `tcp` mode with a `domain` setting will offer TCP over TLS connections, using SNI to identify the correct task to forward the request to.
+The connection from the load-balancer to the task will use TCP only.
+Frontends using `tcp` mode without a `domain` setting request a `host-port` setting.
 - `user` - User objects specify password authentication to be used for requests forwarded for this task.
 - `weight` - Contains a value [0...100] used to order frontend specifications in the load-balancer. If 2 frontend specifications both match a specific request, the one with the highest weight will be used.
 
 The following keys can be specified on a private frontend.
 
-- `mode` - Specifies the mode the load-balancer will be configured for for this frontend. Mode can be `http` (default) or `tcp`.
-Frontends using `tcp` mode will offer TCP over TLS connections, using SNI to identify the correct task to forward the request to.
-The connection from the load-balancer to the task will use TCP only.
 - `register-instance` - If set, instances of this task will also be registered in the load-balancer under an instance specific
 name. This enables access to individual instances, in addition to load-balanced access to all instances of a task.
 

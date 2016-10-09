@@ -68,12 +68,16 @@ func addFrontEndRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorCont
 	}
 
 	for _, fr := range t.PublicFrontEnds {
+		if fr.Mode == "tcp" {
+			record.Mode = "tcp"
+		}
 		selRecord := api.FrontendSelectorRecord{
 			Weight:       fr.Weight,
 			Domain:       fr.Domain,
 			PathPrefix:   fr.PathPrefix,
 			SslCert:      fr.SslCert,
 			ServicePort:  fr.Port,
+			FrontendPort: fr.HostPort,
 			RewriteRules: rwRules,
 		}
 		if err := addUsers(t, &selRecord, fr.Users); err != nil {
@@ -88,6 +92,7 @@ func addFrontEndRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorCont
 		selRecord := api.FrontendSelectorRecord{
 			Domain:       t.PrivateDomainName(),
 			ServicePort:  fr.Port,
+			FrontendPort: fr.HostPort,
 			Private:      true,
 			RewriteRules: rwRules,
 		}
