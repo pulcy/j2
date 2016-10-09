@@ -54,7 +54,11 @@ func (e *dockerEngine) CreateProxyCmds(t *jobs.Task, link jobs.Link, linkIndex i
 // the proxy unit.
 func (e *dockerEngine) createProxyDockerCmdLine(t *jobs.Task, containerName, containerImage string, link jobs.Link, env map[string]string, scalingGroup uint) (cmdline.Cmdline, error) {
 	var cmd cmdline.Cmdline
-	cmd.Add(nil, e.dockerPath, "run", "--rm", fmt.Sprintf("--name %s", containerName))
+	cmd, err := e.createDockerCmd(env, t.Network)
+	if err != nil {
+		return cmd, maskAny(err)
+	}
+	cmd.Add(nil, "run", "--rm", fmt.Sprintf("--name %s", containerName))
 	for _, p := range link.Ports {
 		cmd.Add(env, fmt.Sprintf("--expose %d", p))
 	}

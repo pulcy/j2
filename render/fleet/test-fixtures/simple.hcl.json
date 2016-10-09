@@ -98,6 +98,17 @@
             ]
         },
         {
+            "name": "host",
+            "count": 1,
+            "tasks": [
+                {
+                    "name": "host",
+                    "image": "redis:latest",
+                    "network": "host"
+                }
+            ]
+        },
+        {
             "name": "registrator",
             "count": 1,
             "global": true,
@@ -158,6 +169,34 @@
                             "port": 80
                         }
                     ]
+                }
+            ]
+        },
+        {
+            "name": "weave",
+            "count": 1,
+            "tasks": [
+                {
+                    "name": "weave",
+                    "image": "redis:latest",
+                    "network": "weave",
+                    "args": [
+                        "tcp://test.weave.weave.weave.local:6379"
+                    ],
+                    "environment": {
+                        "url": "http://test.weave.weave.weave.local"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "weave2",
+            "count": 1,
+            "tasks": [
+                {
+                    "name": "weave2",
+                    "image": "redis:latest",
+                    "network": "weave"
                 }
             ]
         },

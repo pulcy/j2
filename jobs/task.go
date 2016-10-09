@@ -45,6 +45,7 @@ type Task struct {
 	Sticky           bool              `json:"sticky,omitempty" mapstructure:"sticky,omitempty"`
 	Backup           bool              `json:"backup,omitempty" mapstructure:"backup,omitempty"`
 	Capabilities     []string          `json:"capabilities,omitempty"`
+	Network          NetworkType       `json:"network,omitempty"`
 	Links            Links             `json:"links,omitempty"`
 	Secrets          SecretList        `json:"secrets,omitempty"`
 	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
@@ -95,6 +96,7 @@ func (t *Task) replaceVariables() error {
 	t.HttpCheckPath = ctx.replaceString(t.HttpCheckPath)
 	t.HttpCheckMethod = ctx.replaceString(t.HttpCheckMethod)
 	t.Capabilities = ctx.replaceStringSlice(t.Capabilities)
+	t.Network = NetworkType(ctx.replaceString(string(t.Network)))
 	for i, x := range t.Links {
 		t.Links[i] = x.replaceVariables(ctx)
 	}
@@ -131,6 +133,9 @@ func (t Task) Validate() error {
 		if err != nil {
 			return maskAny(err)
 		}
+	}
+	if err := t.Network.Validate(); err != nil {
+		return maskAny(err)
 	}
 	for _, l := range t.Links {
 		if err := l.Validate(); err != nil {
@@ -232,6 +237,12 @@ func (t *Task) FullName() string {
 func (t *Task) PrivateDomainName() string {
 	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name, "")
 	return ln.PrivateDomainName()
+}
+
+// WeaveDomainName returns the DNS name (in the weave namespace) for the given task.
+func (t *Task) WeaveDomainName() string {
+	ln := NewLinkName(t.group.job.Name, t.group.Name, t.Name, "")
+	return ln.WeaveDomainName()
 }
 
 // InstanceSpecificPrivateDomainName returns the DNS name (in the private namespace) for an instance of the given task.

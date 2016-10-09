@@ -49,6 +49,7 @@ job "base" {
 			private-frontend {
 				port = 8055
 			}
+			network = "host"
 			args = ["run",
 				"--etcd-addr", "http://${private_ipv4}:4001/pulcy",
 				"--private-key-path", "/acme/private-key",
@@ -59,9 +60,6 @@ job "base" {
 				"--private-ssl-cert", "private.pem",
 				"--metrics-host", "${private_ipv4}",
 				"--metrics-port", "8055"
-			]
-			docker-args = [
-				"--net=host"
 			]
 		}
 	}

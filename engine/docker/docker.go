@@ -46,6 +46,7 @@ type dockerEngine struct {
 	shPath                  string
 	touchPath               string
 	cleanupScriptPath       string
+	weavePluginSocket       string
 	containerTimeoutStopSec int
 }
 
@@ -57,6 +58,7 @@ func NewDockerEngine(options cluster.DockerOptions) engine.Engine {
 		shPath:                  "/bin/sh",
 		touchPath:               "/usr/bin/touch",
 		cleanupScriptPath:       "/home/core/bin/docker-cleanup.sh",
+		weavePluginSocket:       "unix:///var/run/weave/weave.sock",
 		containerTimeoutStopSec: 10,
 	}
 }
@@ -81,6 +83,35 @@ func (e *dockerEngine) cleanupCmd() cmdline.Cmdline {
 	cmd := cmdline.Cmdline{AllowFailure: true}
 	cmd.Add(nil, e.cleanupScriptPath)
 	return cmd
+}
+
+// createDockerCmd creates a docker command suitable for the given network type.
+func (e *dockerEngine) createDockerCmd(env map[string]string, networkType jobs.NetworkType) (cmdline.Cmdline, error) {
+	c := cmdline.Cmdline{}
+	switch networkType {
+	case "", jobs.NetworkTypeDefault, jobs.NetworkTypeHost:
+		return *c.Add(nil, e.dockerPath), nil
+	case jobs.NetworkTypeWeave:
+		return *c.Add(nil, e.dockerPath).Add(env, fmt.Sprintf("-H=%s", e.weavePluginSocket)), nil
+	default:
+		return cmdline.Cmdline{}, maskAny(fmt.Errorf("Unknown network type '%s", networkType))
+	}
+}
+
+// addDockerNetworkArgs adds docker network arguments for the given task.
+func (e *dockerEngine) addDockerNetworkArgs(c *cmdline.Cmdline, env map[string]string, t *jobs.Task) error {
+	switch t.Network {
+	case "", jobs.NetworkTypeDefault:
+		return nil
+	case jobs.NetworkTypeHost:
+		c.Add(env, "--net=host")
+		return nil
+	case jobs.NetworkTypeWeave:
+		c.Add(env, fmt.Sprintf("--hostname=%s", t.WeaveDomainName()))
+		return nil
+	default:
+		return maskAny(fmt.Errorf("Unknown network type '%s", t.Network))
+	}
 }
 
 // createVolumeUnitContainerName creates the name of the docker container that serves a volume with given index

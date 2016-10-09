@@ -133,4 +133,23 @@ job "test" {
 			domain = "obsoletedomain.com"
 		}
 	}
+
+	task "weave" {
+		image = "redis:latest"
+		network = "weave"
+		args = ["${link_tcp weave2 6379}"]
+		env {
+			url = "${link_url weave2}"
+		} 
+	}
+
+	task "weave2" {
+		image = "redis:latest"
+		network = "weave"
+	}
+
+	task "host" {
+		image = "redis:latest"
+		network = "host"
+	}
 }

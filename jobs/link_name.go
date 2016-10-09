@@ -49,6 +49,11 @@ func (ln LinkName) PrivateDomainName() string {
 	return fmt.Sprintf("%s.private", strings.Replace(ln.String(), "@", ".", -1))
 }
 
+// WeaveDomainName returns the DNS name (in the weave namespace) for the given link name.
+func (ln LinkName) WeaveDomainName() string {
+	return fmt.Sprintf("%s.weave.local", strings.Replace(ln.String(), "@", ".", -1))
+}
+
 // EtcdServiceName returns name of the service as it is used in ETCD.
 func (ln LinkName) EtcdServiceName() string {
 	return strings.Replace(strings.Replace(ln.String(), ".", "-", -1), "@", "-", -1)
@@ -58,6 +63,36 @@ func (ln LinkName) EtcdServiceName() string {
 func (ln LinkName) Validate() error {
 	_, _, _, _, err := ln.parse()
 	return maskAny(err)
+}
+
+// Job returns the job part of the link name.
+func (ln LinkName) Job() (JobName, error) {
+	jn, _, _, _, err := ln.parse()
+	return jn, maskAny(err)
+}
+
+// TaskGroup returns the taskgroup part of the link name.
+func (ln LinkName) TaskGroup() (TaskGroupName, error) {
+	_, tg, _, _, err := ln.parse()
+	return tg, maskAny(err)
+}
+
+// Task returns the task part of the link name.
+func (ln LinkName) Task() (TaskName, error) {
+	_, _, tn, _, err := ln.parse()
+	return tn, maskAny(err)
+}
+
+// Instance returns the instance part of the link name.
+func (ln LinkName) Instance() (InstanceName, error) {
+	_, _, _, in, err := ln.parse()
+	return in, maskAny(err)
+}
+
+// HasInstance returns true if there is a specific instance in link name.
+func (ln LinkName) HasInstance() bool {
+	_, _, _, in, _ := ln.parse()
+	return !in.IsEmpty()
 }
 
 func (ln LinkName) parse() (JobName, TaskGroupName, TaskName, InstanceName, error) {
