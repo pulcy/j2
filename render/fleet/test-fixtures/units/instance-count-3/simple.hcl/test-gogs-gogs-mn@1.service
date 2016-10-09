@@ -19,7 +19,9 @@ ExecStartPre=-/usr/bin/docker stop -t 10 test-gogs-gogs-1
 ExecStartPre=-/usr/bin/docker rm -f test-gogs-gogs-1
 ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStart=/usr/bin/docker run --rm --name test-gogs-gogs-1 $A00 $A01 $A02 $A03 gogs:latest
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBvcnQiOjgwLCJmcm9udGVuZC1wb3J0Ijo0MjAwfSx7InBvcnQiOjIyLCJmcm9udGVuZC1wb3J0Ijo4MjIyfV0sInNlcnZpY2UiOiJ0ZXN0LWdvZ3MtZ29ncyIsIm1vZGUiOiJ0Y3AifQ== | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-gogs-gogs-1'
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBvcnQiOjgwLCJmcm9udGVuZC1wb3J0Ijo0MjAwfV0sInNlcnZpY2UiOiJ0ZXN0LWdvZ3MtZ29ncyJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-gogs-gogs-1'
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7InBvcnQiOjIyLCJmcm9udGVuZC1wb3J0Ijo4MjIyfV0sInNlcnZpY2UiOiJ0ZXN0LWdvZ3MtZ29ncyIsIm1vZGUiOiJ0Y3AifQ== | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-gogs-gogs-1-tcp'
+ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-gogs-gogs-1-tcp
 ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-gogs-gogs-1
 ExecStop=-/usr/bin/docker stop -t 10 test-gogs-gogs-1
 ExecStopPost=-/usr/bin/docker rm -f test-gogs-gogs-1
@@ -30,4 +32,5 @@ MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration="/pulcy/frontend/test-gogs-gogs-1={\"selectors\":[{\"port\":80,\"frontend-port\":4200},{\"port\":22,\"frontend-port\":8222}],\"service\":\"test-gogs-gogs\",\"mode\":\"tcp\"}"
+FrontEndRegistration-tcp="/pulcy/frontend/test-gogs-gogs-1-tcp={\"selectors\":[{\"port\":22,\"frontend-port\":8222}],\"service\":\"test-gogs-gogs\",\"mode\":\"tcp\"}"
+FrontEndRegistration="/pulcy/frontend/test-gogs-gogs-1={\"selectors\":[{\"port\":80,\"frontend-port\":4200}],\"service\":\"test-gogs-gogs\"}"
