@@ -24,13 +24,16 @@ type PublicFrontEnd struct {
 	PathPrefix string `json:"path-prefix,omitempty" mapstructure:"path-prefix,omitempty"`
 	SslCert    string `json:"ssl-cert,omitempty" mapstructure:"ssl-cert,omitempty"`
 	Port       int    `json:"port,omitempty" mapstructure:"port,omitempty"`
+	HostPort   int    `json:"host-port,omitempty" mapstructure:"host-port,omitempty"`
 	Users      []User `json:"users,omitempty"`
+	Mode       string `json:"mode,omitempty" mapstructure:"mode,omitempty"`
 	Weight     int    `json:"weight,omitempty" mapstructure:"weight,omitempty"`
 }
 
 // PrivateFrontEnd contains a specification of a private HTTP(S) frontend.
 type PrivateFrontEnd struct {
 	Port             int    `json:"port,omitempty" mapstructure:"port,omitempty"`
+	HostPort         int    `json:"host-port,omitempty" mapstructure:"host-port,omitempty"`
 	Users            []User `json:"users,omitempty"`
 	Weight           int    `json:"weight,omitempty" mapstructure:"weight,omitempty"`
 	Mode             string `json:"mode,omitempty" mapstructure:"mode,omitempty"`
@@ -69,6 +72,20 @@ func (f PublicFrontEnd) Validate() error {
 		if f.Domain == "" {
 			return errgo.WithCausef(nil, ValidationError, "ssl-cert requires a domain setting")
 		}
+	}
+	switch f.Mode {
+	case "", "http":
+		// Ok
+	case "tcp":
+		if f.Domain == "" && f.HostPort == 0 {
+			return errgo.WithCausef(nil, ValidationError, "domain or host-port must be set")
+		} else if f.Domain != "" && f.HostPort != 0 {
+			return errgo.WithCausef(nil, ValidationError, "domain and host-port cannot be set both")
+		} else if f.PathPrefix != "" && f.HostPort != 0 {
+			return errgo.WithCausef(nil, ValidationError, "path-prefix and host-port cannot be set both")
+		}
+	default:
+		return errgo.WithCausef(nil, ValidationError, "mode must be http or tcp")
 	}
 	return nil
 }
