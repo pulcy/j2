@@ -119,4 +119,9 @@ job "test" {
 			domain = "obsoletedomain.com"
 		}
 	}
+
+	task "weave" {
+		image = "redis:latest"
+		network = "weave"
+	}
 }

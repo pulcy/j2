@@ -75,8 +75,11 @@ func (e *dockerEngine) CreateMainCmds(t *jobs.Task, env map[string]string, scali
 // the main unit.
 func (e *dockerEngine) createMainDockerCmdLine(t *jobs.Task, image string, env map[string]string, scalingGroup uint) (cmdline.Cmdline, error) {
 	serviceName := t.ServiceName()
-	var cmd cmdline.Cmdline
-	cmd.Add(nil, e.dockerPath, "run", "--rm", fmt.Sprintf("--name %s", t.ContainerName(scalingGroup)))
+	cmd, err := e.createDockerCmd(env, t.Network)
+	if err != nil {
+		return cmd, maskAny(err)
+	}
+	cmd.Add(nil, "run", "--rm", fmt.Sprintf("--name %s", t.ContainerName(scalingGroup)))
 	if len(t.Ports) > 0 {
 		for _, p := range t.Ports {
 			cmd.Add(env, fmt.Sprintf("-p %s", p))
