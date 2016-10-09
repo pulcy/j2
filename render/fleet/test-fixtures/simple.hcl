@@ -92,6 +92,20 @@ job "test" {
 		}
 	}
 
+	task "gogs" {
+		image = "gogs:latest"
+		ports = [80,22]
+		frontend {
+			port = 80
+			host-port = 4200
+		}
+		frontend {
+			port = 22
+			host-port = 8222
+			mode = "tcp"
+		}
+	}
+
 	task "registrator" {
 		global = true
 		image = "gliderlabs/registrator:latest"

@@ -73,6 +73,31 @@
             ]
         },
         {
+            "name": "gogs",
+            "count": 1,
+            "tasks": [
+                {
+                    "name": "gogs",
+                    "image": "gogs:latest",
+                    "ports": [
+                        "80",
+                        "22"
+                    ],
+                    "frontends": [
+                        {
+                            "port": 80,
+                            "host-port": 4200
+                        },
+                        {
+                            "port": 22,
+                            "host-port": 8222,
+                            "mode": "tcp"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "name": "host",
             "count": 1,
             "tasks": [
