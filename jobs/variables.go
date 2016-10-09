@@ -164,7 +164,7 @@ func (ctx *variableContext) replaceString(input string) string {
 							if err != nil {
 								ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
 							}
-							if targetTask.Network == NetworkTypeWeave {
+							if targetTask.Type.IsDefault() && targetTask.Network == NetworkTypeWeave {
 								return fmt.Sprintf("tcp://%s:%d", targetTask.WeaveDomainName(), port)
 							}
 						}
@@ -185,7 +185,7 @@ func (ctx *variableContext) replaceString(input string) string {
 						if err != nil {
 							ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
 						}
-						if targetTask.Network == NetworkTypeWeave {
+						if targetTask.Type.IsDefault() && targetTask.Network == NetworkTypeWeave {
 							return fmt.Sprintf("http://%s", targetTask.WeaveDomainName())
 						}
 					}

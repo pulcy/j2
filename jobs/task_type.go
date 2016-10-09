@@ -32,3 +32,18 @@ func (tt TaskType) Validate() error {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "type has invalid value '%s'", tt))
 	}
 }
+
+// IsDefault returns true if the given task type equals default ("")
+func (tt TaskType) IsDefault() bool {
+	return tt == ""
+}
+
+// IsOneshot returns true if the given task type equals "oneshot"
+func (tt TaskType) IsOneshot() bool {
+	return tt == "oneshot"
+}
+
+// IsProxy returns true if the given task type equals "proxy"
+func (tt TaskType) IsProxy() bool {
+	return tt == "proxy"
+}
