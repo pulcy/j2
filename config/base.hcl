@@ -23,7 +23,7 @@ job "base" {
 		}
 
 		task "lb" {
-			image = "pulcy/robin:20161009150800"
+			image = "pulcy/robin:20161009152452"
 			after = "certificates"
 			ports = ["0.0.0.0:80:80", "${private_ipv4}:81:81", "${private_ipv4}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "${private_ipv4}:8055:8055"]
 			volumes = "/tmp/base/lb/certs/:/certs/"
