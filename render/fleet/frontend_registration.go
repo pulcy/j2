@@ -73,7 +73,7 @@ func addFrontEndRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorCont
 			Domain:       fr.Domain,
 			PathPrefix:   fr.PathPrefix,
 			SslCert:      fr.SslCert,
-			Port:         fr.Port,
+			ServicePort:  fr.Port,
 			RewriteRules: rwRules,
 		}
 		if err := addUsers(t, &selRecord, fr.Users); err != nil {
@@ -87,7 +87,7 @@ func addFrontEndRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorCont
 		}
 		selRecord := api.FrontendSelectorRecord{
 			Domain:       t.PrivateDomainName(),
-			Port:         fr.Port,
+			ServicePort:  fr.Port,
 			Private:      true,
 			RewriteRules: rwRules,
 		}
