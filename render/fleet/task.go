@@ -39,6 +39,12 @@ var (
 	commonRequires = []string{
 		"docker.service",
 	}
+	weaveAfter = []string{
+		"weave.service",
+	}
+	weaveRequires = []string{
+		"weave.service",
+	}
 )
 
 // createTaskUnits creates all units needed to run this task.

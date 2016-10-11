@@ -67,6 +67,9 @@ func (t *Task) link() {
 
 // optimizeFor optimizes the task for the given cluster.
 func (t *Task) optimizeFor(cluster cluster.Cluster) {
+	if t.Network == "" {
+		t.Network = NetworkType(cluster.Network)
+	}
 }
 
 // replaceVariables replaces all known variables in the values of the given task.

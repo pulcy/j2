@@ -49,6 +49,10 @@ func createDefaultUnit(t *jobs.Task, name, description, unitType, unitKind strin
 	// Service dependencies
 	unit.ExecOptions.Require(commonRequires...)
 	unit.ExecOptions.After(commonAfter...)
+	if t.Network.IsWeave() {
+		unit.ExecOptions.Require(weaveRequires...)
+		unit.ExecOptions.After(weaveAfter...)
+	}
 
 	if err := setupConstraints(t, unit); err != nil {
 		return nil, maskAny(err)

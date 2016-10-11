@@ -43,6 +43,9 @@ type Cluster struct {
 	// Fleet options
 	FleetOptions FleetOptions
 
+	// Default network
+	Network string `mapstructure:"network,omitempty"`
+
 	DefaultOptions flags.Options `mapstructure:"default-options,omitempty"`
 }
 

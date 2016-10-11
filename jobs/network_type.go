@@ -42,7 +42,7 @@ func (nt NetworkType) Validate() error {
 }
 
 func (nt NetworkType) IsDefault() bool {
-	return nt == NetworkTypeDefault
+	return nt == "" || nt == NetworkTypeDefault
 }
 
 func (nt NetworkType) IsHost() bool {

@@ -1,7 +1,9 @@
 [Unit]
 Description=Main unit for proxyweave/dbclientweave/dbclientweave [slice 1]
 Requires=docker.service
+Requires=weave.service
 After=docker.service
+After=weave.service
 
 [Service]
 Restart=always
