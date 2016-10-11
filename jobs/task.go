@@ -56,6 +56,13 @@ type Task struct {
 	Metrics          *Metrics          `json:"metrics,omitempty"`
 }
 
+// setDefaults fills in all default value.
+func (t *Task) setDefaults(cluster cluster.Cluster) {
+	if t.Network == "" {
+		t.Network = NetworkType(cluster.Network)
+	}
+}
+
 // Link objects just after parsing
 func (t *Task) link() {
 	t.Target = t.resolveLink(t.Target)
@@ -67,9 +74,6 @@ func (t *Task) link() {
 
 // optimizeFor optimizes the task for the given cluster.
 func (t *Task) optimizeFor(cluster cluster.Cluster) {
-	if t.Network == "" {
-		t.Network = NetworkType(cluster.Network)
-	}
 }
 
 // replaceVariables replaces all known variables in the values of the given task.
@@ -299,4 +303,14 @@ func (t *Task) resolveLink(ln LinkName) LinkName {
 // with the group constraints.
 func (t *Task) MergedConstraints() Constraints {
 	return t.group.job.Constraints.Merge(t.group.Constraints)
+}
+
+// PrivateFrontEndPort returns the port number of the first private frontend with a non-0 port number.
+func (t *Task) PrivateFrontEndPort(defaultPort int) int {
+	for _, f := range t.PrivateFrontEnds {
+		if f.Port != 0 {
+			return f.Port
+		}
+	}
+	return defaultPort
 }

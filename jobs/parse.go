@@ -84,6 +84,9 @@ func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
 	// Link internal structures
 	job.prelink()
 
+	// Set defaults
+	job.setDefaults(jf.cluster)
+
 	// Replace variables
 	if err := job.replaceVariables(); err != nil {
 		return nil, maskAny(err)

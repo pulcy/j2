@@ -63,6 +63,13 @@ type TaskGroup struct {
 
 type TaskGroupList []*TaskGroup
 
+// setDefaults fills in all default value.
+func (tg *TaskGroup) setDefaults(cluster cluster.Cluster) {
+	for _, v := range tg.Tasks {
+		v.setDefaults(cluster)
+	}
+}
+
 // Link objects just after parsing
 func (tg *TaskGroup) prelink() {
 	for _, v := range tg.Tasks {

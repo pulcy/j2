@@ -48,6 +48,13 @@ type Job struct {
 	Constraints Constraints   `json:"constraints,omitempty"`
 }
 
+// setDefaults fills in all default value.
+func (j *Job) setDefaults(cluster cluster.Cluster) {
+	for _, tg := range j.Groups {
+		tg.setDefaults(cluster)
+	}
+}
+
 // Link objects just after parsing
 func (j *Job) prelink() {
 	for _, tg := range j.Groups {

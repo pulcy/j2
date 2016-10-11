@@ -159,12 +159,12 @@ func (ctx *variableContext) replaceString(input string) string {
 					if err != nil {
 						ctx.errors = append(ctx.errors, fmt.Sprintf("variable '%s' expects a port argument, got '%s'", parts[0], parts[2]))
 					} else {
-						if ctx.Task.Network == NetworkTypeWeave && !target.HasInstance() {
+						if ctx.Task.Network.IsWeave() && !target.HasInstance() {
 							targetTask, err := ctx.findTargetTask(key, parts[1])
 							if err != nil {
 								ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
 							}
-							if targetTask.Type.IsDefault() && targetTask.Network == NetworkTypeWeave {
+							if targetTask.Type.IsDefault() && targetTask.Network.IsWeave() {
 								return fmt.Sprintf("tcp://%s:%d", targetTask.WeaveDomainName(), port)
 							}
 						}
@@ -188,14 +188,18 @@ func (ctx *variableContext) replaceString(input string) string {
 						}
 						if targetTask.Type.IsDefault() && targetTask.Network.IsWeave() {
 							// We can use a direct weave DNS link
-							return fmt.Sprintf("http://%s", targetTask.WeaveDomainName())
+							targetPort := targetTask.PrivateFrontEndPort(80)
+							if targetPort != 80 {
+								return fmt.Sprintf("http://%s:%d", targetTask.WeaveDomainName(), targetPort)
+							} else {
+								return fmt.Sprintf("http://%s", targetTask.WeaveDomainName())
+							}
 						}
 						if targetTask.Type.IsProxy() {
 							proxyTask := targetTask
 							proxyTarget := ctx.Task.resolveLink(proxyTask.Target) // Target is not linked yet, so do that here.
-							proxyPort := 80
 							if len(proxyTask.PrivateFrontEnds) == 1 {
-								proxyPort = proxyTask.PrivateFrontEnds[0].Port
+								proxyPort := proxyTask.PrivateFrontEndPort(80)
 								if !proxyTarget.HasInstance() {
 									targetTask, err = ctx.findTask(proxyTarget)
 									if err != nil {
@@ -206,7 +210,7 @@ func (ctx *variableContext) replaceString(input string) string {
 										r := proxyTask.Rewrite
 										if r == nil {
 											// We can use a direct weave DNS link
-											return fmt.Sprintf("http://%s", targetTask.WeaveDomainName())
+											return fmt.Sprintf("http://%s:%d", targetTask.WeaveDomainName(), proxyPort)
 										} else if r.HasPathPrefixOnly() {
 											// We can use a direct weave DNS link with a path prefix
 											path := strings.TrimSuffix(strings.TrimPrefix(r.PathPrefix, "/"), "/")
