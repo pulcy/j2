@@ -1,0 +1,56 @@
+{
+    "name": "proxy",
+    "groups": [
+        {
+            "name": "db",
+            "count": 1,
+            "tasks": [
+                {
+                    "name": "db",
+                    "image": "myhttpdatabase",
+                    "ports": [
+                        "${COREOS_PRIVATE_IPV4}::1234"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dbclient",
+            "count": 1,
+            "tasks": [
+                {
+                    "name": "dbclient",
+                    "image": "myclient",
+                    "args": [
+                        "http://proxy.dbproxy.dbproxy.private:81"
+                    ],
+                    "links": [
+                        {
+                            "target": "proxy.dbproxy.dbproxy"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dbproxy",
+            "count": 1,
+            "tasks": [
+                {
+                    "name": "dbproxy",
+                    "type": "proxy",
+                    "image": "",
+                    "private-frontends": [
+                        {
+                            "port": 8529
+                        }
+                    ],
+                    "target": "proxy.db.db",
+                    "rewrite": {
+                        "path-prefix": "/_db/db1/proxy/"
+                    }
+                }
+            ]
+        }
+    ]
+}

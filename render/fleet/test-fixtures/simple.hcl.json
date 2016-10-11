@@ -137,11 +137,9 @@
                     "image": "",
                     "type": "proxy",
                     "target": "test.couchdb.couchdb",
-                    "rewrites": [
-                        {
-                            "domain": "newdomain.com"
-                        }
-                    ],
+                    "rewrite": {
+                        "domain": "newdomain.com"
+                    },
                     "frontends": [
                         {
                             "domain": "obsoletedomain.com"
@@ -159,11 +157,9 @@
                     "image": "",
                     "type": "proxy",
                     "target": "test.couchdb.couchdb",
-                    "rewrites": [
-                        {
-                            "path-prefix": "/_db/foo/app"
-                        }
-                    ],
+                    "rewrite": {
+                        "path-prefix": "/_db/foo/app"
+                    },
                     "private-frontends": [
                         {
                             "port": 80
@@ -181,10 +177,10 @@
                     "image": "redis:latest",
                     "network": "weave",
                     "args": [
-                        "tcp://test.weave.weave.weave.local:6379"
+                        "tcp://test-weave-weave.weave.local:6379"
                     ],
                     "environment": {
-                        "url": "http://test.weave.weave.weave.local"
+                        "url": "http://test-weave-weave.weave.local"
                     }
                 }
             ]

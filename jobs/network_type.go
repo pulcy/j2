@@ -40,3 +40,15 @@ func (nt NetworkType) Validate() error {
 		return maskAny(errgo.WithCausef(nil, ValidationError, "unknown network type '%s'", string(nt)))
 	}
 }
+
+func (nt NetworkType) IsDefault() bool {
+	return nt == NetworkTypeDefault
+}
+
+func (nt NetworkType) IsHost() bool {
+	return nt == NetworkTypeHost
+}
+
+func (nt NetworkType) IsWeave() bool {
+	return nt == NetworkTypeWeave
+}

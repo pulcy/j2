@@ -75,14 +75,12 @@ func addFrontEndRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorCont
 		Mode:          "tcp",
 	}
 	var rwRules []api.RewriteRule
-	if t.Type == "proxy" && len(t.Rewrites) > 0 {
-		for _, rw := range t.Rewrites {
-			rwRules = append(rwRules, api.RewriteRule{
-				PathPrefix:       rw.PathPrefix,
-				RemovePathPrefix: rw.RemovePathPrefix,
-				Domain:           rw.Domain,
-			})
-		}
+	if t.Type == "proxy" && t.Rewrite != nil {
+		rwRules = append(rwRules, api.RewriteRule{
+			PathPrefix:       t.Rewrite.PathPrefix,
+			RemovePathPrefix: t.Rewrite.RemovePathPrefix,
+			Domain:           t.Rewrite.Domain,
+		})
 	}
 
 	for _, fr := range t.PublicFrontEnds {

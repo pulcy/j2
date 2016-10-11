@@ -1,0 +1,28 @@
+[Unit]
+Description=Main unit for proxyweave/db/db [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-H=unix:///var/run/weave/weave.sock"
+Environment="A01=--hostname=proxyweave-db-db.weave.local"
+Environment="A02=-e SERVICE_NAME=proxyweave-db-db"
+Environment="A03=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull myhttpdatabase
+ExecStartPre=-/usr/bin/docker stop -t 10 proxyweave-db-db-1
+ExecStartPre=-/usr/bin/docker rm -f proxyweave-db-db-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker $A00 run --rm --name proxyweave-db-db-1 $A01 -p ${COREOS_PRIVATE_IPV4}::1234 $A02 $A03 myhttpdatabase
+ExecStop=-/usr/bin/docker stop -t 10 proxyweave-db-db-1
+ExecStopPost=-/usr/bin/docker rm -f proxyweave-db-db-1
+
+[X-Fleet]
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

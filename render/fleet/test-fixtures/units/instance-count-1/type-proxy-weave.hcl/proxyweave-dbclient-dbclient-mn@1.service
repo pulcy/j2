@@ -1,0 +1,28 @@
+[Unit]
+Description=Main unit for proxyweave/dbclient/dbclient [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=proxyweave-dbclient-dbclient"
+Environment="A01=--add-host"
+Environment="A02=--log-driver=test"
+Environment="A03=http://proxyweave.dbproxy.dbproxy.private:81"
+ExecStartPre=/usr/bin/docker pull myclient
+ExecStartPre=-/usr/bin/docker stop -t 10 proxyweave-dbclient-dbclient-1
+ExecStartPre=-/usr/bin/docker rm -f proxyweave-dbclient-dbclient-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name proxyweave-dbclient-dbclient-1 -P $A00 $A01 proxyweave.dbproxy.dbproxy.private:${COREOS_PRIVATE_IPV4} $A02 myclient $A03
+ExecStop=-/usr/bin/docker stop -t 10 proxyweave-dbclient-dbclient-1
+ExecStopPost=-/usr/bin/docker rm -f proxyweave-dbclient-dbclient-1
+
+[X-Fleet]
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

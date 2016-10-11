@@ -1,0 +1,30 @@
+[Unit]
+Description=Main unit for proxyweave/dbclientweave/dbclientweave [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-H=unix:///var/run/weave/weave.sock"
+Environment="A01=--hostname=proxyweave-dbclientweave-dbclientweave.weave.local"
+Environment="A02=-e SERVICE_NAME=proxyweave-dbclientweave-dbclientweave"
+Environment="A03=--log-driver=test"
+Environment="A04=http://proxyweave-db-db.weave.local:8529/_db/db1/proxy"
+ExecStartPre=/usr/bin/docker pull myclient
+ExecStartPre=-/usr/bin/docker stop -t 10 proxyweave-dbclientweave-dbclientweave-1
+ExecStartPre=-/usr/bin/docker rm -f proxyweave-dbclientweave-dbclientweave-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker $A00 run --rm --name proxyweave-dbclientweave-dbclientweave-1 $A01 -P $A02 $A03 myclient $A04
+ExecStop=-/usr/bin/docker stop -t 10 proxyweave-dbclientweave-dbclientweave-1
+ExecStopPost=-/usr/bin/docker rm -f proxyweave-dbclientweave-dbclientweave-1
+
+[X-Fleet]
+Conflicts=proxyweave-dbclientweave-dbclientweave-mn@*.service
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

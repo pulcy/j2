@@ -1,0 +1,26 @@
+[Unit]
+Description=Main unit for proxy/db/db [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=proxy-db-db"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull myhttpdatabase
+ExecStartPre=-/usr/bin/docker stop -t 10 proxy-db-db-1
+ExecStartPre=-/usr/bin/docker rm -f proxy-db-db-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name proxy-db-db-1 -p ${COREOS_PRIVATE_IPV4}::1234 $A00 $A01 myhttpdatabase
+ExecStop=-/usr/bin/docker stop -t 10 proxy-db-db-1
+ExecStopPost=-/usr/bin/docker rm -f proxy-db-db-1
+
+[X-Fleet]
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"

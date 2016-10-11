@@ -19,3 +19,30 @@ type Rewrite struct {
 	RemovePathPrefix string `json:"remove-path-prefix,omitempty" mapstructure:"remove-path-prefix,omitempty"`
 	Domain           string `json:"domain,omitempty" mapstructure:"domain,omitempty"`
 }
+
+// HasPathPrefixOnly returns true if only `path` has a non-empty value.
+func (r Rewrite) HasPathPrefixOnly() bool {
+	return r.PathPrefix != "" && r.RemovePathPrefix == "" && r.Domain == ""
+}
+
+func (r Rewrite) replaceVariables(ctx *variableContext) Rewrite {
+	r.PathPrefix = ctx.replaceString(r.PathPrefix)
+	r.RemovePathPrefix = ctx.replaceString(r.RemovePathPrefix)
+	r.Domain = ctx.replaceString(r.Domain)
+	return r
+}
+
+// Merge merges non-empty data from other into the given Rewrite.
+// Data from the given Rewrite prevails over the other Rewrite.
+func (r Rewrite) Merge(other Rewrite) Rewrite {
+	if r.PathPrefix == "" {
+		r.PathPrefix = other.PathPrefix
+	}
+	if r.RemovePathPrefix == "" {
+		r.RemovePathPrefix = other.RemovePathPrefix
+	}
+	if r.Domain == "" {
+		r.Domain = other.Domain
+	}
+	return r
+}

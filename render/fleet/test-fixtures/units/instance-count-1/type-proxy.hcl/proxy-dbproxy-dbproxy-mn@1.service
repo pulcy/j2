@@ -1,0 +1,29 @@
+[Unit]
+Description=Main unit for proxy/dbproxy/dbproxy [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=proxy-dbproxy-dbproxy"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull alpine:3.3
+ExecStartPre=-/usr/bin/docker stop -t 10 proxy-dbproxy-dbproxy-1
+ExecStartPre=-/usr/bin/docker rm -f proxy-dbproxy-dbproxy-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name proxy-dbproxy-dbproxy-1 -P $A00 $A01 alpine:3.3 sleep 36500d
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InByb3h5LmRicHJveHkuZGJwcm94eS5wcml2YXRlIiwicG9ydCI6ODUyOSwicHJpdmF0ZSI6dHJ1ZSwicmV3cml0ZS1ydWxlcyI6W3sicGF0aC1wcmVmaXgiOiIvX2RiL2RiMS9wcm94eS8ifV19XSwic2VydmljZSI6InByb3h5LWRiLWRiIn0= | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/proxy-dbproxy-dbproxy-1'
+ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/proxy-dbproxy-dbproxy-1
+ExecStop=-/usr/bin/docker stop -t 10 proxy-dbproxy-dbproxy-1
+ExecStopPost=-/usr/bin/docker rm -f proxy-dbproxy-dbproxy-1
+
+[X-Fleet]
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
+FrontEndRegistration="/pulcy/frontend/proxy-dbproxy-dbproxy-1={\"selectors\":[{\"domain\":\"proxy.dbproxy.dbproxy.private\",\"port\":8529,\"private\":true,\"rewrite-rules\":[{\"path-prefix\":\"/_db/db1/proxy/\"}]}],\"service\":\"proxy-db-db\"}"

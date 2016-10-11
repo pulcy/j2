@@ -509,7 +509,10 @@ func (t *parseTask) parse(obj *ast.ObjectType, anonymousGroup bool) error {
 				if err := r.parse(obj); err != nil {
 					return maskAny(err)
 				}
-				t.Rewrites = append(t.Rewrites, r)
+				if t.Rewrite != nil {
+					r = t.Rewrite.Merge(r)
+				}
+				t.Rewrite = &r
 			} else {
 				return maskAny(errgo.WithCausef(nil, ValidationError, "rewrite of task %s is not an object", t.Name))
 			}

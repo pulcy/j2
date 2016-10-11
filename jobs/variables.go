@@ -180,13 +180,41 @@ func (ctx *variableContext) replaceString(input string) string {
 			case "link_url":
 				if ctx.assertTask(key) && assertNoArgs(1) {
 					target := ctx.findTarget(key, parts[1])
-					if ctx.Task.Network == NetworkTypeWeave && !target.HasInstance() {
+					if ctx.Task.Network.IsWeave() && !target.HasInstance() {
 						targetTask, err := ctx.findTargetTask(key, parts[1])
 						if err != nil {
 							ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
+							return ""
 						}
-						if targetTask.Type.IsDefault() && targetTask.Network == NetworkTypeWeave {
+						if targetTask.Type.IsDefault() && targetTask.Network.IsWeave() {
+							// We can use a direct weave DNS link
 							return fmt.Sprintf("http://%s", targetTask.WeaveDomainName())
+						}
+						if targetTask.Type.IsProxy() {
+							proxyTask := targetTask
+							proxyTarget := ctx.Task.resolveLink(proxyTask.Target) // Target is not linked yet, so do that here.
+							proxyPort := 80
+							if len(proxyTask.PrivateFrontEnds) == 1 {
+								proxyPort = proxyTask.PrivateFrontEnds[0].Port
+								if !proxyTarget.HasInstance() {
+									targetTask, err = ctx.findTask(proxyTarget)
+									if err != nil {
+										ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s' of proxy '%s'", proxyTarget, proxyTask.Name))
+										return ""
+									}
+									if targetTask.Network.IsWeave() {
+										r := proxyTask.Rewrite
+										if r == nil {
+											// We can use a direct weave DNS link
+											return fmt.Sprintf("http://%s", targetTask.WeaveDomainName())
+										} else if r.HasPathPrefixOnly() {
+											// We can use a direct weave DNS link with a path prefix
+											path := strings.TrimSuffix(strings.TrimPrefix(r.PathPrefix, "/"), "/")
+											return fmt.Sprintf("http://%s:%d/%s", targetTask.WeaveDomainName(), proxyPort, path)
+										}
+									}
+								}
+							}
 						}
 					}
 					ctx.Task.Links = ctx.Task.Links.Add(Link{
@@ -234,8 +262,7 @@ func (ctx *variableContext) findTarget(key, name string) LinkName {
 	return NewLinkName(j, tg, t, i)
 }
 
-func (ctx *variableContext) findTargetTask(key, name string) (*Task, error) {
-	ln := ctx.findTarget(key, name)
+func (ctx *variableContext) findTask(ln LinkName) (*Task, error) {
 	jn, _ := ln.Job()
 	if jn != ctx.Job.Name {
 		return nil, maskAny(errgo.WithCausef(nil, TaskNotFoundError, "Job '%s' not found", jn))
@@ -255,4 +282,9 @@ func (ctx *variableContext) findTargetTask(key, name string) (*Task, error) {
 		return nil, maskAny(errgo.WithCausef(nil, TaskNotFoundError, "Instance of '%s' should be empty", ln))
 	}
 	return t, nil
+}
+
+func (ctx *variableContext) findTargetTask(key, name string) (*Task, error) {
+	ln := ctx.findTarget(key, name)
+	return ctx.findTask(ln)
 }

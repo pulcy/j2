@@ -271,6 +271,36 @@ func TestParse(t *testing.T) {
 				"include-p2-p2-pr0@1.service",
 			},
 		},
+		{
+			"type-proxy.hcl",
+			false,
+			[]string{
+				"proxy-db-db-mn@1.service",
+				"proxy-dbclient-dbclient-mn@1.service",
+				"proxy-dbproxy-dbproxy-mn@1.service",
+			},
+			[]string{
+				"proxy-db-db-mn@1.service",
+				"proxy-dbclient-dbclient-mn@1.service",
+				"proxy-dbproxy-dbproxy-mn@1.service",
+			},
+		},
+		{
+			"type-proxy-weave.hcl",
+			false,
+			[]string{
+				"proxyweave-db-db-mn@1.service",
+				"proxyweave-dbclient-dbclient-mn@1.service",
+				"proxyweave-dbclientweave-dbclientweave-mn@1.service",
+				"proxyweave-dbproxy-dbproxy-mn@1.service",
+			},
+			[]string{
+				"proxyweave-db-db-mn@1.service",
+				"proxyweave-dbclient-dbclient-mn@1.service",
+				"proxyweave-dbclientweave-dbclientweave-mn@1.service",
+				"proxyweave-dbproxy-dbproxy-mn@1.service",
+			},
+		},
 	}
 
 	for _, tc := range cases {

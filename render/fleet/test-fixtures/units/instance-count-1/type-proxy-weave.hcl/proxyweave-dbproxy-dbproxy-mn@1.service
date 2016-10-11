@@ -1,0 +1,29 @@
+[Unit]
+Description=Main unit for proxyweave/dbproxy/dbproxy [slice 1]
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+RestartSec=1
+StartLimitInterval=60s
+StartLimitBurst=3
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+Environment="A00=-e SERVICE_NAME=proxyweave-dbproxy-dbproxy"
+Environment="A01=--log-driver=test"
+ExecStartPre=/usr/bin/docker pull alpine:3.3
+ExecStartPre=-/usr/bin/docker stop -t 10 proxyweave-dbproxy-dbproxy-1
+ExecStartPre=-/usr/bin/docker rm -f proxyweave-dbproxy-dbproxy-1
+ExecStartPre=-/home/core/bin/docker-cleanup.sh
+ExecStart=/usr/bin/docker run --rm --name proxyweave-dbproxy-dbproxy-1 -P $A00 $A01 alpine:3.3 sleep 36500d
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InByb3h5d2VhdmUuZGJwcm94eS5kYnByb3h5LnByaXZhdGUiLCJwb3J0Ijo4NTI5LCJwcml2YXRlIjp0cnVlLCJyZXdyaXRlLXJ1bGVzIjpbeyJwYXRoLXByZWZpeCI6Ii9fZGIvZGIxL3Byb3h5LyJ9XX1dLCJzZXJ2aWNlIjoicHJveHl3ZWF2ZS1kYi1kYiJ9 | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/proxyweave-dbproxy-dbproxy-1'
+ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/proxyweave-dbproxy-dbproxy-1
+ExecStop=-/usr/bin/docker stop -t 10 proxyweave-dbproxy-dbproxy-1
+ExecStopPost=-/usr/bin/docker rm -f proxyweave-dbproxy-dbproxy-1
+
+[X-Fleet]
+
+[X-testproject]
+GeneratedBy="testproject test-version, build test-build"
+FrontEndRegistration="/pulcy/frontend/proxyweave-dbproxy-dbproxy-1={\"selectors\":[{\"domain\":\"proxyweave.dbproxy.dbproxy.private\",\"port\":8529,\"private\":true,\"rewrite-rules\":[{\"path-prefix\":\"/_db/db1/proxy/\"}]}],\"service\":\"proxyweave-db-db\"}"

@@ -11,7 +11,7 @@ StartLimitBurst=3
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
 Environment="A00=-H=unix:///var/run/weave/weave.sock"
-Environment="A01=--hostname=test.weave2.weave2.weave.local"
+Environment="A01=--hostname=test-weave2-weave2.weave.local"
 Environment="A02=-e SERVICE_NAME=test-weave2-weave2"
 Environment="A03=--log-driver=test"
 ExecStartPre=/usr/bin/docker pull redis:latest

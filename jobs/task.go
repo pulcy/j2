@@ -51,7 +51,7 @@ type Task struct {
 	DockerArgs       []string          `json:"docker-args,omitempty" mapstructure:"docker-args,omitempty"`
 	LogDriver        LogDriver         `json:"log-driver,omitempty" mapstructure:"log-driver,omitempty"`
 	Target           LinkName          `json:"target,omitempty" mapstructure:"target,omitempty"`
-	Rewrites         []Rewrite         `json:"rewrites,omitempty" mapstructure:"rewrites,omitempty"`
+	Rewrite          *Rewrite          `json:"rewrite,omitempty" mapstructure:"rewrite,omitempty"`
 	User             string            `json:"user,omitempty" mapstructure:"user,omitempty"`
 	Metrics          *Metrics          `json:"metrics,omitempty"`
 }
@@ -99,6 +99,10 @@ func (t *Task) replaceVariables() error {
 	t.Network = NetworkType(ctx.replaceString(string(t.Network)))
 	for i, x := range t.Links {
 		t.Links[i] = x.replaceVariables(ctx)
+	}
+	if t.Rewrite != nil {
+		r := t.Rewrite.replaceVariables(ctx)
+		t.Rewrite = &r
 	}
 	for i, x := range t.Secrets {
 		t.Secrets[i] = x.replaceVariables(ctx)
