@@ -107,7 +107,11 @@ func (e *dockerEngine) addDockerNetworkArgs(c *cmdline.Cmdline, env map[string]s
 		c.Add(env, "--net=host")
 		return nil
 	case jobs.NetworkTypeWeave:
-		c.Add(env, fmt.Sprintf("--hostname=%s", t.WeaveDomainName()))
+		if !t.Type.IsProxy() {
+			c.Add(env, fmt.Sprintf("--hostname=%s", t.WeaveDomainName()))
+		} else {
+			c.Add(env, fmt.Sprintf("--hostname=%s", t.PrivateDomainName()))
+		}
 		return nil
 	default:
 		return maskAny(fmt.Errorf("Unknown network type '%s", t.Network))
