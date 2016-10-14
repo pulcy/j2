@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package render
+package jobs
 
-import (
-	"github.com/pulcy/j2/cluster"
-	"github.com/pulcy/j2/jobs"
-)
+// EngineType is a name of a type of engine to run a task.
+type EngineType string
 
-type RenderConfig struct {
-	Groups              []jobs.TaskGroupName
-	CurrentScalingGroup uint
-	Cluster             cluster.Cluster
-}
-
-type RenderProvider interface {
-	CreateRenderer(job jobs.Job, cfg RenderConfig) (Renderer, error)
+// String returns a string version of the given value
+func (et EngineType) String() string {
+	return string(et)
 }

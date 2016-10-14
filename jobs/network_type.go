@@ -34,7 +34,7 @@ func (nt NetworkType) String() string {
 // Returns nil on ok.
 func (nt NetworkType) Validate() error {
 	switch nt {
-	case "", NetworkTypeDefault, NetworkTypeHost, NetworkTypeWeave:
+	case NetworkTypeDefault, NetworkTypeHost, NetworkTypeWeave:
 		return nil
 	default:
 		return maskAny(errgo.WithCausef(nil, ValidationError, "unknown network type '%s'", string(nt)))
@@ -42,7 +42,7 @@ func (nt NetworkType) Validate() error {
 }
 
 func (nt NetworkType) IsDefault() bool {
-	return nt == "" || nt == NetworkTypeDefault
+	return nt == NetworkTypeDefault
 }
 
 func (nt NetworkType) IsHost() bool {

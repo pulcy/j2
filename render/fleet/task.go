@@ -19,8 +19,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/juju/errgo"
 	"github.com/pulcy/j2/engine"
-	"github.com/pulcy/j2/engine/docker"
+	"github.com/pulcy/j2/extpoints"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
 )
@@ -51,7 +52,10 @@ var (
 func createTaskUnits(t *jobs.Task, ctx generatorContext) ([]sdunits.UnitChain, error) {
 	mainChain := sdunits.UnitChain{}
 
-	engine := newEngine(t, ctx)
+	engine, err := newEngine(t, ctx)
+	if err != nil {
+		return nil, maskAny(err)
+	}
 	sidekickUnitNames := []string{}
 	for _, l := range t.Links {
 		if !l.Type.IsTCP() {
@@ -99,8 +103,12 @@ func createTaskUnits(t *jobs.Task, ctx generatorContext) ([]sdunits.UnitChain, e
 }
 
 // newEngine creates a new Engine for the given task.
-func newEngine(t *jobs.Task, ctx generatorContext) engine.Engine {
-	return docker.NewDockerEngine(ctx.DockerOptions)
+func newEngine(t *jobs.Task, ctx generatorContext) (engine.Engine, error) {
+	provider := extpoints.EngineProviders.Lookup(t.Engine.String())
+	if provider == nil {
+		return nil, maskAny(errgo.WithCausef(nil, ValidationError, "unknown engine type '%s'", t.Engine))
+	}
+	return provider.NewEngine(ctx.Cluster), nil
 }
 
 // unitName returns the name of the systemd unit for this task.

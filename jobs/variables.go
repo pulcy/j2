@@ -164,7 +164,7 @@ func (ctx *variableContext) replaceString(input string) string {
 							if err != nil {
 								ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
 							}
-							if targetTask.Type.IsDefault() && targetTask.Network.IsWeave() {
+							if targetTask.Type.IsService() && targetTask.Network.IsWeave() {
 								return fmt.Sprintf("tcp://%s:%d", targetTask.WeaveDomainName(), port)
 							}
 						}
@@ -186,7 +186,7 @@ func (ctx *variableContext) replaceString(input string) string {
 							ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
 							return ""
 						}
-						if targetTask.Type.IsDefault() && targetTask.Network.IsWeave() {
+						if targetTask.Type.IsService() && targetTask.Network.IsWeave() {
 							// We can use a direct weave DNS link
 							targetPort := targetTask.PrivateFrontEndPort(80)
 							if targetPort != 80 {

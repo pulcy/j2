@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package render
+package extpoints
 
 import (
 	"github.com/pulcy/j2/cluster"
-	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/engine"
 )
 
-type RenderConfig struct {
-	Groups              []jobs.TaskGroupName
-	CurrentScalingGroup uint
-	Cluster             cluster.Cluster
-}
-
-type RenderProvider interface {
-	CreateRenderer(job jobs.Job, cfg RenderConfig) (Renderer, error)
+// EngineProvider is an extension point for generating engines.
+type EngineProvider interface {
+	NewEngine(cluster cluster.Cluster) engine.Engine
 }

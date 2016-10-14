@@ -26,16 +26,16 @@ func (tt TaskType) String() string {
 
 func (tt TaskType) Validate() error {
 	switch tt {
-	case "", "oneshot", "proxy":
+	case "service", "oneshot", "proxy":
 		return nil
 	default:
 		return maskAny(errgo.WithCausef(nil, ValidationError, "type has invalid value '%s'", tt))
 	}
 }
 
-// IsDefault returns true if the given task type equals default ("")
-func (tt TaskType) IsDefault() bool {
-	return tt == ""
+// IsService returns true if the given task type equals "service" (this default)
+func (tt TaskType) IsService() bool {
+	return tt == "service"
 }
 
 // IsOneshot returns true if the given task type equals "oneshot"

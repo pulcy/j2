@@ -41,8 +41,7 @@ func NewGenerator(job jobs.Job, config render.RenderConfig) render.Renderer {
 type generatorContext struct {
 	ScalingGroup  uint
 	InstanceCount int
-	DockerOptions cluster.DockerOptions
-	FleetOptions  cluster.FleetOptions
+	Cluster       cluster.Cluster
 }
 
 func (g *fleetRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int) ([]render.UnitData, error) {
@@ -60,8 +59,7 @@ func (g *fleetRenderer) GenerateUnits(ctx render.RenderContext, instanceCount in
 			genCtx := generatorContext{
 				ScalingGroup:  scalingGroup,
 				InstanceCount: instanceCount,
-				DockerOptions: g.DockerOptions,
-				FleetOptions:  g.FleetOptions,
+				Cluster:       g.Cluster,
 			}
 			unitChains, err := createTaskGroupUnits(tg, genCtx)
 			if err != nil {

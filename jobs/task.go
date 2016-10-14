@@ -15,6 +15,7 @@
 package jobs
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -25,11 +26,12 @@ import (
 	"github.com/pulcy/j2/cluster"
 )
 
-type Task struct {
+type taskData struct {
 	Name  TaskName   `json:"name", maspstructure:"-"`
 	group *TaskGroup `json:"-", mapstructure:"-"`
 
 	Type             TaskType          `json:"type,omitempty" mapstructure:"type,omitempty"`
+	Engine           EngineType        `json:"engine,omitempty" mapstructure:"engine,omitempty"`
 	Timer            string            `json:"timer,omitempty" mapstructure:"timer,omitempty"`
 	Image            DockerImage       `json:"image"`
 	After            []TaskName        `json:"after,omitempty"`
@@ -56,10 +58,22 @@ type Task struct {
 	Metrics          *Metrics          `json:"metrics,omitempty"`
 }
 
+type Task taskData
+
 // setDefaults fills in all default value.
 func (t *Task) setDefaults(cluster cluster.Cluster) {
+	if t.Type == "" {
+		t.Type = "service"
+	}
+	if t.Engine == "" {
+		t.Engine = "docker"
+	}
 	if t.Network == "" {
-		t.Network = NetworkType(cluster.Network)
+		if cluster.Network != "" {
+			t.Network = NetworkType(cluster.Network)
+		} else {
+			t.Network = NetworkTypeDefault
+		}
 	}
 }
 
@@ -313,4 +327,22 @@ func (t *Task) PrivateFrontEndPort(defaultPort int) int {
 		}
 	}
 	return defaultPort
+}
+
+// MarshalJSON converts the given task to JSON.
+// It replaces default values with blanks (in the JSON)
+func (t *Task) MarshalJSON() ([]byte, error) {
+	// Clone data
+	data := taskData(*t)
+	// Reset default values
+	if data.Type == "service" {
+		data.Type = ""
+	}
+	if data.Engine == "docker" {
+		data.Engine = ""
+	}
+	if data.Network == "default" {
+		data.Network = ""
+	}
+	return json.Marshal(data)
 }

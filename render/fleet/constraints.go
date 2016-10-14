@@ -29,12 +29,13 @@ func setupInstanceConstraints(t *jobs.Task, unit *sdunits.Unit, unitKind string,
 	if ctx.InstanceCount > 1 {
 		if t.GroupGlobal() {
 			if t.GroupCount() > 1 {
+				fleetOptions := ctx.Cluster.FleetOptions
 				// Setup metadata constraint such that instances are only scheduled on some machines
-				if int(t.GroupCount()) > len(ctx.FleetOptions.GlobalInstanceConstraints) {
+				if int(t.GroupCount()) > len(fleetOptions.GlobalInstanceConstraints) {
 					// Group count to high
-					return maskAny(errgo.WithCausef(nil, ValidationError, "Group count (%d) higher than #global instance constraints (%d)", t.GroupCount(), len(ctx.FleetOptions.GlobalInstanceConstraints)))
+					return maskAny(errgo.WithCausef(nil, ValidationError, "Group count (%d) higher than #global instance constraints (%d)", t.GroupCount(), len(fleetOptions.GlobalInstanceConstraints)))
 				}
-				constraint := ctx.FleetOptions.GlobalInstanceConstraints[ctx.ScalingGroup-1]
+				constraint := fleetOptions.GlobalInstanceConstraints[ctx.ScalingGroup-1]
 				unit.FleetOptions.MachineMetadata(constraint)
 			}
 		} else {

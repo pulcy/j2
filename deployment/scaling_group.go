@@ -73,8 +73,7 @@ func (d *Deployment) generateScalingGroupUnits(scalingGroup uint) (scalingGroupU
 	renderer, err := d.renderProvider.CreateRenderer(d.job, render.RenderConfig{
 		Groups:              d.groupSelection,
 		CurrentScalingGroup: scalingGroup,
-		DockerOptions:       d.cluster.DockerOptions,
-		FleetOptions:        d.cluster.FleetOptions,
+		Cluster:             d.cluster,
 	})
 	if err != nil {
 		return scalingGroupUnits{}, maskAny(err)

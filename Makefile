@@ -18,6 +18,7 @@ BIN := $(BINDIR)/$(PROJECT)
 
 GOPATH := $(GOBUILDDIR)
 GOVERSION := 1.7.1-alpine
+GOEXTPOINTS := $(GOBUILDDIR)/bin/go-extpoints
 
 ifndef GOOS
 	GOOS := $(shell go env GOOS)
@@ -64,11 +65,33 @@ update-vendor:
 		github.com/mitchellh/go-homedir \
 		github.com/nyarla/go-crypt \
 		github.com/op/go-logging \
+		github.com/progrium/go-extpoints \
 		github.com/pulcy/prometheus-conf-api \
 		github.com/pulcy/robin-api \
 		github.com/ryanuber/columnize
 
-$(BIN): $(GOBUILDDIR) $(SOURCES)
+$(GOEXTPOINTS): $(GOBUILDDIR) 
+	docker run \
+		--rm \
+		-v $(ROOTDIR):/usr/code \
+		-e GOPATH=/usr/code/.gobuild \
+		-w /usr/code/ \
+		golang:$(GOVERSION) \
+		go install github.com/progrium/go-extpoints
+
+extpoints/extpoints.go: $(GOBUILDDIR) $(SOURCES) 
+	docker run \
+		--rm \
+		-v $(ROOTDIR):/usr/code \
+		-e GOPATH=/usr/code/.gobuild \
+		-e GOOS=$(GOOS) \
+		-e GOARCH=$(GOARCH) \
+		-e CGO_ENABLED=0 \
+		-w /usr/code/ \
+		golang:$(GOVERSION) \
+		sh -c 'export PATH=$$PATH:$$GOPATH/bin && go generate'
+
+$(BIN): $(GOBUILDDIR) $(SOURCES) extpoints/extpoints.go
 	docker run \
 		--rm \
 		-v $(ROOTDIR):/usr/code \

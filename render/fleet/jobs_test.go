@@ -380,10 +380,12 @@ func testUnits(t *testing.T, job jobs.Job, cl cluster.Cluster, expectedUnitNames
 	config := render.RenderConfig{
 		Groups:              nil,
 		CurrentScalingGroup: 0,
-		DockerOptions: cluster.DockerOptions{
-			LoggingArgs: []string{"--log-driver=test"},
+		Cluster: cluster.Cluster{
+			DockerOptions: cluster.DockerOptions{
+				LoggingArgs: []string{"--log-driver=test"},
+			},
+			FleetOptions: cl.FleetOptions,
 		},
-		FleetOptions: cl.FleetOptions,
 	}
 	generator := fleet.NewGenerator(job, config)
 	ctx := &renderContext{

@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/pulcy/j2/cluster"
-	"github.com/pulcy/j2/engine"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/cmdline"
 )
@@ -48,19 +47,6 @@ type dockerEngine struct {
 	cleanupScriptPath       string
 	weavePluginSocket       string
 	containerTimeoutStopSec int
-}
-
-// NewDockerEngine creates a new engine renderer for docker
-func NewDockerEngine(options cluster.DockerOptions) engine.Engine {
-	return &dockerEngine{
-		options:                 options,
-		dockerPath:              "/usr/bin/docker",
-		shPath:                  "/bin/sh",
-		touchPath:               "/usr/bin/touch",
-		cleanupScriptPath:       "/home/core/bin/docker-cleanup.sh",
-		weavePluginSocket:       "unix:///var/run/weave/weave.sock",
-		containerTimeoutStopSec: 10,
-	}
 }
 
 func (e *dockerEngine) pullCmd(image string) cmdline.Cmdline {

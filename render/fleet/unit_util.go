@@ -33,7 +33,7 @@ func createBaseUnit(t *jobs.Task, name, description, unitType string, ctx genera
 		ExecOptions:  sdunits.NewExecOptions(),
 		FleetOptions: sdunits.NewFleetOptions(),
 	}
-	addFleetOptions(t, ctx.FleetOptions, unit)
+	addFleetOptions(t, ctx.Cluster.FleetOptions, unit)
 
 	return unit
 }
