@@ -17,7 +17,7 @@ ExecStartPre=-/usr/bin/docker stop -t 10 test-some_proxy-some_proxy-1
 ExecStartPre=-/usr/bin/docker rm -f test-some_proxy-some_proxy-1
 ExecStartPre=-/home/core/bin/docker-cleanup.sh
 ExecStart=/usr/bin/docker run --rm --name test-some_proxy-some_proxy-1 -P $A00 $A01 alpine:3.3 sleep 36500d
-ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3Quc29tZV9wcm94eS5zb21lX3Byb3h5LnByaXZhdGUiLCJwb3J0Ijo4MCwicHJpdmF0ZSI6dHJ1ZSwicmV3cml0ZS1ydWxlcyI6W3sicGF0aC1wcmVmaXgiOiIvX2RiL2Zvby9hcHAifV19XSwic2VydmljZSI6InRlc3QtY291Y2hkYi1jb3VjaGRiIn0= | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-some_proxy-some_proxy-1'
+ExecStartPost=/bin/sh -c 'echo eyJzZWxlY3RvcnMiOlt7ImRvbWFpbiI6InRlc3Quc29tZS1wcm94eS5zb21lLXByb3h5LnByaXZhdGUiLCJwb3J0Ijo4MCwicHJpdmF0ZSI6dHJ1ZSwicmV3cml0ZS1ydWxlcyI6W3sicGF0aC1wcmVmaXgiOiIvX2RiL2Zvby9hcHAifV19XSwic2VydmljZSI6InRlc3QtY291Y2hkYi1jb3VjaGRiIn0= | base64 -d | /usr/bin/etcdctl set /pulcy/frontend/test-some_proxy-some_proxy-1'
 ExecStop=-/usr/bin/etcdctl rm /pulcy/frontend/test-some_proxy-some_proxy-1
 ExecStop=-/usr/bin/docker stop -t 10 test-some_proxy-some_proxy-1
 ExecStopPost=-/usr/bin/docker rm -f test-some_proxy-some_proxy-1
@@ -28,4 +28,4 @@ MachineMetadata="core=true"
 
 [X-testproject]
 GeneratedBy="testproject test-version, build test-build"
-FrontEndRegistration="/pulcy/frontend/test-some_proxy-some_proxy-1={\"selectors\":[{\"domain\":\"test.some_proxy.some_proxy.private\",\"port\":80,\"private\":true,\"rewrite-rules\":[{\"path-prefix\":\"/_db/foo/app\"}]}],\"service\":\"test-couchdb-couchdb\"}"
+FrontEndRegistration="/pulcy/frontend/test-some_proxy-some_proxy-1={\"selectors\":[{\"domain\":\"test.some-proxy.some-proxy.private\",\"port\":80,\"private\":true,\"rewrite-rules\":[{\"path-prefix\":\"/_db/foo/app\"}]}],\"service\":\"test-couchdb-couchdb\"}"

@@ -46,7 +46,8 @@ func (ln LinkName) String() string {
 
 // PrivateDomainName returns the DNS name (in the private namespace) for the given link name.
 func (ln LinkName) PrivateDomainName() string {
-	return fmt.Sprintf("%s.private", strings.Replace(ln.String(), "@", ".", -1))
+	name := strings.Replace(strings.Replace(ln.String(), "@", ".", -1), "_", "-", -1)
+	return fmt.Sprintf("%s.private", name)
 }
 
 // WeaveDomainName returns the DNS name (in the weave namespace) for the given link name.
