@@ -26,10 +26,8 @@ import (
 	"github.com/juju/errgo"
 
 	"github.com/pulcy/j2/cluster"
+	"github.com/pulcy/j2/extpoints"
 	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/render"
-	"github.com/pulcy/j2/scheduler"
-	"github.com/pulcy/j2/scheduler/fleet"
 )
 
 type DeploymentDelays struct {
@@ -47,8 +45,8 @@ type Deployment struct {
 	force                 bool
 	autoContinue          bool
 	DeploymentDelays
-	renderContext  RenderContext
-	renderProvider render.RenderProvider
+	renderContext RenderContext
+	orchestrator  extpoints.Orchestrator
 
 	scalingGroups []scalingGroupUnits
 }
@@ -62,7 +60,11 @@ type RenderContext interface {
 // NewDeployment creates a new Deployment instances and generates all unit files for the given job.
 func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGroupSelection,
 	scalingGroupSelection ScalingGroupSelection, force, autoContinue, verbose bool, delays DeploymentDelays,
-	renderContext RenderContext, renderProvider render.RenderProvider) *Deployment {
+	renderContext RenderContext) (*Deployment, error) {
+	orchestrator := extpoints.Orchestrators.Lookup(cluster.Orchestrator)
+	if orchestrator == nil {
+		return nil, maskAny(fmt.Errorf("Orchestrator '%s' not found", cluster.Orchestrator))
+	}
 	return &Deployment{
 		job:                   job,
 		cluster:               cluster,
@@ -73,8 +75,8 @@ func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGro
 		verbose:          verbose,
 		DeploymentDelays: delays,
 		renderContext:    renderContext,
-		renderProvider:   renderProvider,
-	}
+		orchestrator:     orchestrator,
+	}, nil
 }
 
 // DryRun creates all unit files it will deploy during a normal `Run` and present them to the user.
@@ -131,12 +133,4 @@ func (d *Deployment) generateScalingGroups() error {
 		d.scalingGroups = append(d.scalingGroups, sgu)
 	}
 	return nil
-}
-
-func (d *Deployment) newScheduler() (scheduler.Scheduler, error) {
-	s, err := fleetscheduler.NewScheduler(d.cluster.Tunnel)
-	if err != nil {
-		return nil, maskAny(err)
-	}
-	return s, nil
 }

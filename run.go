@@ -54,22 +54,21 @@ func runRun(cmd *cobra.Command, args []string) {
 	if err != nil {
 		Exitf("Cannot load job: %v\n", err)
 	}
-	renderProvider := renderProvider(&runFlags.Flags, *cluster)
 
 	delays := deployment.DeploymentDelays{
 		StopDelay:    runFlags.StopDelay,
 		DestroyDelay: runFlags.DestroyDelay,
 		SliceDelay:   runFlags.SliceDelay,
 	}
-	d := deployment.NewDeployment(*job, *cluster,
+	d, err := deployment.NewDeployment(*job, *cluster,
 		groups(&runFlags.Flags),
 		deployment.ScalingGroupSelection(runFlags.ScalingGroup),
 		runFlags.Force,
 		runFlags.AutoContinue,
 		globalFlags.verbose,
 		delays,
-		renderCtx,
-		renderProvider)
+		renderCtx)
+	assert(err)
 
 	if runFlags.DryRun {
 		assert(d.DryRun())

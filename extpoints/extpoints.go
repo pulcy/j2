@@ -178,3 +178,54 @@ func (ep *engineProviderExt) Names() []string {
 }
 
 
+// Orchestrator
+
+var Orchestrators = &orchestratorExt{
+	newExtensionPoint(new(Orchestrator)),
+}
+
+type orchestratorExt struct {
+	*extensionPoint
+}
+
+func (ep *orchestratorExt) Unregister(name string) bool {
+	return ep.unregister(name)
+}
+
+func (ep *orchestratorExt) Register(extension Orchestrator, name string) bool {
+	return ep.register(extension, name)
+}
+
+func (ep *orchestratorExt) Lookup(name string) Orchestrator {
+	ext := ep.lookup(name)
+	if ext == nil {
+		return nil
+	}
+	return ext.(Orchestrator)
+}
+
+func (ep *orchestratorExt) Select(names []string) []Orchestrator {
+	var selected []Orchestrator
+	for _, name := range names {
+		selected = append(selected, ep.Lookup(name))
+	}
+	return selected
+}
+
+func (ep *orchestratorExt) All() map[string]Orchestrator {
+	all := make(map[string]Orchestrator)
+	for k, v := range ep.all() {
+		all[k] = v.(Orchestrator)
+	}
+	return all
+}
+
+func (ep *orchestratorExt) Names() []string {
+	var names []string
+	for k := range ep.all() {
+		names = append(names, k)
+	}
+	return names
+}
+
+

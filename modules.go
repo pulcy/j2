@@ -1,3 +1,5 @@
+//go:generate go-extpoints
+
 // Copyright (c) 2016 Pulcy.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,21 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fleet
+package main
 
 import (
-	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/render"
+	_ "github.com/pulcy/j2/engine/docker"
+	_ "github.com/pulcy/j2/orchestrator/fleet"
 )
-
-type fleetProvider struct {
-}
-
-// NewRenderProvider creates a new render provider that will render fleet units.
-func NewRenderProvider() render.RenderProvider {
-	return &fleetProvider{}
-}
-
-func (p *fleetProvider) CreateRenderer(job jobs.Job, cfg render.RenderConfig) (render.Renderer, error) {
-	return NewGenerator(job, cfg), nil
-}

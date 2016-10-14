@@ -28,11 +28,12 @@ import (
 // Run creates all applicable unit files and deploys them onto the configured cluster.
 func (d *Deployment) Run() error {
 	// Fetch all current units
-	f, err := d.newScheduler()
+	s, err := d.orchestrator.Scheduler(d.cluster)
 	if err != nil {
 		return maskAny(err)
 	}
-	allUnits, err := f.List()
+
+	allUnits, err := s.List()
 	if err != nil {
 		return maskAny(err)
 	}
@@ -71,9 +72,9 @@ func (d *Deployment) Run() error {
 		notObsoleteUnitNames := selectUnitNames(loadedScalingGroupUnitNames, containsPredicate(sgUnitNames))
 
 		// Select the unit names that are modified and need an update
-		isModifiedPredicate := d.isModifiedPredicate(sg, f, ui)
+		isModifiedPredicate := d.isModifiedPredicate(sg, s, ui)
 		modifiedUnitNames := selectUnitNames(notObsoleteUnitNames, isModifiedPredicate)
-		isFailedPredicate := d.isFailedPredicate(sg, f, ui)
+		isFailedPredicate := d.isFailedPredicate(sg, s, ui)
 		failedUnitNames := selectUnitNames(notObsoleteUnitNames, isFailedPredicate)
 		unitNamesToDestroy := append(append(obsoleteUnitNames, modifiedUnitNames...), failedUnitNames...)
 		newUnitNames := selectUnitNames(sgUnitNames, notPredicate(containsPredicate(loadedScalingGroupUnitNames)))
@@ -107,7 +108,7 @@ func (d *Deployment) Run() error {
 
 		// Destroy the obsolete & modified units
 		if len(unitNamesToDestroy) > 0 {
-			if err := d.destroyUnits(f, unitNamesToDestroy, ui); err != nil {
+			if err := d.destroyUnits(s, unitNamesToDestroy, ui); err != nil {
 				return maskAny(err)
 			}
 
@@ -117,7 +118,7 @@ func (d *Deployment) Run() error {
 		// Now launch everything
 		unitsToLaunch := sg.selectByNames(modifiedUnitNames, failedUnitNames, newUnitNames)
 		if unitsToLaunch.Len() > 0 {
-			if err := launchUnits(f, unitsToLaunch, ui); err != nil {
+			if err := launchUnits(s, unitsToLaunch, ui); err != nil {
 				return maskAny(err)
 			}
 		}
@@ -142,7 +143,7 @@ func (d *Deployment) Run() error {
 			return maskAny(err)
 		}
 
-		if err := d.destroyUnits(f, remainingLoadedJobUnitNames, ui); err != nil {
+		if err := d.destroyUnits(s, remainingLoadedJobUnitNames, ui); err != nil {
 			return maskAny(err)
 		}
 

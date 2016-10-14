@@ -70,7 +70,11 @@ func (sgu scalingGroupUnits) Get(index int) scheduler.UnitData {
 // generateScalingGroupUnits generates the unit files for the given scaling group and returns
 // their names and file names.
 func (d *Deployment) generateScalingGroupUnits(scalingGroup uint) (scalingGroupUnits, error) {
-	renderer, err := d.renderProvider.CreateRenderer(d.job, render.RenderConfig{
+	renderProvider, err := d.orchestrator.RenderProvider()
+	if err != nil {
+		return scalingGroupUnits{}, maskAny(err)
+	}
+	renderer, err := renderProvider.CreateRenderer(d.job, render.RenderConfig{
 		Groups:              d.groupSelection,
 		CurrentScalingGroup: scalingGroup,
 		Cluster:             d.cluster,

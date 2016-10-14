@@ -12,21 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fleet
+package extpoints
 
 import (
-	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/render"
+	"github.com/pulcy/j2/scheduler"
 )
 
-type fleetProvider struct {
-}
+type Orchestrator interface {
+	// RenderProvider returns the provider for the unit renderer for this orchestrator.
+	RenderProvider() (render.RenderProvider, error)
 
-// NewRenderProvider creates a new render provider that will render fleet units.
-func NewRenderProvider() render.RenderProvider {
-	return &fleetProvider{}
-}
-
-func (p *fleetProvider) CreateRenderer(job jobs.Job, cfg render.RenderConfig) (render.Renderer, error) {
-	return NewGenerator(job, cfg), nil
+	// Scheduler returns the scheduler, configured for the given cluster, for this orchestrator.
+	Scheduler(cluster cluster.Cluster) (scheduler.Scheduler, error)
 }

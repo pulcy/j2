@@ -37,6 +37,9 @@ type Cluster struct {
 	// Size of the cluster (in instances==machines)
 	InstanceCount int `mapstructure:"instance-count,omitempty"`
 
+	// Orchestrator used on this cluster (defaults to "fleet")
+	Orchestrator string `mapstructure:"orchestrator,omitempty"`
+
 	// Docker options
 	DockerOptions DockerOptions
 
@@ -83,6 +86,9 @@ func (c Cluster) validate() error {
 }
 
 func (c *Cluster) setDefaults() {
+	if c.Orchestrator == "" {
+		c.Orchestrator = "fleet"
+	}
 	if c.Tunnel == "" {
 		c.Tunnel = fmt.Sprintf("%s.%s", c.Stack, c.Domain)
 	}

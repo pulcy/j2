@@ -26,8 +26,6 @@ import (
 	"github.com/pulcy/j2/cluster"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/render"
-	"github.com/pulcy/j2/render/fleet"
 )
 
 func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
@@ -89,11 +87,6 @@ func groups(f *fg.Flags) []jobs.TaskGroupName {
 		names = append(names, jobs.TaskGroupName(n))
 	}
 	return names
-}
-
-// renderProvider returns the render provider to use for the given flags.
-func renderProvider(f *fg.Flags, cluster cluster.Cluster) render.RenderProvider {
-	return fleet.NewProvider()
 }
 
 // loadJob loads the a job from the given flags.

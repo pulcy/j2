@@ -50,21 +50,20 @@ func destroyRun(cmd *cobra.Command, args []string) {
 	job := jobs.Job{
 		Name: jobs.JobName(destroyFlags.JobPath),
 	}
-	renderProvider := renderProvider(&destroyFlags.Flags, *cluster)
 	delays := deployment.DeploymentDelays{
 		StopDelay:    destroyFlags.StopDelay,
 		DestroyDelay: destroyFlags.DestroyDelay,
 		SliceDelay:   destroyFlags.SliceDelay,
 	}
-	d := deployment.NewDeployment(job, *cluster,
+	d, err := deployment.NewDeployment(job, *cluster,
 		groups(&destroyFlags.Flags),
 		deployment.ScalingGroupSelection(destroyFlags.ScalingGroup),
 		destroyFlags.Force,
 		destroyFlags.AutoContinue,
 		globalFlags.verbose,
 		delays,
-		renderCtx,
-		renderProvider)
+		renderCtx)
+	assert(err)
 
 	assert(d.Destroy())
 }

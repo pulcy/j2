@@ -23,12 +23,12 @@ import (
 
 // Destroy removes all unit files that belong to the configured job from the configured cluster.
 func (d *Deployment) Destroy() error {
-	f, err := d.newScheduler()
+	s, err := d.orchestrator.Scheduler(d.cluster)
 	if err != nil {
 		return maskAny(err)
 	}
 
-	list, err := f.List()
+	list, err := s.List()
 	if err != nil {
 		return maskAny(err)
 	}
@@ -46,7 +46,7 @@ func (d *Deployment) Destroy() error {
 	if err := d.confirmDestroy(unitNames, false, ui); err != nil {
 		return maskAny(err)
 	}
-	if err := d.destroyUnits(f, unitNames, ui); err != nil {
+	if err := d.destroyUnits(s, unitNames, ui); err != nil {
 		return maskAny(err)
 	}
 
