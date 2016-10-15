@@ -6,6 +6,7 @@ job "base" {
 		image = "pulcy/registrator:0.7.2"
 		volumes = "/var/run/docker.sock:/tmp/docker.sock"
 		args = ["-ttl=120", "-ttl-refresh=90", "etcd://${private_ipv4}:4001/pulcy/service"]
+		network = "host"
 	}
 
 	group "load_balancer" {
@@ -23,9 +24,17 @@ job "base" {
 		}
 
 		task "lb" {
-			image = "pulcy/robin:0.23.1"
+			image = "pulcy/robin:0.24.0"
 			after = "certificates"
-			ports = ["0.0.0.0:80:80", "${private_ipv4}:81:81", "${private_ipv4}:82:82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "${private_ipv4}:8055:8055"]
+			ports = [
+				"0.0.0.0:80:80", 
+				"${private_ipv4}:81:81", 
+				"${private_ipv4}:82:82", 
+				"0.0.0.0:443:443", 
+				"0.0.0.0:7088:7088", 
+				"${private_ipv4}:8055:8055",
+				"${private_ipv4}:8056:8056"
+			]
 			volumes = "/tmp/base/lb/certs/:/certs/"
 			secret "secret/base/lb/stats-password" {
                 environment = "STATS_PASSWORD"
@@ -46,8 +55,10 @@ job "base" {
 	            port = 8055
 	            path = "/metrics"
 	        }
+			http-check-path = "/v1/ping"
+			http-check-method = "HEAD"
 			private-frontend {
-				port = 8055
+				port = 8056
 			}
 			network = "host"
 			args = ["run",
