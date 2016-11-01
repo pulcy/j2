@@ -24,7 +24,7 @@ job "base" {
 		}
 
 		task "lb" {
-			image = "pulcy/robin:0.24.0"
+			image = "pulcy/robin:0.24.1"
 			after = "certificates"
 			ports = [
 				"0.0.0.0:80:80", 
