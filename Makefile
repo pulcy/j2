@@ -17,7 +17,7 @@ REPOPATH := $(ORGPATH)/$(REPONAME)
 BIN := $(BINDIR)/$(PROJECT)
 
 GOPATH := $(GOBUILDDIR)
-GOVERSION := 1.7.1-alpine
+GOVERSION := 1.7.3-alpine
 GOEXTPOINTS := $(GOBUILDDIR)/bin/go-extpoints
 
 ifndef GOOS
@@ -79,7 +79,7 @@ $(GOEXTPOINTS): $(GOBUILDDIR)
 		golang:$(GOVERSION) \
 		go install github.com/progrium/go-extpoints
 
-extpoints/extpoints.go: $(GOBUILDDIR) $(SOURCES) 
+extpoints/extpoints.go: $(GOBUILDDIR) $(GOEXTPOINTS) $(SOURCES) 
 	docker run \
 		--rm \
 		-v $(ROOTDIR):/usr/code \
