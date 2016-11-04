@@ -120,13 +120,13 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 	// Parse default-options
 	if o := listVal.Filter("default-options"); len(o.Items) > 0 {
 		for _, o := range o.Elem().Items {
-			var m map[string]string
+			var m map[string]interface{}
 			if err := hcl.DecodeObject(&m, o.Val); err != nil {
 				return maskAny(err)
 			}
 			// Merge key/value pairs into myself
 			for k, v := range m {
-				c.DefaultOptions.SetKV(k, v)
+				c.DefaultOptions.SetKeyValue(k, v)
 			}
 		}
 	}

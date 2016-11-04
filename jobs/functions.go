@@ -101,23 +101,59 @@ func (jf *jobFunctions) getEnv(key string) (string, error) {
 func (jf *jobFunctions) getOpt(key string) (string, error) {
 	value, ok := jf.options.Get(key)
 	if !ok {
-		value, ok := jf.cluster.DefaultOptions.Get(key)
-		if ok {
-			return value, nil
+		value, ok = jf.cluster.DefaultOptions.Get(key)
+		if !ok {
+			switch key {
+			case "domain":
+				return jf.cluster.Domain, nil
+			case "stack":
+				return jf.cluster.Stack, nil
+			case "tunnel":
+				return jf.cluster.Tunnel, nil
+			case "instance-count":
+				return strconv.Itoa(jf.cluster.InstanceCount), nil
+			default:
+				return "", errgo.WithCausef(nil, ValidationError, "Missing option '%s'", key)
+			}
 		}
-		switch key {
-		case "domain":
-			return jf.cluster.Domain, nil
-		case "stack":
-			return jf.cluster.Stack, nil
-		case "tunnel":
-			return jf.cluster.Tunnel, nil
-		case "instance-count":
-			return strconv.Itoa(jf.cluster.InstanceCount), nil
-		}
-		return "", errgo.WithCausef(nil, ValidationError, "Missing option '%s'", key)
 	}
-	return value, nil
+	if result, err := formatOptionValue(value, false); err != nil {
+		return "", maskAny(err)
+	} else {
+		return result, nil
+	}
+}
+
+func formatOptionValue(value interface{}, quote bool) (string, error) {
+	if s, ok := value.(string); ok {
+		if quote {
+			return strconv.Quote(s), nil
+		}
+		return s, nil
+	}
+	if l, ok := value.([]interface{}); ok {
+		var result []string
+		for _, e := range l {
+			fe, err := formatOptionValue(e, true)
+			if err != nil {
+				return "", maskAny(err)
+			}
+			result = append(result, fe)
+		}
+		return "[" + strings.Join(result, ", ") + "]", nil
+	}
+	if m, ok := value.(map[string]interface{}); ok {
+		var result []string
+		for k, v := range m {
+			fv, err := formatOptionValue(v, true)
+			if err != nil {
+				return "", maskAny(err)
+			}
+			result = append(result, fmt.Sprintf("%s = %s", k, fv))
+		}
+		return "{\n" + strings.Join(result, "\n") + "}", nil
+	}
+	return "", maskAny(errgo.WithCausef(nil, ValidationError, "Unknown value type: %v", value))
 }
 
 // cat returns the content of a file.

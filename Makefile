@@ -68,7 +68,8 @@ update-vendor:
 		github.com/progrium/go-extpoints \
 		github.com/pulcy/prometheus-conf-api \
 		github.com/pulcy/robin-api \
-		github.com/ryanuber/columnize
+		github.com/ryanuber/columnize \
+		github.com/smartystreets/goconvey
 
 $(GOEXTPOINTS): $(GOBUILDDIR) 
 	docker run \
@@ -104,13 +105,14 @@ $(BIN): $(GOBUILDDIR) $(SOURCES) extpoints/extpoints.go
 		go build -a -installsuffix netgo -ldflags "-X main.projectVersion=$(VERSION) -X main.projectBuild=$(COMMIT)" -o /usr/code/$(PROJECT) $(REPOPATH)
 
 run-tests:
+	@make run-test test=$(REPOPATH)/flags
 	@make run-test test=$(REPOPATH)/jobs
 	@make run-test test=$(REPOPATH)/render/fleet
 
 update-tests:
 	@make run-tests UPDATE-FIXTURES=1
 
-run-test:
+run-test: $(GOBUILDDIR)
 	@if test "$(test)" = "" ; then \
 		echo "missing test parameter, that is, path to test folder e.g. './middleware/'."; \
 		exit 1; \

@@ -25,18 +25,18 @@ import (
 )
 
 type Options struct {
-	options map[string]string
+	options map[string]interface{}
 }
 
 func (o *Options) String() string {
 	lines := []string{}
 	for k, v := range o.options {
-		lines = append(lines, fmt.Sprintf("%s=%s", k, v))
+		lines = append(lines, fmt.Sprintf("%s=%v", k, v))
 	}
 	return strings.Join(lines, ", ")
 }
 
-func (o *Options) Get(key string) (string, bool) {
+func (o *Options) Get(key string) (interface{}, bool) {
 	v, ok := o.options[key]
 	if ok {
 		return v, ok
@@ -50,10 +50,11 @@ func (o *Options) Get(key string) (string, bool) {
 }
 
 func (o *Options) Set(raw string) error {
-	parts := strings.SplitN(raw, "=", 2)
-	if len(parts) == 2 {
+	if strings.Contains(raw, "=") {
 		// Normal key=value
-		o.SetKV(parts[0], parts[1])
+		if err := o.parseKeyValue(raw); err != nil {
+			return maskAny(err)
+		}
 		return nil
 	}
 
@@ -66,16 +67,28 @@ func (o *Options) Set(raw string) error {
 	return nil
 }
 
-func (o *Options) SetKV(key, value string) {
+func (o *Options) SetKeyValue(key string, value interface{}) {
 	if o.options == nil {
-		o.options = make(map[string]string)
+		o.options = make(map[string]interface{})
 	}
-	// Normal key=value
 	o.options[key] = value
 }
 
 func (o *Options) Type() string {
 	return "options"
+}
+
+func (o *Options) parseKeyValue(raw string) error {
+	if err := o.parse(raw); err == nil {
+		return nil
+	}
+	// Fallback to simple K=V
+	parts := strings.SplitN(raw, "=", 2)
+	if len(parts) == 2 {
+		o.SetKeyValue(parts[0], parts[1])
+		return nil
+	}
+	return maskAny(fmt.Errorf("Unknown input '%s", raw))
 }
 
 func (o *Options) parseFile(path string) error {
@@ -86,21 +99,33 @@ func (o *Options) parseFile(path string) error {
 	}
 
 	// Parse the input
-	obj, err := hcl.Parse(string(data))
+	if err := o.parse(string(data)); err != nil {
+		return maskAny(err)
+	}
+
+	return nil
+}
+
+func (o *Options) parse(content string) error {
+	// Parse the input
+	obj, err := hcl.Parse(content)
 	if err != nil {
 		return maskAny(err)
 	}
 
 	// Parse hcl into options
 	// Decode the full thing into a map[string]interface for ease
-	var m map[string]string
+	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, obj); err != nil {
 		return maskAny(err)
 	}
 
 	// Merge key/value pairs into myself
 	for k, v := range m {
-		o.SetKV(k, v)
+		if mapArray, ok := v.([]map[string]interface{}); ok && len(mapArray) == 1 {
+			v = mapArray[0]
+		}
+		o.SetKeyValue(k, v)
 	}
 
 	return nil

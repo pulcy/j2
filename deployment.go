@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -58,7 +59,8 @@ func deploymentDefaults(fs *pflag.FlagSet, f *fg.Flags, args []string) {
 		if !flag.Changed {
 			value, ok := f.Options.Get(flag.Name)
 			if ok {
-				err := fs.Set(flag.Name, value)
+				svalue := fmt.Sprintf("%v", value)
+				err := fs.Set(flag.Name, svalue)
 				if err != nil {
 					Exitf("Error in option '%s': %#v\n", flag.Name, err)
 				}
