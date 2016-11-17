@@ -9,23 +9,23 @@ job "base" {
 		network = "host"
 	}
 
+	task "lbcertificates" {
+		global = true
+		type = "oneshot"
+		image = "pulcy/pct:0.4.2"
+		volumes = "/tmp/base/lb/certs/:/certs/"
+		secret "secret/base/lb/certificates-passphrase" {
+			environment = "PASSPHRASE"
+		}
+	}
+
 	group "load_balancer" {
 		global = true
 		count = 2 // This splits the instances of the tasks up into 2 groups, 50% of the machines get one group, the other 50% the rest.
 		restart = "all" // If one task is restarted, restart all tasks.
 
-		task "certificates" {
-			type = "oneshot"
-			image = "pulcy/pct:0.4.2"
-			volumes = "/tmp/base/lb/certs/:/certs/"
-			secret "secret/base/lb/certificates-passphrase" {
-                environment = "PASSPHRASE"
-            }
-		}
-
 		task "lb" {
-			image = "pulcy/robin:0.24.1"
-			after = "certificates"
+			image = "pulcy/robin:0.25.0"
 			ports = [
 				"0.0.0.0:80:80", 
 				"${private_ipv4}:81:81", 
@@ -62,7 +62,8 @@ job "base" {
 			}
 			network = "host"
 			args = ["run",
-				"--etcd-addr", "http://${private_ipv4}:2379/pulcy",
+				"--etcd-endpoint", "http://${private_ipv4}:2379",
+				"--etcd-path", "/pulcy",
 				"--private-key-path", "/acme/private-key",
 				"--registration-path", "/acme/registration",
 				"--stats-port", "7088",
