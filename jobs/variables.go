@@ -138,6 +138,8 @@ func (ctx *variableContext) replaceString(input string) string {
 			return "${COREOS_PRIVATE_IPV4}"
 		case "public_ipv4":
 			return "${COREOS_PUBLIC_IPV4}"
+		case "etcd_endpoints":
+			return "${ETCD_ENDPOINTS}"
 		case "hostname":
 			return "%H" // TODO this is renderer specific
 		case "machine_id":

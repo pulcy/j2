@@ -15,11 +15,12 @@ EnvironmentFile=/etc/environment
 Environment="A00=--expose 6379"
 Environment="A01=-e SERVICE_IGNORE=true"
 Environment="A02=--log-driver=test"
+Environment="A03=--etcd-path=/pulcy/service/job-redis-master"
 ExecStartPre=/usr/bin/docker pull pulcy/wormhole:latest
 ExecStartPre=-/usr/bin/docker stop -t 10 test-web-storage-1-pr0
 ExecStartPre=-/usr/bin/docker rm -f test-web-storage-1-pr0
 ExecStartPre=-/home/core/bin/docker-cleanup.sh
-ExecStart=/usr/bin/docker run --rm --name test-web-storage-1-pr0 $A00 -P $A01 $A02 pulcy/wormhole:latest --etcd-addr http://${COREOS_PRIVATE_IPV4}:2379/pulcy/service/job-redis-master
+ExecStart=/usr/bin/docker run --rm --name test-web-storage-1-pr0 $A00 -P $A01 $A02 pulcy/wormhole:latest --etcd-endpoint=${ETCD_ENDPOINTS} $A03
 ExecStop=-/usr/bin/docker stop -t 10 test-web-storage-1-pr0
 ExecStopPost=-/usr/bin/docker rm -f test-web-storage-1-pr0
 

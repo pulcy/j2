@@ -72,7 +72,8 @@ func (e *dockerEngine) createProxyDockerCmdLine(t *jobs.Task, containerName, con
 	}
 
 	cmd.Add(nil, containerImage)
-	cmd.Add(env, fmt.Sprintf("--etcd-addr http://${COREOS_PRIVATE_IPV4}:2379/pulcy/service/%s", link.Target.EtcdServiceName()))
+	cmd.Add(env, "--etcd-endpoint=${ETCD_ENDPOINTS}")
+	cmd.Add(env, fmt.Sprintf("--etcd-path=/pulcy/service/%s", link.Target.EtcdServiceName()))
 
 	return cmd, nil
 }

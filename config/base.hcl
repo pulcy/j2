@@ -62,7 +62,7 @@ job "base" {
 			}
 			network = "host"
 			args = ["run",
-				"--etcd-endpoint", "http://${private_ipv4}:2379",
+				"--etcd-endpoint", "${etcd_endpoints}",
 				"--etcd-path", "/pulcy",
 				"--private-key-path", "/acme/private-key",
 				"--registration-path", "/acme/registration",
