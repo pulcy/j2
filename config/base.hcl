@@ -5,7 +5,7 @@ job "base" {
 		global = true
 		image = "pulcy/registrator:0.7.2"
 		volumes = "/var/run/docker.sock:/tmp/docker.sock"
-		args = ["-ttl=120", "-ttl-refresh=90", "etcd://${private_ipv4}:2379/pulcy/service"]
+		args = ["-ttl=120", "-ttl-refresh=90", "etcd://${etcd_host}:${etcd_port}/pulcy/service"]
 		network = "host"
 	}
 
