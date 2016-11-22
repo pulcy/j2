@@ -131,7 +131,7 @@ func (j *Job) parse(list *ast.ObjectList) error {
 	obj := list.Items[0]
 
 	// Decode the object
-	if err := hclutil.Decode(obj.Val, []string{"group", "task", "constraint"}, nil, j); err != nil {
+	if err := hclutil.Decode(obj.Val, []string{"group", "task", "constraint", "dependency"}, nil, j); err != nil {
 		return maskAny(err)
 	}
 
@@ -182,6 +182,22 @@ func (j *Job) parse(list *ast.ObjectList) error {
 				j.Constraints = append(j.Constraints, c)
 			} else {
 				return maskAny(errgo.WithCausef(nil, ValidationError, "constraint of job %s is not an object", j.Name))
+			}
+		}
+	}
+
+	// Parse dependencies
+	if o := listVal.Filter("dependency"); len(o.Items) > 0 {
+		for _, o := range o.Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				d := Dependency{}
+				d.Name = LinkName(o.Keys[0].Token.Value().(string))
+				if err := d.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				j.Dependencies = append(j.Dependencies, d)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "dependency of job %s is not an object", j.Name))
 			}
 		}
 	}
@@ -605,6 +621,32 @@ func (c *Constraint) parse(obj *ast.ObjectType) error {
 	// Build the constraint
 	if err := hclutil.Decode(obj, nil, nil, c); err != nil {
 		return maskAny(err)
+	}
+	return nil
+}
+
+// parse a dependency
+func (c *Dependency) parse(obj *ast.ObjectType) error {
+	// Build the dependency
+	excludedKeys := []string{
+		"private-frontend",
+	}
+	if err := hclutil.Decode(obj, excludedKeys, nil, c); err != nil {
+		return maskAny(err)
+	}
+	// Parse private frontends
+	if o := obj.List.Filter("private-frontend"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				f := PrivateFrontEnd{}
+				if err := f.parse(obj); err != nil {
+					return maskAny(err)
+				}
+				c.PrivateFrontEnds = append(c.PrivateFrontEnds, f)
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "private-frontend of dependency %s is not an object or array", c.Name))
+			}
+		}
 	}
 	return nil
 }

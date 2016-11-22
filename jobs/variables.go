@@ -54,6 +54,20 @@ func (ctx *variableContext) Err() error {
 	return nil
 }
 
+func (ctx *variableContext) String() string {
+	r := "ctx "
+	if ctx.Job != nil {
+		r = fmt.Sprintf("%s job=%s", ctx.Job.Name)
+		if ctx.Group != nil {
+			r = fmt.Sprintf("%s group=%s", ctx.Group.Name)
+			if ctx.Task != nil {
+				r = fmt.Sprintf("%s task=%s", ctx.Task.Name)
+			}
+		}
+	}
+	return r
+}
+
 func (ctx *variableContext) assertJob(key string) bool {
 	if ctx.Job != nil {
 		return true
@@ -168,7 +182,7 @@ func (ctx *variableContext) replaceString(input string) string {
 						if ctx.Task.Network.IsWeave() && !target.HasInstance() {
 							targetTask, err := ctx.findTargetTask(key, parts[1])
 							if err != nil {
-								ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
+								ctx.errors = append(ctx.errors, fmt.Sprintf("link_tcp: unknown target '%s' in '%s'", parts[1], ctx))
 							}
 							if targetTask.Type.IsService() && targetTask.Network.IsWeave() {
 								return fmt.Sprintf("tcp://%s:%d", targetTask.WeaveDomainName(), port)
@@ -187,9 +201,25 @@ func (ctx *variableContext) replaceString(input string) string {
 				if ctx.assertTask(key) && assertNoArgs(1) {
 					target := ctx.findTarget(key, parts[1])
 					if ctx.Task.Network.IsWeave() && !target.HasInstance() {
-						targetTask, err := ctx.findTargetTask(key, parts[1])
+						targetName := ctx.findTarget(key, parts[1])
+						if !ctx.isSameJob(targetName) {
+							dependency, err := ctx.Job.Dependency(targetName)
+							if err != nil {
+								ctx.errors = append(ctx.errors, fmt.Sprintf("link_url: unknown external target '%s' in '%s'", targetName, ctx))
+								return ""
+							}
+							if dependency.Network.IsWeave() {
+								targetPort := dependency.PrivateFrontEndPort(80)
+								if targetPort != 80 {
+									return fmt.Sprintf("http://%s:%d", dependency.Name.WeaveDomainName(), targetPort)
+								} else {
+									return fmt.Sprintf("http://%s", dependency.Name.WeaveDomainName())
+								}
+							}
+						}
+						targetTask, err := ctx.findTask(targetName)
 						if err != nil {
-							ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s'", parts[1]))
+							ctx.errors = append(ctx.errors, fmt.Sprintf("link_url: unknown target '%s' in '%s'", parts[1], ctx))
 							return ""
 						}
 						if targetTask.Type.IsService() && targetTask.Network.IsWeave() {
@@ -207,20 +237,34 @@ func (ctx *variableContext) replaceString(input string) string {
 							if len(proxyTask.PrivateFrontEnds) == 1 {
 								proxyPort := proxyTask.PrivateFrontEndPort(80)
 								if !proxyTarget.HasInstance() {
-									targetTask, err = ctx.findTask(proxyTarget)
-									if err != nil {
-										ctx.errors = append(ctx.errors, fmt.Sprintf("unknown target '%s' of proxy '%s'", proxyTarget, proxyTask.Name))
-										return ""
+									var targetIsWeave bool
+									var targetDomainName string
+									if ctx.isSameJob(proxyTarget) {
+										targetTask, err := ctx.findTask(proxyTarget)
+										if err != nil {
+											ctx.errors = append(ctx.errors, fmt.Sprintf("link_url (proxy): unknown target '%s' of proxy '%s'", proxyTarget, proxyTask.Name))
+											return ""
+										}
+										targetIsWeave = targetTask.Network.IsWeave()
+										targetDomainName = targetTask.WeaveDomainName()
+									} else {
+										dependency, err := ctx.Job.Dependency(proxyTarget)
+										if err != nil {
+											ctx.errors = append(ctx.errors, fmt.Sprintf("link_url (proxy): unknown external target '%s' of proxy '%s'", proxyTarget, proxyTask.Name))
+											return ""
+										}
+										targetIsWeave = dependency.Network.IsWeave()
+										targetDomainName = dependency.Name.WeaveDomainName()
 									}
-									if targetTask.Network.IsWeave() {
+									if targetIsWeave {
 										r := proxyTask.Rewrite
 										if r == nil {
 											// We can use a direct weave DNS link
-											return fmt.Sprintf("http://%s:%d", targetTask.WeaveDomainName(), proxyPort)
+											return fmt.Sprintf("http://%s:%d", targetDomainName, proxyPort)
 										} else if r.HasPathPrefixOnly() {
 											// We can use a direct weave DNS link with a path prefix
 											path := strings.TrimSuffix(strings.TrimPrefix(r.PathPrefix, "/"), "/")
-											return fmt.Sprintf("http://%s:%d/%s", targetTask.WeaveDomainName(), proxyPort, path)
+											return fmt.Sprintf("http://%s:%d/%s", targetDomainName, proxyPort, path)
 										}
 									}
 								}
@@ -297,4 +341,9 @@ func (ctx *variableContext) findTask(ln LinkName) (*Task, error) {
 func (ctx *variableContext) findTargetTask(key, name string) (*Task, error) {
 	ln := ctx.findTarget(key, name)
 	return ctx.findTask(ln)
+}
+
+func (ctx *variableContext) isSameJob(name LinkName) bool {
+	jn, _ := name.Job()
+	return ctx.Job != nil && ctx.Job.Name == jn
 }

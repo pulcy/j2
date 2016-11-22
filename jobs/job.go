@@ -42,10 +42,11 @@ func (jn JobName) Validate() error {
 }
 
 type Job struct {
-	ID          string        `json:"id,omitempty"`
-	Name        JobName       `json:"name"`
-	Groups      TaskGroupList `json:"groups"`
-	Constraints Constraints   `json:"constraints,omitempty"`
+	ID           string         `json:"id,omitempty"`
+	Name         JobName        `json:"name"`
+	Groups       TaskGroupList  `json:"groups"`
+	Constraints  Constraints    `json:"constraints,omitempty"`
+	Dependencies DependencyList `json:"dependencies,omitempty"`
 }
 
 // setDefaults fills in all default value.
@@ -70,6 +71,7 @@ func (j *Job) link() {
 	}
 	sort.Sort(j.Groups)
 	sort.Sort(j.Constraints)
+	sort.Sort(j.Dependencies)
 }
 
 // optimizeFor optimizes the job for the given cluster.
@@ -90,6 +92,7 @@ func (j *Job) replaceVariables() error {
 	for i, x := range j.Constraints {
 		j.Constraints[i] = x.replaceVariables(ctx)
 	}
+	j.Dependencies.replaceVariables(ctx)
 	return maskAny(ctx.Err())
 }
 
@@ -113,6 +116,9 @@ func (j *Job) Validate() error {
 		}
 	}
 	if err := j.Constraints.Validate(); err != nil {
+		return maskAny(err)
+	}
+	if err := j.Dependencies.Validate(); err != nil {
 		return maskAny(err)
 	}
 	return nil
@@ -145,4 +151,14 @@ func (j *Job) TaskGroup(name TaskGroupName) (*TaskGroup, error) {
 		}
 	}
 	return nil, maskAny(errgo.WithCausef(nil, TaskGroupNotFoundError, name.String()))
+}
+
+// Dependency gets a dependency by the given name
+func (j *Job) Dependency(name LinkName) (Dependency, error) {
+	for _, d := range j.Dependencies {
+		if d.Name == name {
+			return d, nil
+		}
+	}
+	return Dependency{}, maskAny(errgo.WithCausef(nil, DependencyNotFoundError, name.String()))
 }
