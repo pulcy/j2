@@ -16,6 +16,7 @@ package cluster
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/juju/errgo"
 
@@ -96,7 +97,10 @@ func (c Cluster) validate() error {
 
 func (c *Cluster) setDefaults() {
 	if c.Orchestrator == "" {
-		c.Orchestrator = "fleet"
+		c.Orchestrator = os.Getenv("PULCY_ORCHESTRATOR")
+		if c.Orchestrator == "" {
+			c.Orchestrator = "fleet"
+		}
 	}
 	if c.Tunnel == "" {
 		c.Tunnel = fmt.Sprintf("%s.%s", c.Stack, c.Domain)

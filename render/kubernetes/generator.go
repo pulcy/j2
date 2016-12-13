@@ -109,5 +109,5 @@ func renderResource(unitName string, resource interface{}) (render.UnitData, err
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	return newUnitData(unitName, string(raw)), nil
+	return newUnitData(unitName+".json", string(raw)), nil
 }

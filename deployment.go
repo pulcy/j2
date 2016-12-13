@@ -32,6 +32,7 @@ import (
 func initDeploymentFlags(fs *pflag.FlagSet, f *fg.Flags) {
 	fs.StringVarP(&f.JobPath, "job", "j", defaultJobPath, "filename of the job description")
 	fs.StringVarP(&f.ClusterPath, "cluster", "c", defaultClusterPath, "cluster description name or filename")
+	fs.StringVar(&f.OrchestratorOverride, "orchestrator", defaultOrchestratorOverride, "Type of orchestrator to use. This overrides cluster or default settings")
 	fs.StringVarP(&f.TunnelOverride, "tunnel", "t", defaultTunnelOverride, "SSH endpoint to tunnel through with fleet (cluster override)")
 	fs.StringSliceVarP(&f.Groups, "groups", "g", defaultGroups, "target task groups to deploy")
 	fs.BoolVarP(&f.Force, "force", "f", defaultForce, "wheather to confirm destroy or not")
@@ -123,6 +124,9 @@ func loadCluster(f *fg.Flags) (*cluster.Cluster, error) {
 	cluster, err := cluster.ParseClusterFromFile(path)
 	if err != nil {
 		return nil, maskAny(err)
+	}
+	if f.OrchestratorOverride != "" {
+		cluster.Orchestrator = f.OrchestratorOverride
 	}
 	if f.TunnelOverride != "" {
 		cluster.Tunnel = f.TunnelOverride

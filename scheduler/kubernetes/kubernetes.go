@@ -15,6 +15,8 @@
 package kubernetes
 
 import (
+	"fmt"
+
 	"github.com/juju/errgo"
 
 	"github.com/pulcy/j2/scheduler"
@@ -26,6 +28,10 @@ import (
 var (
 	maskAny = errgo.MaskFunc(errgo.Any)
 )
+
+type KubernetesResource interface {
+	Start(*kubernetes.Clientset) error
+}
 
 func NewScheduler(kubeConfig string, namespace string) (scheduler.Scheduler, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
@@ -85,6 +91,19 @@ func (s *k8sScheduler) Destroy(events chan scheduler.Event, unitName ...string) 
 }
 
 func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDataList) error {
-	// TODO implement me
+	for i := 0; i < units.Len(); i++ {
+		unit := units.Get(i)
+		res, ok := unit.(KubernetesResource)
+		if !ok {
+			return maskAny(fmt.Errorf("Expected unit '%s' to implement KubernetesResource", unit.Name()))
+		}
+		if err := res.Start(s.clientset); err != nil {
+			return maskAny(err)
+		}
+		events <- scheduler.Event{
+			UnitName: unit.Name(),
+			Message:  "started",
+		}
+	}
 	return nil
 }

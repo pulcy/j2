@@ -13,8 +13,28 @@ func createDeployments(tg *jobs.TaskGroup, ctx generatorContext) ([]v1beta1.Depl
 		return nil, nil
 	}
 
-	// TODO
-	return nil, nil
+	d := v1beta1.Deployment{}
+	d.TypeMeta.Kind = "Deployment"
+	d.TypeMeta.APIVersion = "extensions/v1beta1"
+
+	d.ObjectMeta.Name = resourceName(tg.FullName(), kindDeployment)
+
+	count := int32(tg.Count)
+	d.Spec.Replicas = &count
+
+	d.Spec.Template.ObjectMeta.SetAnnotations(map[string]string{
+		"taskgroup.name": tg.Name.String(),
+	})
+
+	for _, t := range tg.Tasks {
+		containers, err := createTaskContainers(t, ctx)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		d.Spec.Template.Spec.Containers = append(d.Spec.Template.Spec.Containers, containers...)
+	}
+
+	return []v1beta1.Deployment{d}, nil
 }
 
 // createDaemonSets creates all daemon sets needed for the given task group.
@@ -24,6 +44,23 @@ func createDaemonSets(tg *jobs.TaskGroup, ctx generatorContext) ([]v1beta1.Daemo
 		return nil, nil
 	}
 
-	// TODO
-	return nil, nil
+	d := v1beta1.DaemonSet{}
+	d.TypeMeta.Kind = "DaemonSet"
+	d.TypeMeta.APIVersion = "extensions/v1beta1"
+
+	d.ObjectMeta.Name = resourceName(tg.FullName(), kindDaemonSet)
+
+	d.Spec.Template.ObjectMeta.SetAnnotations(map[string]string{
+		"taskgroup.name": tg.Name.String(),
+	})
+
+	for _, t := range tg.Tasks {
+		containers, err := createTaskContainers(t, ctx)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		d.Spec.Template.Spec.Containers = append(d.Spec.Template.Spec.Containers, containers...)
+	}
+
+	return []v1beta1.DaemonSet{d}, nil
 }
