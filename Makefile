@@ -17,7 +17,7 @@ REPOPATH := $(ORGPATH)/$(REPONAME)
 BIN := $(BINDIR)/$(PROJECT)
 
 GOPATH := $(GOBUILDDIR)
-GOVERSION := 1.7.3-alpine
+GOVERSION := 1.7.4-alpine
 GOEXTPOINTS := $(GOBUILDDIR)/bin/go-extpoints
 
 ifndef GOOS
@@ -69,7 +69,8 @@ update-vendor:
 		github.com/pulcy/prometheus-conf-api \
 		github.com/pulcy/robin-api \
 		github.com/ryanuber/columnize \
-		github.com/smartystreets/goconvey
+		github.com/smartystreets/goconvey \
+		k8s.io/client-go/kubernetes
 
 $(GOEXTPOINTS): $(GOBUILDDIR) 
 	docker run \
