@@ -4,9 +4,8 @@ import "strings"
 
 const (
 	// resource kinds
-	kindDeployment = "-dp"
-	kindDaemonSet  = "-ds"
-	kindPod        = "-pod"
+	kindDeployment = "-depl"
+	kindDaemonSet  = "-dset"
 	kindVolume     = "-vol"
 )
 

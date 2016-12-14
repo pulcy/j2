@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/pulcy/j2/jobs"
 )
@@ -78,9 +79,9 @@ func groupTaskIntoPods(tg *jobs.TaskGroup) ([]pod, error) {
 			continue
 		}
 		if len(tg.Tasks) == 1 {
-			p.name = resourceName(tg.Name.String(), kindPod)
+			p.name = resourceName(tg.Name.String(), "")
 		} else {
-			p.name = resourceName(tg.Name.String(), fmt.Sprintf("%s-%d", kindPod, p.index))
+			p.name = resourceName(tg.Name.String(), strconv.Itoa(p.index))
 		}
 	}
 
