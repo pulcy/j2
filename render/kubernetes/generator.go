@@ -41,29 +41,25 @@ func NewGenerator(job jobs.Job, config render.RenderConfig) render.Renderer {
 }
 
 type generatorContext struct {
-	ScalingGroup  uint
-	InstanceCount int
-	Cluster       cluster.Cluster
+	Cluster cluster.Cluster
 }
 
 func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int) ([]render.UnitData, error) {
 	units := []render.UnitData{}
-	maxCount := g.job.MaxCount()
-	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
-		if g.CurrentScalingGroup != 0 && g.CurrentScalingGroup != scalingGroup {
+	for _, tg := range g.job.Groups {
+		if !g.include(tg.Name) {
+			// We do not want this task group now
 			continue
 		}
-		for _, tg := range g.job.Groups {
-			if !g.include(tg.Name) {
-				// We do not want this task group now
-				continue
-			}
-			genCtx := generatorContext{
-				ScalingGroup:  scalingGroup,
-				InstanceCount: instanceCount,
-				Cluster:       g.Cluster,
-			}
-			if deployments, err := createDeployments(tg, genCtx); err != nil {
+		genCtx := generatorContext{
+			Cluster: g.Cluster,
+		}
+		pods, err := groupTaskIntoPods(tg)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		for _, p := range pods {
+			if deployments, err := createDeployments(tg, p, genCtx); err != nil {
 				return nil, maskAny(err)
 			} else {
 				for _, res := range deployments {
@@ -74,7 +70,7 @@ func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int)
 					}
 				}
 			}
-			if daemonSets, err := createDaemonSets(tg, genCtx); err != nil {
+			if daemonSets, err := createDaemonSets(tg, p, genCtx); err != nil {
 				return nil, maskAny(err)
 			} else {
 				for _, res := range daemonSets {

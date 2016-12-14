@@ -33,3 +33,14 @@ func (l TaskList) Swap(i, j int) {
 	l[i] = l[j]
 	l[j] = tmp
 }
+
+// IndexByName returns the index of the task with given name in the given list.
+// Returns -1 if no such task is found.
+func (l TaskList) IndexByName(taskName TaskName) int {
+	for i, t := range l {
+		if t.Name == taskName {
+			return i
+		}
+	}
+	return -1
+}

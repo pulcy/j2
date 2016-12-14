@@ -87,6 +87,16 @@ func (v Volume) IsInstance() bool {
 	return v.Type == VolumeTypeInstance
 }
 
+// IsReadOnly returns true if the given volume contains the "ro" option.
+func (v Volume) IsReadOnly() bool {
+	for _, o := range v.Options {
+		if o == "ro" {
+			return true
+		}
+	}
+	return false
+}
+
 // MountOption looks for a mount option with given key and returns its value.
 // Returns OptionNotFoundError if option is not found.
 func (v Volume) MountOption(key string) (string, error) {

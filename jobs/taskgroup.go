@@ -161,6 +161,11 @@ func (tg *TaskGroup) TaskGroup(name TaskGroupName) (*TaskGroup, error) {
 	return result, nil
 }
 
+// Job returns the job that contains this group.
+func (tg *TaskGroup) Job() *Job {
+	return tg.job
+}
+
 // Is this group scalable?
 // That mean "not global"
 /*func (tg *TaskGroup) IsScalable() bool {
