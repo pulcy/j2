@@ -22,6 +22,7 @@ import (
 	"github.com/pulcy/j2/scheduler"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
+	metav1 "k8s.io/client-go/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -30,10 +31,11 @@ var (
 )
 
 type KubernetesResource interface {
+	Namespace() string
 	Start(*kubernetes.Clientset) error
 }
 
-func NewScheduler(kubeConfig string, namespace string) (scheduler.Scheduler, error) {
+func NewScheduler(kubeConfig string) (scheduler.Scheduler, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		return nil, maskAny(err)
@@ -45,18 +47,16 @@ func NewScheduler(kubeConfig string, namespace string) (scheduler.Scheduler, err
 	}
 	return &k8sScheduler{
 		clientset: clientset,
-		namespace: namespace,
 	}, nil
 }
 
 type k8sScheduler struct {
 	clientset *kubernetes.Clientset
-	namespace string
 }
 
 // List returns the names of all units on the cluster
 func (s *k8sScheduler) List() ([]string, error) {
-	deployments, err := s.clientset.Deployments(s.namespace).List(v1.ListOptions{})
+	/*deployments, err := s.clientset.Deployments(s.namespace).List(v1.ListOptions{})
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -65,6 +65,8 @@ func (s *k8sScheduler) List() ([]string, error) {
 		names = append(names, d.Name)
 	}
 	return names, nil
+	*/
+	return nil, nil
 }
 
 func (s *k8sScheduler) GetState(unitName string) (scheduler.UnitState, error) {
@@ -97,6 +99,16 @@ func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDa
 		if !ok {
 			return maskAny(fmt.Errorf("Expected unit '%s' to implement KubernetesResource", unit.Name()))
 		}
+
+		// Ensure namespace exists
+		nsAPI := s.clientset.Namespaces()
+		if _, err := nsAPI.Get(res.Namespace(), metav1.GetOptions{}); err != nil {
+			if _, err := nsAPI.Create(createNamespace(res.Namespace())); err != nil {
+				return maskAny(err)
+			}
+		}
+
+		// Create/update resource
 		if err := res.Start(s.clientset); err != nil {
 			return maskAny(err)
 		}
@@ -106,4 +118,11 @@ func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDa
 		}
 	}
 	return nil
+}
+
+func createNamespace(name string) *v1.Namespace {
+	ns := &v1.Namespace{}
+	ns.TypeMeta.Kind = "Namespace"
+	ns.ObjectMeta.Name = name
+	return ns
 }

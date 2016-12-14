@@ -78,9 +78,9 @@ func groupTaskIntoPods(tg *jobs.TaskGroup) ([]pod, error) {
 			continue
 		}
 		if len(tg.Tasks) == 1 {
-			p.name = resourceName(tg.FullName(), kindPod)
+			p.name = resourceName(tg.Name.String(), kindPod)
 		} else {
-			p.name = resourceName(tg.FullName(), fmt.Sprintf("%s-%d", kindPod, p.index))
+			p.name = resourceName(tg.Name.String(), fmt.Sprintf("%s-%d", kindPod, p.index))
 		}
 	}
 

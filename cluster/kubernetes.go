@@ -14,10 +14,13 @@
 
 package cluster
 
+import (
+	homedir "github.com/mitchellh/go-homedir"
+)
+
 // KubernetesOptions contains options used to generate kubernetes resources for the jobs that run on this cluster.
 type KubernetesOptions struct {
 	KubeConfig                string
-	Namespace                 string
 	GlobalInstanceConstraints []string
 }
 
@@ -32,5 +35,9 @@ func (o *KubernetesOptions) setDefaults() {
 			"odd=true",
 			"even=true",
 		}
+	}
+	if o.KubeConfig == "" {
+		path, _ := homedir.Expand("~/.kube/config")
+		o.KubeConfig = path
 	}
 }

@@ -31,19 +31,19 @@ func setAnnotation(m *v1.ObjectMeta, key, value string) {
 
 // setJobLabels adds all job related labels to the given meta.
 func setJobLabels(m *v1.ObjectMeta, j *jobs.Job) {
-	setLabel(m, metaJobName, j.Name.String())
+	setLabel(m, metaJobName, resourceNameReplacer.Replace(j.Name.String()))
 }
 
 // setTaskGroupLabelsAnnotations adds all task group related labels to the given meta.
 // This includes all job related labels.
 func setTaskGroupLabelsAnnotations(m *v1.ObjectMeta, tg *jobs.TaskGroup) {
 	setJobLabels(m, tg.Job())
-	setLabel(m, metaTaskGroupFullName, tg.FullName())
+	setLabel(m, metaTaskGroupFullName, resourceNameReplacer.Replace(tg.FullName()))
 }
 
 // setPodLabels adds all pod related labels to the given meta.
 // This includes all job & task group related labels.
 func setPodLabels(m *v1.ObjectMeta, tg *jobs.TaskGroup, pod pod) {
 	setTaskGroupLabelsAnnotations(m, tg)
-	setLabel(m, metaPodName, pod.name)
+	setLabel(m, metaPodName, resourceNameReplacer.Replace(pod.name))
 }

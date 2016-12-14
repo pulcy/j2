@@ -14,17 +14,13 @@
 
 package kubernetes
 
-import (
-	"github.com/pulcy/j2/render"
-)
-
 type unitData struct {
 	name    string
 	content string
 }
 
-func newUnitData(name, content string) render.UnitData {
-	return &unitData{
+func newUnitData(name, content string) unitData {
+	return unitData{
 		name:    name,
 		content: content,
 	}

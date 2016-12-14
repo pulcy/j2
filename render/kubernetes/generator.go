@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/jobs"
@@ -41,7 +42,8 @@ func NewGenerator(job jobs.Job, config render.RenderConfig) render.Renderer {
 }
 
 type generatorContext struct {
-	Cluster cluster.Cluster
+	Cluster   cluster.Cluster
+	Namespace string
 }
 
 func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int) ([]render.UnitData, error) {
@@ -52,7 +54,8 @@ func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int)
 			continue
 		}
 		genCtx := generatorContext{
-			Cluster: g.Cluster,
+			Cluster:   g.Cluster,
+			Namespace: strings.Replace(g.job.Name.String(), "_", "-", -1),
 		}
 		pods, err := groupTaskIntoPods(tg)
 		if err != nil {
@@ -66,7 +69,7 @@ func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int)
 					if data, err := renderResource(res.Name, res); err != nil {
 						return nil, maskAny(err)
 					} else {
-						units = append(units, data)
+						units = append(units, &deploymentResource{unitData: data, resource: res})
 					}
 				}
 			}
@@ -77,7 +80,7 @@ func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int)
 					if data, err := renderResource(res.Name, res); err != nil {
 						return nil, maskAny(err)
 					} else {
-						units = append(units, data)
+						units = append(units, &daemonSetResource{unitData: data, resource: res})
 					}
 				}
 			}
@@ -100,10 +103,10 @@ func (g *k8sRenderer) include(groupName jobs.TaskGroupName) bool {
 	return false
 }
 
-func renderResource(unitName string, resource interface{}) (render.UnitData, error) {
+func renderResource(unitName string, resource interface{}) (unitData, error) {
 	raw, err := json.Marshal(resource)
 	if err != nil {
-		return nil, maskAny(err)
+		return unitData{}, maskAny(err)
 	}
 	return newUnitData(unitName+".json", string(raw)), nil
 }
