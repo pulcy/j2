@@ -28,7 +28,7 @@ import (
 // Run creates all applicable unit files and deploys them onto the configured cluster.
 func (d *Deployment) Run() error {
 	// Fetch all current units
-	s, err := d.orchestrator.Scheduler(d.cluster)
+	s, err := d.orchestrator.Scheduler(d.job, d.cluster)
 	if err != nil {
 		return maskAny(err)
 	}

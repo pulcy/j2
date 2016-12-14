@@ -19,9 +19,11 @@ import (
 
 	"github.com/juju/errgo"
 
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/scheduler"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	metav1 "k8s.io/client-go/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -35,7 +37,7 @@ type KubernetesResource interface {
 	Start(*kubernetes.Clientset) error
 }
 
-func NewScheduler(kubeConfig string) (scheduler.Scheduler, error) {
+func NewScheduler(j jobs.Job, kubeConfig string) (scheduler.Scheduler, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		return nil, maskAny(err)
@@ -54,19 +56,25 @@ type k8sScheduler struct {
 	clientset *kubernetes.Clientset
 }
 
+type deploymentUnit struct {
+	v1beta1.Deployment
+}
+
+func (u *deploymentUnit) Name() string { return u.Deployment.Name }
+
 // List returns the names of all units on the cluster
 func (s *k8sScheduler) List() ([]scheduler.Unit, error) {
-	/*deployments, err := s.clientset.Deployments(s.namespace).List(v1.ListOptions{})
-	if err != nil {
+	var units []scheduler.Unit
+	namespace := ""
+	if list, err := s.clientset.Deployments(namespace).List(v1.ListOptions{}); err != nil {
 		return nil, maskAny(err)
+	} else {
+		for _, d := range list.Items {
+			units = append(units, &deploymentUnit{Deployment: d})
+		}
 	}
-	names := make([]string, 0, len(deployments.Items))
-	for _, d := range deployments.Items {
-		names = append(names, d.Name)
-	}
-	return names, nil
-	*/
-	return nil, nil
+	// TODO load other resources
+	return units, nil
 }
 
 func (s *k8sScheduler) GetState(unit scheduler.Unit) (scheduler.UnitState, error) {

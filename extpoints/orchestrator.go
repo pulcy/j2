@@ -16,6 +16,7 @@ package extpoints
 
 import (
 	"github.com/pulcy/j2/cluster"
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/render"
 	"github.com/pulcy/j2/scheduler"
 )
@@ -25,5 +26,5 @@ type Orchestrator interface {
 	RenderProvider() (render.RenderProvider, error)
 
 	// Scheduler returns the scheduler, configured for the given cluster, for this orchestrator.
-	Scheduler(cluster cluster.Cluster) (scheduler.Scheduler, error)
+	Scheduler(jobs.Job, cluster.Cluster) (scheduler.Scheduler, error)
 }
