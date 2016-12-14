@@ -71,6 +71,11 @@ func (s *k8sScheduler) List() ([]scheduler.Unit, error) {
 	} else {
 		units = append(units, list...)
 	}
+	if list, err := s.listDaemonSets(); err != nil {
+		return nil, maskAny(err)
+	} else {
+		units = append(units, list...)
+	}
 	// TODO load other resources
 	return units, nil
 }
