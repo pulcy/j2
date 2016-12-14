@@ -45,17 +45,31 @@ type fleetScheduler struct {
 	status      *fleet.StatusMap
 }
 
-// List returns the names of all units on the cluster
-func (s *fleetScheduler) List() ([]string, error) {
-	return s.tunnel.List()
+type fleetUnit string
+
+func (u fleetUnit) Name() string {
+	return string(u)
 }
 
-func (s *fleetScheduler) GetState(unitName string) (scheduler.UnitState, error) {
+// List returns the names of all units on the cluster
+func (s *fleetScheduler) List() ([]scheduler.Unit, error) {
+	names, err := s.tunnel.List()
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	units := make([]scheduler.Unit, 0, len(names))
+	for _, n := range names {
+		units = append(units, fleetUnit(n))
+	}
+	return units, nil
+}
+
+func (s *fleetScheduler) GetState(unit scheduler.Unit) (scheduler.UnitState, error) {
 	status, err := s.getStatus()
 	if err != nil {
 		return scheduler.UnitState{}, maskAny(err)
 	}
-	unitState, found := status.Get(unitName)
+	unitState, found := status.Get(unit.Name())
 	if !found {
 		return scheduler.UnitState{}, maskAny(scheduler.NotFoundError)
 	}
@@ -65,13 +79,13 @@ func (s *fleetScheduler) GetState(unitName string) (scheduler.UnitState, error) 
 	return state, nil
 }
 
-func (s *fleetScheduler) Cat(unitName string) (string, error) {
-	return s.tunnel.Cat(unitName)
+func (s *fleetScheduler) Cat(unit scheduler.Unit) (string, error) {
+	return s.tunnel.Cat(unit.Name())
 }
 
-func (s *fleetScheduler) Stop(events chan scheduler.Event, unitName ...string) (scheduler.StopStats, error) {
+func (s *fleetScheduler) Stop(events chan scheduler.Event, units ...scheduler.Unit) (scheduler.StopStats, error) {
 	s.clearStatus()
-	stats, err := s.tunnel.Stop(eventWrapper(events), unitName...)
+	stats, err := s.tunnel.Stop(eventWrapper(events), getUnitNames(units)...)
 	if err != nil {
 		return scheduler.StopStats{}, maskAny(err)
 	}
@@ -80,12 +94,21 @@ func (s *fleetScheduler) Stop(events chan scheduler.Event, unitName ...string) (
 		StoppedGlobalUnits: stats.StoppedGlobalUnits,
 	}, nil
 }
-func (s *fleetScheduler) Destroy(events chan scheduler.Event, unitName ...string) error {
+
+func (s *fleetScheduler) Destroy(events chan scheduler.Event, units ...scheduler.Unit) error {
 	s.clearStatus()
-	if err := s.tunnel.Destroy(eventWrapper(events), unitName...); err != nil {
+	if err := s.tunnel.Destroy(eventWrapper(events), getUnitNames(units)...); err != nil {
 		return maskAny(err)
 	}
 	return nil
+}
+
+func getUnitNames(units []scheduler.Unit) []string {
+	names := make([]string, 0, len(units))
+	for _, u := range units {
+		names = append(names, u.Name())
+	}
+	return names
 }
 
 type unitDataWrapper struct {

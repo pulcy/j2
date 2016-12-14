@@ -59,15 +59,15 @@ func (d *Deployment) Run() error {
 	waitBeforeNextStep := false
 	for sgIndex, sg := range d.scalingGroups {
 		// Select the loaded units that belong to this scaling group
-		correctScalingGroupPredicate := func(unitName string) bool {
-			return jobs.IsUnitForScalingGroup(unitName, d.job.Name, sg.scalingGroup)
+		correctScalingGroupPredicate := func(unit scheduler.Unit) bool {
+			return jobs.IsUnitForScalingGroup(unit.Name(), d.job.Name, sg.scalingGroup)
 		}
 		loadedScalingGroupUnitNames := selectUnitNames(remainingLoadedJobUnitNames, correctScalingGroupPredicate)
 		// Update remainingLoadedJobUnitNames
 		remainingLoadedJobUnitNames = selectUnitNames(remainingLoadedJobUnitNames, notPredicate(containsPredicate(loadedScalingGroupUnitNames)))
 
 		// Select the loaded unit name that have become obsolete
-		sgUnitNames := sg.unitNames()
+		sgUnitNames := sg.Units()
 		obsoleteUnitNames := selectUnitNames(loadedScalingGroupUnitNames, notPredicate(containsPredicate(sgUnitNames)))
 		notObsoleteUnitNames := selectUnitNames(loadedScalingGroupUnitNames, containsPredicate(sgUnitNames))
 
@@ -92,10 +92,10 @@ func (d *Deployment) Run() error {
 		if anyModifications && !d.force {
 			curScale := sg.scalingGroup
 			changes := []string{"# Unit | Action"}
-			changes = append(changes, formatChanges("# ", obsoleteUnitNames, "Remove (is obsolete) !!!")...)
-			changes = append(changes, formatChanges("# ", modifiedUnitNames, "Update")...)
-			changes = append(changes, formatChanges("# ", failedUnitNames, "Failed state")...)
-			changes = append(changes, formatChanges("# ", newUnitNames, "Create")...)
+			changes = append(changes, formatChanges("# ", unitsToNames(obsoleteUnitNames), "Remove (is obsolete) !!!")...)
+			changes = append(changes, formatChanges("# ", unitsToNames(modifiedUnitNames), "Update")...)
+			changes = append(changes, formatChanges("# ", unitsToNames(failedUnitNames), "Failed state")...)
+			changes = append(changes, formatChanges("# ", unitsToNames(newUnitNames), "Create")...)
 			sort.Strings(changes[1:])
 			formattedChanges := strings.Replace(columnize.SimpleFormat(changes), "#", " ", -1)
 			ui.HeaderSink <- fmt.Sprintf("Step %d: Update scaling group %d of %d on '%s'.\n%s\n", step, curScale, maxScale, d.cluster.Stack, formattedChanges)
@@ -135,7 +135,7 @@ func (d *Deployment) Run() error {
 	// Destroy remaining units
 	if len(remainingLoadedJobUnitNames) > 0 {
 		changes := []string{"# Unit | Action"}
-		changes = append(changes, formatChanges("# ", remainingLoadedJobUnitNames, "Remove (is obsolete) !!!")...)
+		changes = append(changes, formatChanges("# ", unitsToNames(remainingLoadedJobUnitNames), "Remove (is obsolete) !!!")...)
 		sort.Strings(changes[1:])
 		formattedChanges := strings.Replace(columnize.SimpleFormat(changes), "#", " ", -1)
 		ui.HeaderSink <- fmt.Sprintf("Step %d: Cleanup of obsolete units on '%s'.\n%s\n", step, d.cluster.Stack, formattedChanges)
@@ -161,18 +161,18 @@ func (d *Deployment) Run() error {
 }
 
 // isFailedPredicate creates a predicate that returns true when the given unit file is in the failed status.
-func (d *Deployment) isFailedPredicate(sg scalingGroupUnits, f scheduler.Scheduler, ui *stateUI) func(string) bool {
-	return func(unitName string) bool {
-		ui.MessageSink <- fmt.Sprintf("Checking state of %s", unitName)
-		unitState, err := f.GetState(unitName)
+func (d *Deployment) isFailedPredicate(sg scalingGroupUnits, f scheduler.Scheduler, ui *stateUI) func(scheduler.Unit) bool {
+	return func(unit scheduler.Unit) bool {
+		ui.MessageSink <- fmt.Sprintf("Checking state of %s", unit.Name())
+		unitState, err := f.GetState(unit)
 		if scheduler.IsNotFound(err) {
-			ui.Verbosef("Unit '%s' is not found\n", unitName)
+			ui.Verbosef("Unit '%s' is not found\n", unit.Name())
 			return true
 		} else if err != nil {
-			ui.Warningf("GetState(%s) failed: %#v", unitName, err)
+			ui.Warningf("GetState(%s) failed: %#v", unit.Name(), err)
 		}
 		if unitState.Failed {
-			ui.Verbosef("Unit '%s' is in failed state\n", unitName)
+			ui.Verbosef("Unit '%s' is in failed state\n", unit.Name())
 			return true
 		}
 		return false
@@ -180,26 +180,26 @@ func (d *Deployment) isFailedPredicate(sg scalingGroupUnits, f scheduler.Schedul
 }
 
 // isModifiedPredicate creates a predicate that returns true when the given unit file is modified
-func (d *Deployment) isModifiedPredicate(sg scalingGroupUnits, f scheduler.Scheduler, ui *stateUI) func(string) bool {
-	return func(unitName string) bool {
+func (d *Deployment) isModifiedPredicate(sg scalingGroupUnits, f scheduler.Scheduler, ui *stateUI) func(scheduler.Unit) bool {
+	return func(unit scheduler.Unit) bool {
 		if d.force {
 			return true
 		}
-		ui.MessageSink <- fmt.Sprintf("Checking %s for modifications", unitName)
-		cat, err := f.Cat(unitName)
+		ui.MessageSink <- fmt.Sprintf("Checking %s for modifications", unit.Name())
+		cat, err := f.Cat(unit)
 		if err != nil {
-			ui.Verbosef("Failed to cat '%s': %#v\n", unitName, err)
+			ui.Verbosef("Failed to cat '%s': %#v\n", unit.Name(), err)
 			return true // Assume it is modified
 		}
-		newUnit, err := sg.get(unitName)
+		newUnit, err := sg.get(unit)
 		if err != nil {
-			ui.Verbosef("Failed to read new '%s' unit: %#v\n", unitName, err)
+			ui.Verbosef("Failed to read new '%s' unit: %#v\n", unit.Name(), err)
 			return true // Assume it is modified
 		}
-		if !compareUnitContent(unitName, cat, newUnit.Content(), ui) {
+		if !compareUnitContent(unit.Name(), cat, newUnit.Content(), ui) {
 			return true
 		}
-		ui.Verbosef("Unit '%s' has not changed\n", unitName)
+		ui.Verbosef("Unit '%s' has not changed\n", unit.Name())
 		return false
 	}
 }

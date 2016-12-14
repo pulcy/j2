@@ -26,28 +26,28 @@ type scalingGroupUnits struct {
 	units        []render.UnitData
 }
 
-func (sgu scalingGroupUnits) unitNames() []string {
-	var names []string
+func (sgu scalingGroupUnits) Units() []scheduler.Unit {
+	var units []scheduler.Unit
 	for _, u := range sgu.units {
-		names = append(names, u.Name())
+		units = append(units, u)
 	}
-	return names
+	return units
 }
 
-func (sgu scalingGroupUnits) get(unitName string) (render.UnitData, error) {
+func (sgu scalingGroupUnits) get(unit scheduler.Unit) (render.UnitData, error) {
 	for _, u := range sgu.units {
-		if u.Name() == unitName {
+		if u.Name() == unit.Name() {
 			return u, nil
 		}
 	}
-	return nil, maskAny(fmt.Errorf("unit '%s' not found", unitName))
+	return nil, maskAny(fmt.Errorf("unit '%s' not found", unit.Name()))
 }
 
-func (sgu scalingGroupUnits) selectByNames(unitNames ...[]string) scheduler.UnitDataList {
+func (sgu scalingGroupUnits) selectByNames(units ...[]scheduler.Unit) scheduler.UnitDataList {
 	names := make(map[string]struct{})
-	for _, list := range unitNames {
-		for _, name := range list {
-			names[name] = struct{}{}
+	for _, list := range units {
+		for _, u := range list {
+			names[u.Name()] = struct{}{}
 		}
 	}
 	var result []render.UnitData

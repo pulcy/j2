@@ -55,7 +55,7 @@ type k8sScheduler struct {
 }
 
 // List returns the names of all units on the cluster
-func (s *k8sScheduler) List() ([]string, error) {
+func (s *k8sScheduler) List() ([]scheduler.Unit, error) {
 	/*deployments, err := s.clientset.Deployments(s.namespace).List(v1.ListOptions{})
 	if err != nil {
 		return nil, maskAny(err)
@@ -69,7 +69,7 @@ func (s *k8sScheduler) List() ([]string, error) {
 	return nil, nil
 }
 
-func (s *k8sScheduler) GetState(unitName string) (scheduler.UnitState, error) {
+func (s *k8sScheduler) GetState(unit scheduler.Unit) (scheduler.UnitState, error) {
 	// TODO Implement me
 	state := scheduler.UnitState{
 		Failed: false,
@@ -77,17 +77,19 @@ func (s *k8sScheduler) GetState(unitName string) (scheduler.UnitState, error) {
 	return state, nil
 }
 
-func (s *k8sScheduler) Cat(unitName string) (string, error) {
+func (s *k8sScheduler) Cat(unit scheduler.Unit) (string, error) {
 	// TODO implement me
 	return "", nil
 }
 
-func (s *k8sScheduler) Stop(events chan scheduler.Event, unitName ...string) (scheduler.StopStats, error) {
-	// TODO implement me
-	return scheduler.StopStats{}, nil
+func (s *k8sScheduler) Stop(events chan scheduler.Event, units ...scheduler.Unit) (scheduler.StopStats, error) {
+	return scheduler.StopStats{
+		StoppedUnits:       len(units),
+		StoppedGlobalUnits: 0,
+	}, nil
 }
 
-func (s *k8sScheduler) Destroy(events chan scheduler.Event, unitName ...string) error {
+func (s *k8sScheduler) Destroy(events chan scheduler.Event, units ...scheduler.Unit) error {
 	// TODO implement me
 	return nil
 }

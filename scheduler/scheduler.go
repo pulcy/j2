@@ -16,13 +16,13 @@ package scheduler
 
 type Scheduler interface {
 	// List returns the names of all units on the cluster
-	List() ([]string, error)
+	List() ([]Unit, error)
 
-	GetState(unitName string) (UnitState, error)
-	Cat(unitName string) (string, error)
+	GetState(Unit) (UnitState, error)
+	Cat(Unit) (string, error)
 
-	Stop(events chan Event, unitName ...string) (StopStats, error)
-	Destroy(events chan Event, unitName ...string) error
+	Stop(events chan Event, units ...Unit) (StopStats, error)
+	Destroy(events chan Event, units ...Unit) error
 
 	Start(events chan Event, units UnitDataList) error
 }
@@ -41,8 +41,12 @@ type Event struct {
 	Message  string
 }
 
-type UnitData interface {
+type Unit interface {
 	Name() string
+}
+
+type UnitData interface {
+	Unit
 	Content() string
 }
 

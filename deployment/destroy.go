@@ -53,13 +53,14 @@ func (d *Deployment) Destroy() error {
 	return nil
 }
 
-func (d *Deployment) confirmDestroy(units []string, obsolete bool, ui *stateUI) error {
+func (d *Deployment) confirmDestroy(units []scheduler.Unit, obsolete bool, ui *stateUI) error {
 	if !d.force {
 		obsoleteMsg := ""
 		if obsolete {
 			obsoleteMsg = " obsolete units"
 		}
-		if err := ui.Confirm(fmt.Sprintf("You are about to destroy%s:\n- %s\n\nAre you sure you want to destroy %d units on stack '%s'?\nEnter yes:", obsoleteMsg, strings.Join(units, "\n- "), len(units), d.cluster.Stack)); err != nil {
+		names := unitsToNames(units)
+		if err := ui.Confirm(fmt.Sprintf("You are about to destroy%s:\n- %s\n\nAre you sure you want to destroy %d units on stack '%s'?\nEnter yes:", obsoleteMsg, strings.Join(names, "\n- "), len(units), d.cluster.Stack)); err != nil {
 			return maskAny(err)
 		}
 	}
@@ -67,7 +68,7 @@ func (d *Deployment) confirmDestroy(units []string, obsolete bool, ui *stateUI) 
 	return nil
 }
 
-func (d *Deployment) destroyUnits(f scheduler.Scheduler, units []string, ui *stateUI) error {
+func (d *Deployment) destroyUnits(f scheduler.Scheduler, units []scheduler.Unit, ui *stateUI) error {
 	if len(units) == 0 {
 		return maskAny(fmt.Errorf("No units on cluster: %s", d.cluster.Stack))
 	}
@@ -88,4 +89,12 @@ func (d *Deployment) destroyUnits(f scheduler.Scheduler, units []string, ui *sta
 	}
 
 	return nil
+}
+
+func unitsToNames(units []scheduler.Unit) []string {
+	var names []string
+	for _, u := range units {
+		names = append(names, u.Name())
+	}
+	return names
 }
