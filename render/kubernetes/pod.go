@@ -98,6 +98,13 @@ func groupTaskIntoPods(tg *jobs.TaskGroup) ([]pod, error) {
 	}
 	sort.Sort(podByIndex(result))
 
+	// Validate pods
+	for _, p := range result {
+		if err := p.validate(); err != nil {
+			return nil, maskAny(err)
+		}
+	}
+
 	return result, nil
 }
 
@@ -127,4 +134,16 @@ func (p *pod) sortTasks() {
 			i++
 		}
 	}
+}
+
+func (p *pod) validate() error {
+	// All tasks must use same network
+	for i := 1; i < len(p.tasks); i++ {
+		prev := p.tasks[i-i]
+		cur := p.tasks[i]
+		if prev.Network != cur.Network {
+			return maskAny(fmt.Errorf("Cannot mix different networks in a single pod. (tasks %s and %s)", prev.FullName(), cur.FullName()))
+		}
+	}
+	return nil
 }

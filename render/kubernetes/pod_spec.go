@@ -19,6 +19,9 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (v1.PodSpe
 
 	// Containers
 	for _, t := range pod.tasks {
+		if t.Network.IsHost() {
+			spec.HostNetwork = true
+		}
 		initContainers, containers, err := createTaskContainers(t, pod, ctx)
 		if err != nil {
 			return v1.PodSpec{}, maskAny(err)

@@ -6,6 +6,8 @@ const (
 	// resource kinds
 	kindDeployment = "-depl"
 	kindDaemonSet  = "-dset"
+	kindIngress    = "-igr"
+	kindService    = "-srv"
 	kindVolume     = "-vol"
 )
 

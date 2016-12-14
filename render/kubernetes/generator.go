@@ -84,6 +84,28 @@ func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int)
 					}
 				}
 			}
+			if services, err := createServices(tg, p, genCtx); err != nil {
+				return nil, maskAny(err)
+			} else {
+				for _, res := range services {
+					if data, err := renderResource(res.Name, res); err != nil {
+						return nil, maskAny(err)
+					} else {
+						units = append(units, &serviceResource{unitData: data, resource: res})
+					}
+				}
+			}
+			if ingresses, err := createIngresses(tg, p, genCtx); err != nil {
+				return nil, maskAny(err)
+			} else {
+				for _, res := range ingresses {
+					if data, err := renderResource(res.Name, res); err != nil {
+						return nil, maskAny(err)
+					} else {
+						units = append(units, &ingressResource{unitData: data, resource: res})
+					}
+				}
+			}
 		}
 	}
 	return units, nil

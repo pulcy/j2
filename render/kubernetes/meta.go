@@ -47,3 +47,11 @@ func setPodLabels(m *v1.ObjectMeta, tg *jobs.TaskGroup, pod pod) {
 	setTaskGroupLabelsAnnotations(m, tg)
 	setLabel(m, metaPodName, resourceNameReplacer.Replace(pod.name))
 }
+
+func createPodSelector(input map[string]string, pod pod) map[string]string {
+	if input == nil {
+		input = make(map[string]string)
+	}
+	input[metaPodName] = resourceNameReplacer.Replace(pod.name)
+	return input
+}
