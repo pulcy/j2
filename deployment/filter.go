@@ -14,35 +14,32 @@
 
 package deployment
 
-import (
-	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/scheduler"
-)
+import "github.com/pulcy/j2/scheduler"
 
 // createUnitNameFilter creates a predicate that return true if a given
 // unit name belongs to the configured job and task-group selection.
-func (d *Deployment) createUnitNamePredicate() func(scheduler.Unit) bool {
+func (d *Deployment) createUnitNamePredicate(s scheduler.Scheduler) func(scheduler.Unit) bool {
 	if d.groupSelection.IncludeAll() {
 		// Select everything in the job
 		return func(unit scheduler.Unit) bool {
 			if !d.scalingGroupSelection.IncludeAll() {
-				if !jobs.IsUnitForScalingGroup(unit.Name(), d.job.Name, uint(d.scalingGroupSelection)) {
+				if !s.IsUnitForScalingGroup(unit, uint(d.scalingGroupSelection)) {
 					return false
 				}
 			}
-			return jobs.IsUnitForJob(unit.Name(), d.job.Name)
+			return s.IsUnitForJob(unit)
 		}
 	}
 
 	// Select everything in one of the groups
 	return func(unit scheduler.Unit) bool {
 		if !d.scalingGroupSelection.IncludeAll() {
-			if !jobs.IsUnitForScalingGroup(unit.Name(), d.job.Name, uint(d.scalingGroupSelection)) {
+			if !s.IsUnitForScalingGroup(unit, uint(d.scalingGroupSelection)) {
 				return false
 			}
 		}
 		for _, g := range d.groupSelection {
-			if jobs.IsUnitForTaskGroup(unit.Name(), d.job.Name, g) {
+			if s.IsUnitForTaskGroup(unit, g) {
 				return true
 			}
 		}

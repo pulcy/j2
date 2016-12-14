@@ -43,7 +43,7 @@ func (d *Deployment) Run() error {
 	defer ui.Close()
 
 	// Find out which current units belong to the configured job
-	remainingLoadedJobUnitNames := selectUnitNames(allUnits, d.createUnitNamePredicate())
+	remainingLoadedJobUnitNames := selectUnitNames(allUnits, d.createUnitNamePredicate(s))
 
 	// Create scaling group units
 	if err := d.generateScalingGroups(); err != nil {
@@ -108,7 +108,7 @@ func (d *Deployment) Run() error {
 
 		// Destroy the obsolete & modified units
 		if len(unitNamesToDestroy) > 0 {
-			if err := d.destroyUnits(s, unitNamesToDestroy, ui); err != nil {
+			if err := d.destroyUnits(s, modifiedUnitNames, failedUnitNames, obsoleteUnitNames, ui); err != nil {
 				return maskAny(err)
 			}
 
@@ -143,7 +143,7 @@ func (d *Deployment) Run() error {
 			return maskAny(err)
 		}
 
-		if err := d.destroyUnits(s, remainingLoadedJobUnitNames, ui); err != nil {
+		if err := d.destroyUnits(s, nil, nil, remainingLoadedJobUnitNames, ui); err != nil {
 			return maskAny(err)
 		}
 

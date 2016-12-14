@@ -14,6 +14,18 @@
 
 package scheduler
 
+import (
+	"github.com/pulcy/j2/jobs"
+)
+
+type Reason int
+
+const (
+	ReasonUpdate   = Reason(1)
+	ReasonFailed   = Reason(2)
+	ReasonObsolete = Reason(3)
+)
+
 type Scheduler interface {
 	// List returns the names of all units on the cluster
 	List() ([]Unit, error)
@@ -21,10 +33,14 @@ type Scheduler interface {
 	GetState(Unit) (UnitState, error)
 	Cat(Unit) (string, error)
 
-	Stop(events chan Event, units ...Unit) (StopStats, error)
-	Destroy(events chan Event, units ...Unit) error
+	Stop(events chan Event, reason Reason, units ...Unit) (StopStats, error)
+	Destroy(events chan Event, reason Reason, units ...Unit) error
 
 	Start(events chan Event, units UnitDataList) error
+
+	IsUnitForScalingGroup(unit Unit, scalingGroup uint) bool
+	IsUnitForJob(unit Unit) bool
+	IsUnitForTaskGroup(unit Unit, g jobs.TaskGroupName) bool
 }
 
 type UnitState struct {

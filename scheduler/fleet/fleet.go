@@ -19,6 +19,7 @@ import (
 
 	"github.com/juju/errgo"
 
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/fleet"
 	"github.com/pulcy/j2/scheduler"
 )
@@ -27,7 +28,7 @@ var (
 	maskAny = errgo.MaskFunc(errgo.Any)
 )
 
-func NewScheduler(tunnel string) (scheduler.Scheduler, error) {
+func NewScheduler(job jobs.Job, tunnel string) (scheduler.Scheduler, error) {
 	config := fleet.DefaultConfig()
 	config.Tunnel = tunnel
 	tun, err := fleet.NewTunnel(config)
@@ -36,6 +37,7 @@ func NewScheduler(tunnel string) (scheduler.Scheduler, error) {
 	}
 	return &fleetScheduler{
 		tunnel: *tun,
+		job:    job,
 	}, nil
 }
 
@@ -43,6 +45,7 @@ type fleetScheduler struct {
 	tunnel      fleet.FleetTunnel
 	statusMutex sync.Mutex
 	status      *fleet.StatusMap
+	job         jobs.Job
 }
 
 type fleetUnit string
@@ -83,7 +86,7 @@ func (s *fleetScheduler) Cat(unit scheduler.Unit) (string, error) {
 	return s.tunnel.Cat(unit.Name())
 }
 
-func (s *fleetScheduler) Stop(events chan scheduler.Event, units ...scheduler.Unit) (scheduler.StopStats, error) {
+func (s *fleetScheduler) Stop(events chan scheduler.Event, reason scheduler.Reason, units ...scheduler.Unit) (scheduler.StopStats, error) {
 	s.clearStatus()
 	stats, err := s.tunnel.Stop(eventWrapper(events), getUnitNames(units)...)
 	if err != nil {
@@ -95,7 +98,7 @@ func (s *fleetScheduler) Stop(events chan scheduler.Event, units ...scheduler.Un
 	}, nil
 }
 
-func (s *fleetScheduler) Destroy(events chan scheduler.Event, units ...scheduler.Unit) error {
+func (s *fleetScheduler) Destroy(events chan scheduler.Event, reason scheduler.Reason, units ...scheduler.Unit) error {
 	s.clearStatus()
 	if err := s.tunnel.Destroy(eventWrapper(events), getUnitNames(units)...); err != nil {
 		return maskAny(err)
@@ -129,6 +132,18 @@ func (s *fleetScheduler) Start(events chan scheduler.Event, units scheduler.Unit
 		return maskAny(err)
 	}
 	return nil
+}
+
+func (s *fleetScheduler) IsUnitForScalingGroup(unit scheduler.Unit, scalingGroup uint) bool {
+	return jobs.IsUnitForScalingGroup(unit.Name(), s.job.Name, scalingGroup)
+}
+
+func (s *fleetScheduler) IsUnitForJob(unit scheduler.Unit) bool {
+	return jobs.IsUnitForJob(unit.Name(), s.job.Name)
+}
+
+func (s *fleetScheduler) IsUnitForTaskGroup(unit scheduler.Unit, g jobs.TaskGroupName) bool {
+	return jobs.IsUnitForTaskGroup(unit.Name(), s.job.Name, g)
 }
 
 func (s *fleetScheduler) getStatus() (*fleet.StatusMap, error) {

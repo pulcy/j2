@@ -70,6 +70,7 @@ update-vendor:
 		github.com/pulcy/robin-api \
 		github.com/ryanuber/columnize \
 		github.com/smartystreets/goconvey \
+		golang.org/x/sync/errgroup \
 		k8s.io/client-go/kubernetes
 
 $(GOEXTPOINTS): $(GOBUILDDIR) 

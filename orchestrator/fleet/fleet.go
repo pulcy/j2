@@ -19,7 +19,7 @@ func (o *fleetOrchestrator) RenderProvider() (render.RenderProvider, error) {
 
 // Scheduler returns the scheduler, configured for the given cluster, for this orchestrator.
 func (o *fleetOrchestrator) Scheduler(j jobs.Job, cluster cluster.Cluster) (scheduler.Scheduler, error) {
-	return sf.NewScheduler(cluster.Tunnel)
+	return sf.NewScheduler(j, cluster.Tunnel)
 }
 
 func init() {

@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/juju/errgo"
 
@@ -23,7 +24,6 @@ import (
 	"github.com/pulcy/j2/scheduler"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	metav1 "k8s.io/client-go/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -35,6 +35,11 @@ var (
 type KubernetesResource interface {
 	Namespace() string
 	Start(*kubernetes.Clientset) error
+}
+
+type KubernetesUnit interface {
+	scheduler.Unit
+	Destroy(*kubernetes.Clientset) error
 }
 
 func NewScheduler(j jobs.Job, kubeConfig string) (scheduler.Scheduler, error) {
@@ -49,29 +54,22 @@ func NewScheduler(j jobs.Job, kubeConfig string) (scheduler.Scheduler, error) {
 	}
 	return &k8sScheduler{
 		clientset: clientset,
+		namespace: strings.Replace(j.Name.String(), "_", "-", -1),
 	}, nil
 }
 
 type k8sScheduler struct {
 	clientset *kubernetes.Clientset
+	namespace string
 }
-
-type deploymentUnit struct {
-	v1beta1.Deployment
-}
-
-func (u *deploymentUnit) Name() string { return u.Deployment.Name }
 
 // List returns the names of all units on the cluster
 func (s *k8sScheduler) List() ([]scheduler.Unit, error) {
 	var units []scheduler.Unit
-	namespace := ""
-	if list, err := s.clientset.Deployments(namespace).List(v1.ListOptions{}); err != nil {
+	if list, err := s.listDeployments(); err != nil {
 		return nil, maskAny(err)
 	} else {
-		for _, d := range list.Items {
-			units = append(units, &deploymentUnit{Deployment: d})
-		}
+		units = append(units, list...)
 	}
 	// TODO load other resources
 	return units, nil
@@ -90,15 +88,30 @@ func (s *k8sScheduler) Cat(unit scheduler.Unit) (string, error) {
 	return "", nil
 }
 
-func (s *k8sScheduler) Stop(events chan scheduler.Event, units ...scheduler.Unit) (scheduler.StopStats, error) {
+func (s *k8sScheduler) Stop(events chan scheduler.Event, reason scheduler.Reason, units ...scheduler.Unit) (scheduler.StopStats, error) {
 	return scheduler.StopStats{
 		StoppedUnits:       len(units),
 		StoppedGlobalUnits: 0,
 	}, nil
 }
 
-func (s *k8sScheduler) Destroy(events chan scheduler.Event, units ...scheduler.Unit) error {
-	// TODO implement me
+func (s *k8sScheduler) Destroy(events chan scheduler.Event, reason scheduler.Reason, units ...scheduler.Unit) error {
+	if reason != scheduler.ReasonObsolete {
+		return nil
+	}
+	for _, u := range units {
+		ku, ok := u.(KubernetesUnit)
+		if !ok {
+			return maskAny(fmt.Errorf("Expected unit '%s' to implement KubernetesUnit", u.Name()))
+		}
+		if err := ku.Destroy(s.clientset); err != nil {
+			return maskAny(err)
+		}
+		events <- scheduler.Event{
+			UnitName: u.Name(),
+			Message:  "destroyed",
+		}
+	}
 	return nil
 }
 
@@ -130,9 +143,28 @@ func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDa
 	return nil
 }
 
+func (s *k8sScheduler) IsUnitForScalingGroup(unit scheduler.Unit, scalingGroup uint) bool {
+	return true
+}
+
+func (s *k8sScheduler) IsUnitForJob(unit scheduler.Unit) bool {
+	return true
+}
+
+func (s *k8sScheduler) IsUnitForTaskGroup(unit scheduler.Unit, g jobs.TaskGroupName) bool {
+	return true // TODO implement me
+}
+
 func createNamespace(name string) *v1.Namespace {
 	ns := &v1.Namespace{}
 	ns.TypeMeta.Kind = "Namespace"
 	ns.ObjectMeta.Name = name
 	return ns
+}
+
+func createDeleteOptions() *v1.DeleteOptions {
+	orphanDependents := true
+	return &v1.DeleteOptions{
+		OrphanDependents: &orphanDependents,
+	}
 }
