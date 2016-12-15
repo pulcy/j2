@@ -16,6 +16,12 @@ const (
 	kindVolume     = "-vol"
 )
 
+const (
+	// environment variable names
+	envVarPodIP    = "J2_POD_IP"
+	envVarNodeName = "J2_NODE_NAME"
+)
+
 // resourceName returns the name of kubernetes resource for the task/group with given fullname.
 func resourceName(fullName string, kind string) string {
 	return k8s.ResourceName(fullName + kind)

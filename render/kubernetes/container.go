@@ -37,6 +37,12 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]v1.Con
 		})
 	}
 
+	// J2 specific Environment variables
+	c.Env = append(c.Env,
+		createEnvVarFromField(envVarPodIP, "status.podIP"),
+		createEnvVarFromField(envVarNodeName, "spec.nodeName"),
+	)
+
 	// Mount volumes
 	// First find all tasks to mount volumes from
 	mountTasks := jobs.TaskList{t}
@@ -71,4 +77,16 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]v1.Con
 		initContainers = append(initContainers, c)
 	}
 	return initContainers, containers, nil
+}
+
+// createEnvVarFromField creates a v1.EnvVar with a ValueFrom set to a ObjectFieldSelector
+func createEnvVarFromField(key, fieldPath string) v1.EnvVar {
+	return v1.EnvVar{
+		Name: key,
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath: fieldPath,
+			},
+		},
+	}
 }

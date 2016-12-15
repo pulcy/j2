@@ -14,7 +14,11 @@
 
 package kubernetes
 
-import "github.com/pulcy/j2/jobs"
+import (
+	"fmt"
+
+	"github.com/pulcy/j2/jobs"
+)
 
 // TODO update for kubernetes
 
@@ -34,10 +38,14 @@ func (g *k8sRenderer) ExpandEtcdHost() string { return "${ETCD_HOST}" }
 func (g *k8sRenderer) ExpandEtcdPort() string { return "${ETCD_PORT}" }
 
 // Expand  "${hostname}":
-func (g *k8sRenderer) ExpandHostname() string { return "%H" }
+func (g *k8sRenderer) ExpandHostname() string {
+	return fmt.Sprintf("${%s}", envVarNodeName)
+}
 
 // Expand  "${machine_id}":
-func (g *k8sRenderer) ExpandMachineID() string { return "%m" }
+func (g *k8sRenderer) ExpandMachineID() string {
+	return fmt.Sprintf("${%s}", envVarNodeName) /* as close as we're going to get*/
+}
 
 // Expand  "${instance}":
 func (g *k8sRenderer) ExpandInstance() string { return "%i" }
