@@ -26,5 +26,5 @@ type RenderConfig struct {
 }
 
 type RenderProvider interface {
-	CreateRenderer(job jobs.Job, cfg RenderConfig) (Renderer, error)
+	CreateRenderer() Renderer
 }

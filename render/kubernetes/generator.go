@@ -24,8 +24,6 @@ import (
 )
 
 type k8sRenderer struct {
-	job jobs.Job
-	render.RenderConfig
 }
 
 type RenderContext interface {
@@ -34,11 +32,8 @@ type RenderContext interface {
 	ProjectBuild() string
 }
 
-func NewGenerator(job jobs.Job, config render.RenderConfig) render.Renderer {
-	return &k8sRenderer{
-		job:          job,
-		RenderConfig: config,
-	}
+func newGenerator() render.Renderer {
+	return &k8sRenderer{}
 }
 
 type generatorContext struct {
@@ -46,21 +41,21 @@ type generatorContext struct {
 	Namespace string
 }
 
-func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int) ([]render.UnitData, error) {
-	if g.CurrentScalingGroup != 1 {
+func (g *k8sRenderer) GenerateUnits(job jobs.Job, ctx render.RenderContext, config render.RenderConfig, instanceCount int) ([]render.UnitData, error) {
+	if config.CurrentScalingGroup != 1 {
 		// We only generate units for the first scaling group.
 		// Kubernetes will do the actual scaling.
 		return nil, nil
 	}
 	units := []render.UnitData{}
-	for _, tg := range g.job.Groups {
-		if !g.include(tg.Name) {
+	for _, tg := range job.Groups {
+		if !include(config, tg.Name) {
 			// We do not want this task group now
 			continue
 		}
 		genCtx := generatorContext{
-			Cluster:   g.Cluster,
-			Namespace: strings.Replace(g.job.Name.String(), "_", "-", -1),
+			Cluster:   config.Cluster,
+			Namespace: strings.Replace(job.Name.String(), "_", "-", -1),
 		}
 		pods, err := groupTaskIntoPods(tg)
 		if err != nil {
@@ -101,12 +96,12 @@ func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int)
 }
 
 // Should the group with given name be generated?
-func (g *k8sRenderer) include(groupName jobs.TaskGroupName) bool {
-	if len(g.Groups) == 0 {
+func include(config render.RenderConfig, groupName jobs.TaskGroupName) bool {
+	if len(config.Groups) == 0 {
 		// include all
 		return true
 	}
-	for _, n := range g.Groups {
+	for _, n := range config.Groups {
 		if n == groupName {
 			return true
 		}

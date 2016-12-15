@@ -74,16 +74,13 @@ func (d *Deployment) generateScalingGroupUnits(scalingGroup uint) (scalingGroupU
 	if err != nil {
 		return scalingGroupUnits{}, maskAny(err)
 	}
-	renderer, err := renderProvider.CreateRenderer(d.job, render.RenderConfig{
+	config := render.RenderConfig{
 		Groups:              d.groupSelection,
 		CurrentScalingGroup: scalingGroup,
 		Cluster:             d.cluster,
-	})
-	if err != nil {
-		return scalingGroupUnits{}, maskAny(err)
 	}
-
-	units, err := renderer.GenerateUnits(d.renderContext, d.cluster.InstanceCount)
+	renderer := renderProvider.CreateRenderer()
+	units, err := renderer.GenerateUnits(d.job, d.renderContext, config, d.cluster.InstanceCount)
 	if err != nil {
 		return scalingGroupUnits{}, maskAny(err)
 	}

@@ -14,10 +14,7 @@
 
 package kubernetes
 
-import (
-	"github.com/pulcy/j2/jobs"
-	"github.com/pulcy/j2/render"
-)
+import "github.com/pulcy/j2/render"
 
 type k8sProvider struct {
 }
@@ -27,6 +24,6 @@ func NewRenderProvider() render.RenderProvider {
 	return &k8sProvider{}
 }
 
-func (p *k8sProvider) CreateRenderer(job jobs.Job, cfg render.RenderConfig) (render.Renderer, error) {
-	return NewGenerator(job, cfg), nil
+func (p *k8sProvider) CreateRenderer() render.Renderer {
+	return newGenerator()
 }
