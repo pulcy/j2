@@ -197,7 +197,7 @@ func (s *k8sScheduler) IsUnitForJob(unit scheduler.Unit) bool {
 		found := ku.ObjectMeta().Labels[k8s.LabelJobName]
 		expected := k8s.ResourceName(s.job.Name.String())
 		if found != expected {
-			fmt.Printf("Expected '%s'\nFound '%s'\n\n\n\n\n\n\n", found, expected)
+			panic(fmt.Sprintf("Expected '%s'\nFound '%s'\n\n\n\n\n\n\n", found, expected))
 			return false
 		}
 		return true
@@ -208,12 +208,18 @@ func (s *k8sScheduler) IsUnitForJob(unit scheduler.Unit) bool {
 // and part of the task group with given name.
 func (s *k8sScheduler) IsUnitForTaskGroup(unit scheduler.Unit, g jobs.TaskGroupName) bool {
 	if !s.IsUnitForJob(unit) {
+		panic("IsUnitForTaskGroup: !job")
 		return false
 	}
 	if ku, ok := unit.(Unit); !ok {
+		panic("IsUnitForTaskGroup: !Unit")
 		return false
 	} else {
-		return ku.ObjectMeta().Labels[k8s.LabelTaskGroupName] == k8s.ResourceName(g.String())
+		if ku.ObjectMeta().Labels[k8s.LabelTaskGroupName] == k8s.ResourceName(g.String()) {
+			return true
+		}
+		panic("IsUnitForTaskGroup: false")
+		return false
 	}
 }
 

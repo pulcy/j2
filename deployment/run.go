@@ -21,7 +21,6 @@ import (
 
 	"github.com/ryanuber/columnize"
 
-	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/scheduler"
 )
 
@@ -60,7 +59,7 @@ func (d *Deployment) Run() error {
 	for sgIndex, sg := range d.scalingGroups {
 		// Select the loaded units that belong to this scaling group
 		correctScalingGroupPredicate := func(unit scheduler.Unit) bool {
-			return jobs.IsUnitForScalingGroup(unit.Name(), d.job.Name, sg.scalingGroup)
+			return s.IsUnitForScalingGroup(unit, sg.scalingGroup)
 		}
 		loadedScalingGroupUnitNames := selectUnitNames(remainingLoadedJobUnitNames, correctScalingGroupPredicate)
 		// Update remainingLoadedJobUnitNames

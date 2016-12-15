@@ -12,18 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jobs
+package fleetscheduler
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/pulcy/j2/jobs"
 )
 
 var (
 	unitSuffixes = []string{".service", ".timer"}
 )
 
-func IsUnitForJob(unitName string, jobName JobName) bool {
+func IsUnitForJob(unitName string, jobName jobs.JobName) bool {
 	prefix := fmt.Sprintf("%s-", jobName)
 	if !strings.HasPrefix(unitName, prefix) {
 		return false
@@ -32,7 +34,7 @@ func IsUnitForJob(unitName string, jobName JobName) bool {
 	return found
 }
 
-func IsUnitForTaskGroup(unitName string, jobName JobName, taskGroupName TaskGroupName) bool {
+func IsUnitForTaskGroup(unitName string, jobName jobs.JobName, taskGroupName jobs.TaskGroupName) bool {
 	prefix := fmt.Sprintf("%s-%s-", jobName, taskGroupName)
 	if !strings.HasPrefix(unitName, prefix) {
 		return false
@@ -41,7 +43,7 @@ func IsUnitForTaskGroup(unitName string, jobName JobName, taskGroupName TaskGrou
 	return found
 }
 
-func IsUnitForTask(unitName string, jobName JobName, taskGroupName TaskGroupName, taskName TaskName) bool {
+func IsUnitForTask(unitName string, jobName jobs.JobName, taskGroupName jobs.TaskGroupName, taskName jobs.TaskName) bool {
 	prefix := fmt.Sprintf("%s-%s-%s", jobName, taskGroupName, taskName)
 	if !strings.HasPrefix(unitName, prefix) {
 		return false
@@ -53,7 +55,7 @@ func IsUnitForTask(unitName string, jobName JobName, taskGroupName TaskGroupName
 	return strings.HasPrefix(remainder, "@") || strings.HasPrefix(remainder, ".")
 }
 
-func IsUnitForScalingGroup(unitName string, jobName JobName, scalingGroup uint) bool {
+func IsUnitForScalingGroup(unitName string, jobName jobs.JobName, scalingGroup uint) bool {
 	prefix := fmt.Sprintf("%s-", jobName)
 	if !strings.HasPrefix(unitName, prefix) {
 		return false

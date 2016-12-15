@@ -47,6 +47,11 @@ type generatorContext struct {
 }
 
 func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int) ([]render.UnitData, error) {
+	if g.CurrentScalingGroup != 1 {
+		// We only generate units for the first scaling group.
+		// Kubernetes will do the actual scaling.
+		return nil, nil
+	}
 	units := []render.UnitData{}
 	for _, tg := range g.job.Groups {
 		if !g.include(tg.Name) {

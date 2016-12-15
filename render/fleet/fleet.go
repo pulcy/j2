@@ -18,6 +18,7 @@ import (
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/pkg/sdunits"
+	fs "github.com/pulcy/j2/scheduler/fleet"
 )
 
 // CreateFleetAfter creates a list of unit names to add to the `After` setting of each unit of the given task.
@@ -33,7 +34,7 @@ func addFleetOptions(t *jobs.Task, fleetOptions cluster.FleetOptions, unit *sdun
 func excludeUnitsOfJob(jobName jobs.JobName, unitNames []string) []string {
 	result := []string{}
 	for _, unitName := range unitNames {
-		if !jobs.IsUnitForJob(unitName, jobName) {
+		if !fs.IsUnitForJob(unitName, jobName) {
 			result = append(result, unitName)
 		}
 	}

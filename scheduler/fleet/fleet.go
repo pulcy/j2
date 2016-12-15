@@ -135,15 +135,15 @@ func (s *fleetScheduler) Start(events chan scheduler.Event, units scheduler.Unit
 }
 
 func (s *fleetScheduler) IsUnitForScalingGroup(unit scheduler.Unit, scalingGroup uint) bool {
-	return jobs.IsUnitForScalingGroup(unit.Name(), s.job.Name, scalingGroup)
+	return IsUnitForScalingGroup(unit.Name(), s.job.Name, scalingGroup)
 }
 
 func (s *fleetScheduler) IsUnitForJob(unit scheduler.Unit) bool {
-	return jobs.IsUnitForJob(unit.Name(), s.job.Name)
+	return IsUnitForJob(unit.Name(), s.job.Name)
 }
 
 func (s *fleetScheduler) IsUnitForTaskGroup(unit scheduler.Unit, g jobs.TaskGroupName) bool {
-	return jobs.IsUnitForTaskGroup(unit.Name(), s.job.Name, g)
+	return IsUnitForTaskGroup(unit.Name(), s.job.Name, g)
 }
 
 func (s *fleetScheduler) getStatus() (*fleet.StatusMap, error) {
