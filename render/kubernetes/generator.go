@@ -15,11 +15,11 @@
 package kubernetes
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/jobs"
+	k8s "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/render"
 )
 
@@ -66,44 +66,28 @@ func (g *k8sRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int)
 				return nil, maskAny(err)
 			} else {
 				for _, res := range deployments {
-					if data, err := renderResource(res.Name, res); err != nil {
-						return nil, maskAny(err)
-					} else {
-						units = append(units, &deploymentResource{unitData: data, resource: res})
-					}
+					units = append(units, &k8s.Deployment{Deployment: res})
 				}
 			}
 			if daemonSets, err := createDaemonSets(tg, p, genCtx); err != nil {
 				return nil, maskAny(err)
 			} else {
 				for _, res := range daemonSets {
-					if data, err := renderResource(res.Name, res); err != nil {
-						return nil, maskAny(err)
-					} else {
-						units = append(units, &daemonSetResource{unitData: data, resource: res})
-					}
+					units = append(units, &k8s.DaemonSet{DaemonSet: res})
 				}
 			}
 			if services, err := createServices(tg, p, genCtx); err != nil {
 				return nil, maskAny(err)
 			} else {
 				for _, res := range services {
-					if data, err := renderResource(res.Name, res); err != nil {
-						return nil, maskAny(err)
-					} else {
-						units = append(units, &serviceResource{unitData: data, resource: res})
-					}
+					units = append(units, &k8s.Service{Service: res})
 				}
 			}
 			if ingresses, err := createIngresses(tg, p, genCtx); err != nil {
 				return nil, maskAny(err)
 			} else {
 				for _, res := range ingresses {
-					if data, err := renderResource(res.Name, res); err != nil {
-						return nil, maskAny(err)
-					} else {
-						units = append(units, &ingressResource{unitData: data, resource: res})
-					}
+					units = append(units, &k8s.Ingress{Ingress: res})
 				}
 			}
 		}
@@ -123,12 +107,4 @@ func (g *k8sRenderer) include(groupName jobs.TaskGroupName) bool {
 		}
 	}
 	return false
-}
-
-func renderResource(unitName string, resource interface{}) (unitData, error) {
-	raw, err := json.Marshal(resource)
-	if err != nil {
-		return unitData{}, maskAny(err)
-	}
-	return newUnitData(unitName, string(raw)), nil
 }

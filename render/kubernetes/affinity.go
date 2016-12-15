@@ -5,6 +5,7 @@ import (
 
 	"github.com/juju/errgo"
 	"github.com/pulcy/j2/jobs"
+	k8s "github.com/pulcy/j2/pkg/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	metav1 "k8s.io/client-go/pkg/apis/meta/v1"
 )
@@ -74,7 +75,7 @@ func createAffinity(constraints jobs.Constraints, tg *jobs.TaskGroup, pod pod, c
 					term.LabelSelector = &metav1.LabelSelector{}
 				}
 				term.TopologyKey = "node"
-				term.LabelSelector.MatchLabels[metaTaskGroupFullName] = group.FullName()
+				term.LabelSelector.MatchLabels[k8s.LabelTaskGroupFullName] = group.FullName()
 			default:
 				return nil, errgo.WithCausef(nil, ValidationError, "Unknown constraint attribute '%s'", c.Attribute)
 			}

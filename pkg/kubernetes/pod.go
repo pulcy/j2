@@ -15,20 +15,17 @@
 package kubernetes
 
 import (
-	k8s "github.com/pulcy/j2/pkg/kubernetes"
-	"github.com/pulcy/j2/scheduler"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
-// listDeployments returns all deployments in the namespace
-func (s *k8sScheduler) listDeployments() ([]scheduler.Unit, error) {
-	var units []scheduler.Unit
-	if list, err := s.clientset.Deployments(s.defaultNamespace).List(v1.ListOptions{}); err != nil {
-		return nil, maskAny(err)
-	} else {
-		for _, d := range list.Items {
-			units = append(units, &k8s.Deployment{Deployment: d})
-		}
+// deletePods deletes the pods that match the given selector from the cluster.
+func deletePods(cs *kubernetes.Clientset, namespace, labelSelector string) error {
+	api := cs.Pods(namespace)
+	if err := api.DeleteCollection(createDeleteOptions(), v1.ListOptions{
+		LabelSelector: labelSelector,
+	}); err != nil {
+		return maskAny(err)
 	}
-	return units, nil
+	return nil
 }

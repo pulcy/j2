@@ -16,11 +16,11 @@ package kubernetes
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/juju/errgo"
 
 	"github.com/pulcy/j2/jobs"
+	k8s "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
@@ -32,16 +32,16 @@ var (
 	maskAny = errgo.MaskFunc(errgo.Any)
 )
 
-type KubernetesResource interface {
+// Unit extends scheduler.Unit with methods used to start & stop units.
+type Unit interface {
+	scheduler.UnitData
+	ObjectMeta() v1.ObjectMeta
 	Namespace() string
-	Start(*kubernetes.Clientset) error
+	Start(cs *kubernetes.Clientset, events chan string) error
+	Destroy(cs *kubernetes.Clientset, events chan string) error
 }
 
-type KubernetesUnit interface {
-	scheduler.Unit
-	Destroy(*kubernetes.Clientset) error
-}
-
+// NewScheduler creates a new kubernetes implementation of scheduler.Scheduler.
 func NewScheduler(j jobs.Job, kubeConfig string) (scheduler.Scheduler, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
@@ -53,14 +53,16 @@ func NewScheduler(j jobs.Job, kubeConfig string) (scheduler.Scheduler, error) {
 		return nil, maskAny(err)
 	}
 	return &k8sScheduler{
-		clientset: clientset,
-		namespace: strings.Replace(j.Name.String(), "_", "-", -1),
+		clientset:        clientset,
+		defaultNamespace: k8s.ResourceName(j.Name.String()),
+		job:              j,
 	}, nil
 }
 
 type k8sScheduler struct {
-	clientset *kubernetes.Clientset
-	namespace string
+	clientset        *kubernetes.Clientset
+	defaultNamespace string
+	job              jobs.Job
 }
 
 // List returns the names of all units on the cluster
@@ -99,8 +101,11 @@ func (s *k8sScheduler) GetState(unit scheduler.Unit) (scheduler.UnitState, error
 }
 
 func (s *k8sScheduler) Cat(unit scheduler.Unit) (string, error) {
-	// TODO implement me
-	return "", nil
+	ku, ok := unit.(Unit)
+	if !ok {
+		return "", maskAny(fmt.Errorf("Expected unit '%s' to implement Kubernetes.Unit", unit.Name()))
+	}
+	return ku.Content(), nil
 }
 
 func (s *k8sScheduler) Stop(events chan scheduler.Event, reason scheduler.Reason, units ...scheduler.Unit) (scheduler.StopStats, error) {
@@ -115,13 +120,23 @@ func (s *k8sScheduler) Destroy(events chan scheduler.Event, reason scheduler.Rea
 		return nil
 	}
 	for _, u := range units {
-		ku, ok := u.(KubernetesUnit)
+		ku, ok := u.(Unit)
 		if !ok {
 			return maskAny(fmt.Errorf("Expected unit '%s' to implement KubernetesUnit", u.Name()))
 		}
-		if err := ku.Destroy(s.clientset); err != nil {
+		destroyEvents := make(chan string)
+		go func() {
+			for msg := range destroyEvents {
+				events <- scheduler.Event{
+					UnitName: u.Name(),
+					Message:  msg,
+				}
+			}
+		}()
+		if err := ku.Destroy(s.clientset, destroyEvents); err != nil {
 			return maskAny(err)
 		}
+		close(destroyEvents)
 		events <- scheduler.Event{
 			UnitName: u.Name(),
 			Message:  "destroyed",
@@ -133,23 +148,33 @@ func (s *k8sScheduler) Destroy(events chan scheduler.Event, reason scheduler.Rea
 func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDataList) error {
 	for i := 0; i < units.Len(); i++ {
 		unit := units.Get(i)
-		res, ok := unit.(KubernetesResource)
+		ku, ok := unit.(Unit)
 		if !ok {
 			return maskAny(fmt.Errorf("Expected unit '%s' to implement KubernetesResource", unit.Name()))
 		}
 
 		// Ensure namespace exists
 		nsAPI := s.clientset.Namespaces()
-		if _, err := nsAPI.Get(res.Namespace(), metav1.GetOptions{}); err != nil {
-			if _, err := nsAPI.Create(createNamespace(res.Namespace())); err != nil {
+		if _, err := nsAPI.Get(ku.Namespace(), metav1.GetOptions{}); err != nil {
+			if _, err := nsAPI.Create(createNamespace(ku.Namespace())); err != nil {
 				return maskAny(err)
 			}
 		}
 
 		// Create/update resource
-		if err := res.Start(s.clientset); err != nil {
+		startEvents := make(chan string)
+		go func() {
+			for msg := range startEvents {
+				events <- scheduler.Event{
+					UnitName: unit.Name(),
+					Message:  msg,
+				}
+			}
+		}()
+		if err := ku.Start(s.clientset, startEvents); err != nil {
 			return maskAny(err)
 		}
+		close(startEvents)
 		events <- scheduler.Event{
 			UnitName: unit.Name(),
 			Message:  "started",
@@ -158,16 +183,38 @@ func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDa
 	return nil
 }
 
+// IsUnitForScalingGroup returns true if the given unit is part of the job this scheduler was build for.
 func (s *k8sScheduler) IsUnitForScalingGroup(unit scheduler.Unit, scalingGroup uint) bool {
-	return true
+	return s.IsUnitForJob(unit)
 }
 
+// IsUnitForJob returns true if the given unit is part of the job this scheduler was build for.
 func (s *k8sScheduler) IsUnitForJob(unit scheduler.Unit) bool {
-	return true
+	if ku, ok := unit.(Unit); !ok {
+		panic("Expected Unit")
+		return false
+	} else {
+		found := ku.ObjectMeta().Labels[k8s.LabelJobName]
+		expected := k8s.ResourceName(s.job.Name.String())
+		if found != expected {
+			fmt.Printf("Expected '%s'\nFound '%s'\n\n\n\n\n\n\n", found, expected)
+			return false
+		}
+		return true
+	}
 }
 
+// IsUnitForTaskGroup returns true if the given unit is part of the job this scheduler was build for
+// and part of the task group with given name.
 func (s *k8sScheduler) IsUnitForTaskGroup(unit scheduler.Unit, g jobs.TaskGroupName) bool {
-	return true // TODO implement me
+	if !s.IsUnitForJob(unit) {
+		return false
+	}
+	if ku, ok := unit.(Unit); !ok {
+		return false
+	} else {
+		return ku.ObjectMeta().Labels[k8s.LabelTaskGroupName] == k8s.ResourceName(g.String())
+	}
 }
 
 func createNamespace(name string) *v1.Namespace {

@@ -15,32 +15,19 @@
 package kubernetes
 
 import (
+	k8s "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 )
-
-type serviceUnit struct {
-	v1.Service
-}
-
-func (u *serviceUnit) Name() string {
-	return u.Service.Name
-}
-
-func (u *serviceUnit) Destroy(cs *kubernetes.Clientset) error {
-	api := cs.Services(u.Service.Namespace)
-	return maskAny(api.Delete(u.Service.Name, createDeleteOptions()))
-}
 
 // listServices returns all services in the namespace
 func (s *k8sScheduler) listServices() ([]scheduler.Unit, error) {
 	var units []scheduler.Unit
-	if list, err := s.clientset.Services(s.namespace).List(v1.ListOptions{}); err != nil {
+	if list, err := s.clientset.Services(s.defaultNamespace).List(v1.ListOptions{}); err != nil {
 		return nil, maskAny(err)
 	} else {
 		for _, d := range list.Items {
-			units = append(units, &serviceUnit{Service: d})
+			units = append(units, &k8s.Service{Service: d})
 		}
 	}
 	return units, nil

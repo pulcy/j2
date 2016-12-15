@@ -15,33 +15,19 @@
 package kubernetes
 
 import (
+	k8s "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
-
-type daemonSetUnit struct {
-	v1beta1.DaemonSet
-}
-
-func (u *daemonSetUnit) Name() string {
-	return u.DaemonSet.Name
-}
-
-func (u *daemonSetUnit) Destroy(cs *kubernetes.Clientset) error {
-	api := cs.DaemonSets(u.DaemonSet.Namespace)
-	return maskAny(api.Delete(u.DaemonSet.Name, createDeleteOptions()))
-}
 
 // listDaemonSets returns all daemonSets in the namespace
 func (s *k8sScheduler) listDaemonSets() ([]scheduler.Unit, error) {
 	var units []scheduler.Unit
-	if list, err := s.clientset.DaemonSets(s.namespace).List(v1.ListOptions{}); err != nil {
+	if list, err := s.clientset.DaemonSets(s.defaultNamespace).List(v1.ListOptions{}); err != nil {
 		return nil, maskAny(err)
 	} else {
 		for _, d := range list.Items {
-			units = append(units, &daemonSetUnit{DaemonSet: d})
+			units = append(units, &k8s.DaemonSet{DaemonSet: d})
 		}
 	}
 	return units, nil

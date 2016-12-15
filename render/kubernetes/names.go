@@ -1,6 +1,6 @@
 package kubernetes
 
-import "strings"
+import k8s "github.com/pulcy/j2/pkg/kubernetes"
 
 const (
 	// resource kinds
@@ -11,15 +11,7 @@ const (
 	kindVolume     = "-vol"
 )
 
-var (
-	resourceNameReplacer = strings.NewReplacer(
-		"/", "-",
-		"_", "-",
-	)
-)
-
 // resourceName returns the name of kubernetes resource for the task/group with given fullname.
 func resourceName(fullName string, kind string) string {
-	prefix := resourceNameReplacer.Replace(fullName)
-	return prefix + kind
+	return k8s.ResourceName(fullName + kind)
 }
