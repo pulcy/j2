@@ -14,6 +14,8 @@
 
 package fleet
 
+import "github.com/pulcy/j2/jobs"
+
 // Expand  "${private_ipv4}":
 func (g *fleetRenderer) ExpandPrivateIPv4() string { return "${COREOS_PRIVATE_IPV4}" }
 
@@ -37,3 +39,28 @@ func (g *fleetRenderer) ExpandMachineID() string { return "%m" }
 
 // Expand  "${instance}":
 func (g *fleetRenderer) ExpandInstance() string { return "%i" }
+
+// Does the given task support a DNS name link to the given target?
+func (g *fleetRenderer) SupportsDNSLinkTo(task *jobs.Task, target jobs.LinkName) bool {
+	return task.Network.IsWeave() && !target.HasInstance()
+}
+
+// Does the given task support to be linked to itself through a DNS name?
+func (g *fleetRenderer) TaskAcceptsDNSLink(task *jobs.Task) bool {
+	return task.Type.IsService() && task.Network.IsWeave()
+}
+
+// Does the given dependency support to be linked to itself through a DNS name?
+func (g *fleetRenderer) DependencyAcceptsDNSLink(d jobs.Dependency) bool {
+	return d.Network.IsWeave()
+}
+
+// TaskDNSName returns the DNS name of the given task
+func (g *fleetRenderer) TaskDNSName(task *jobs.Task) string {
+	return task.WeaveDomainName()
+}
+
+// DependencyDNSName returns the DNS name used to reach the given dependency
+func (g *fleetRenderer) DependencyDNSName(d jobs.Dependency) string {
+	return d.Name.WeaveDomainName()
+}

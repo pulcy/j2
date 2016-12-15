@@ -14,6 +14,8 @@
 
 package kubernetes
 
+import "github.com/pulcy/j2/jobs"
+
 // TODO update for kubernetes
 
 // Expand  "${private_ipv4}":
@@ -39,3 +41,30 @@ func (g *k8sRenderer) ExpandMachineID() string { return "%m" }
 
 // Expand  "${instance}":
 func (g *k8sRenderer) ExpandInstance() string { return "%i" }
+
+// Does the given task support a DNS name link to the given target?
+func (g *k8sRenderer) SupportsDNSLinkTo(task *jobs.Task, target jobs.LinkName) bool {
+	return !target.HasInstance()
+}
+
+// Does the given task support to be linked to itself through a DNS name?
+func (g *k8sRenderer) TaskAcceptsDNSLink(task *jobs.Task) bool {
+	return task.Type.IsService()
+}
+
+// Does the given dependency support to be linked to itself through a DNS name?
+func (g *k8sRenderer) DependencyAcceptsDNSLink(d jobs.Dependency) bool {
+	return true
+}
+
+// TaskDNSName returns the DNS name of the given task
+func (g *k8sRenderer) TaskDNSName(task *jobs.Task) string {
+	// TODO Fix me
+	return task.WeaveDomainName()
+}
+
+// DependencyDNSName returns the DNS name used to reach the given dependency
+func (g *k8sRenderer) DependencyDNSName(d jobs.Dependency) string {
+	// TODO Fix me
+	return d.Name.WeaveDomainName()
+}

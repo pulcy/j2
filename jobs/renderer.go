@@ -24,4 +24,19 @@ type Renderer interface {
 
 	// Expand  "${instance}":
 	ExpandInstance() string
+
+	// Does the given task support a DNS name link to the given target?
+	SupportsDNSLinkTo(task *Task, target LinkName) bool
+
+	// Does the given task support to be linked to itself through a DNS name?
+	TaskAcceptsDNSLink(task *Task) bool
+
+	// Does the given dependency support to be linked to itself through a DNS name?
+	DependencyAcceptsDNSLink(d Dependency) bool
+
+	// TaskDNSName returns the DNS name used to reach the given task
+	TaskDNSName(task *Task) string
+
+	// DependencyDNSName returns the DNS name used to reach the given dependency
+	DependencyDNSName(d Dependency) string
 }
