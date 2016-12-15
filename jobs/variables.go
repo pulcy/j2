@@ -32,18 +32,20 @@ var (
 )
 
 type variableContext struct {
-	Job   *Job
-	Group *TaskGroup
-	Task  *Task
+	renderer Renderer
+	Job      *Job
+	Group    *TaskGroup
+	Task     *Task
 
 	errors []string
 }
 
-func NewVariableContext(job *Job, group *TaskGroup, task *Task) *variableContext {
+func NewVariableContext(renderer Renderer, job *Job, group *TaskGroup, task *Task) *variableContext {
 	return &variableContext{
-		Job:   job,
-		Group: group,
-		Task:  task,
+		renderer: renderer,
+		Job:      job,
+		Group:    group,
+		Task:     task,
 	}
 }
 
@@ -137,31 +139,30 @@ func (ctx *variableContext) replaceString(input string) string {
 			}
 		case "instance":
 			if ctx.assertTask(key) {
-				// TODO this is renderer specific
-				return "%i" // Will be expanded by Fleet/Systemd
+				return ctx.renderer.ExpandInstance()
 			}
 		case "instance.full":
 			if ctx.assertJob(key) && ctx.assertGroup(key) && ctx.assertTask(key) {
-				return fmt.Sprintf("%s.%s.%s@%%i", ctx.Job.Name, ctx.Group.Name, ctx.Task.Name)
+				return fmt.Sprintf("%s.%s.%s@%s", ctx.Job.Name, ctx.Group.Name, ctx.Task.Name, ctx.renderer.ExpandInstance())
 			}
 		case "container":
 			if ctx.assertTask(key) {
-				return ctx.Task.containerNameExt("%i") // TODO this is renderer specific
+				return ctx.Task.containerNameExt(ctx.renderer.ExpandInstance())
 			}
 		case "private_ipv4":
-			return "${COREOS_PRIVATE_IPV4}"
+			return ctx.renderer.ExpandPrivateIPv4()
 		case "public_ipv4":
-			return "${COREOS_PUBLIC_IPV4}"
+			return ctx.renderer.ExpandPublicIPv4()
 		case "etcd_endpoints":
-			return "${ETCD_ENDPOINTS}"
+			return ctx.renderer.ExpandEtcdEndpoints()
 		case "etcd_host":
-			return "${ETCD_HOST}"
+			return ctx.renderer.ExpandEtcdHost()
 		case "etcd_port":
-			return "${ETCD_PORT}"
+			return ctx.renderer.ExpandEtcdPort()
 		case "hostname":
-			return "%H" // TODO this is renderer specific
+			return ctx.renderer.ExpandHostname()
 		case "machine_id":
-			return "%m" // TODO this is renderer specific
+			return ctx.renderer.ExpandMachineID()
 		default:
 			parts := strings.Split(key, " ")
 			assertNoArgs := func(noArgs int) bool {

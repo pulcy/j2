@@ -50,7 +50,11 @@ func runRun(cmd *cobra.Command, args []string) {
 	if err != nil {
 		Exitf("Cannot load cluster: %v\n", err)
 	}
-	job, err := loadJob(&runFlags.Flags, *cluster)
+	orchestrator, err := getOrchestrator(cluster)
+	if err != nil {
+		Exitf("Cannot initialize orchestrator: %v\n", err)
+	}
+	job, err := loadJob(&runFlags.Flags, *cluster, orchestrator)
 	if err != nil {
 		Exitf("Cannot load job: %v\n", err)
 	}
@@ -60,7 +64,7 @@ func runRun(cmd *cobra.Command, args []string) {
 		DestroyDelay: runFlags.DestroyDelay,
 		SliceDelay:   runFlags.SliceDelay,
 	}
-	d, err := deployment.NewDeployment(*job, *cluster,
+	d, err := deployment.NewDeployment(orchestrator, *job, *cluster,
 		groups(&runFlags.Flags),
 		deployment.ScalingGroupSelection(runFlags.ScalingGroup),
 		runFlags.Force,

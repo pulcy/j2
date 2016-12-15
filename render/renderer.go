@@ -17,6 +17,7 @@ package render
 import "github.com/pulcy/j2/jobs"
 
 type Renderer interface {
+	jobs.Renderer
 	GenerateUnits(job jobs.Job, ctx RenderContext, config RenderConfig, instanceCount int) ([]UnitData, error)
 }
 

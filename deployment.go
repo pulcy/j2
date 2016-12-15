@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/pulcy/j2/cluster"
+	"github.com/pulcy/j2/extpoints"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
 )
@@ -93,7 +94,7 @@ func groups(f *fg.Flags) []jobs.TaskGroupName {
 }
 
 // loadJob loads the a job from the given flags.
-func loadJob(f *fg.Flags, cluster cluster.Cluster) (*jobs.Job, error) {
+func loadJob(f *fg.Flags, cluster cluster.Cluster, orchestrator extpoints.Orchestrator) (*jobs.Job, error) {
 	if f.JobPath == "" {
 		return nil, maskAny(errgo.New("--job missing"))
 	}
@@ -101,7 +102,12 @@ func loadJob(f *fg.Flags, cluster cluster.Cluster) (*jobs.Job, error) {
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	job, err := jobs.ParseJobFromFile(path, cluster, f.Options, log, f.VaultConfig, f.GithubLoginData)
+	provider, err := orchestrator.RenderProvider()
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	renderer := provider.CreateRenderer()
+	job, err := jobs.ParseJobFromFile(path, cluster, renderer, f.Options, log, f.VaultConfig, f.GithubLoginData)
 	if err != nil {
 		return nil, maskAny(err)
 	}
@@ -136,6 +142,15 @@ func loadCluster(f *fg.Flags) (*cluster.Cluster, error) {
 		cluster.Stack = "core-01"
 	}
 	return cluster, nil
+}
+
+// getOrchestrator creates the orchestrator specified in the given cluster.
+func getOrchestrator(c *cluster.Cluster) (extpoints.Orchestrator, error) {
+	orchestrator := extpoints.Orchestrators.Lookup(c.Orchestrator)
+	if orchestrator == nil {
+		return nil, maskAny(fmt.Errorf("Orchestrator '%s' not found", c.Orchestrator))
+	}
+	return orchestrator, nil
 }
 
 // resolvePath tries to resolve a given path.

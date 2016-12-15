@@ -19,6 +19,7 @@ import (
 
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/deployment"
+	"github.com/pulcy/j2/extpoints"
 	fg "github.com/pulcy/j2/flags"
 	"github.com/pulcy/j2/jobs"
 )
@@ -45,7 +46,11 @@ func destroyRun(cmd *cobra.Command, args []string) {
 	if err != nil {
 		Exitf("Cannot load cluster: %v\n", err)
 	}
-	destroyValidators(&destroyFlags.Flags, *cluster)
+	orchestrator, err := getOrchestrator(cluster)
+	if err != nil {
+		Exitf("Cannot initialize orchestrator: %v\n", err)
+	}
+	destroyValidators(&destroyFlags.Flags, *cluster, orchestrator)
 
 	job := jobs.Job{
 		Name: jobs.JobName(destroyFlags.JobPath),
@@ -55,7 +60,7 @@ func destroyRun(cmd *cobra.Command, args []string) {
 		DestroyDelay: destroyFlags.DestroyDelay,
 		SliceDelay:   destroyFlags.SliceDelay,
 	}
-	d, err := deployment.NewDeployment(job, *cluster,
+	d, err := deployment.NewDeployment(orchestrator, job, *cluster,
 		groups(&destroyFlags.Flags),
 		deployment.ScalingGroupSelection(destroyFlags.ScalingGroup),
 		destroyFlags.Force,
@@ -68,8 +73,8 @@ func destroyRun(cmd *cobra.Command, args []string) {
 	assert(d.Destroy())
 }
 
-func destroyValidators(f *fg.Flags, cluster cluster.Cluster) {
-	j, err := loadJob(f, cluster)
+func destroyValidators(f *fg.Flags, cluster cluster.Cluster, orchestrator extpoints.Orchestrator) {
+	j, err := loadJob(f, cluster, orchestrator)
 	if err == nil {
 		f.JobPath = j.Name.String()
 	}

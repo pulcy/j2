@@ -46,7 +46,7 @@ type parseTask struct {
 type parseTaskList []*parseTask
 
 // ParseJob takes input from a given reader and parses it into a Job.
-func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
+func parseJob(input []byte, jf *jobFunctions, renderer Renderer) (*Job, error) {
 	// Create a template, add the function map, and parse the text.
 	tmpl, err := template.New("job").Funcs(jf.Functions()).Parse(string(input))
 	if err != nil {
@@ -88,7 +88,7 @@ func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
 	job.setDefaults(jf.cluster)
 
 	// Replace variables
-	if err := job.replaceVariables(); err != nil {
+	if err := job.replaceVariables(renderer); err != nil {
 		return nil, maskAny(err)
 	}
 
@@ -107,14 +107,14 @@ func parseJob(input []byte, jf *jobFunctions) (*Job, error) {
 }
 
 // ParseJobFromFile reads a job from file
-func ParseJobFromFile(path string, cluster cluster.Cluster, options fg.Options,
+func ParseJobFromFile(path string, cluster cluster.Cluster, renderer Renderer, options fg.Options,
 	log *logging.Logger, vaultConfig vault.VaultConfig, ghLoginData vault.GithubLoginData) (*Job, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, maskAny(err)
 	}
 	jf := newJobFunctions(path, cluster, options, log, vaultConfig, ghLoginData)
-	job, err := parseJob(data, jf)
+	job, err := parseJob(data, jf, renderer)
 	if err != nil {
 		return nil, maskAny(err)
 	}
