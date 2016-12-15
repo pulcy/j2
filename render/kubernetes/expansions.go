@@ -59,12 +59,10 @@ func (g *k8sRenderer) DependencyAcceptsDNSLink(d jobs.Dependency) bool {
 
 // TaskDNSName returns the DNS name of the given task
 func (g *k8sRenderer) TaskDNSName(task *jobs.Task) string {
-	// TODO Fix me
-	return task.WeaveDomainName()
+	return taskServiceName(task)
 }
 
 // DependencyDNSName returns the DNS name used to reach the given dependency
 func (g *k8sRenderer) DependencyDNSName(d jobs.Dependency) string {
-	// TODO Fix me
-	return d.Name.WeaveDomainName()
+	return dependencyServiceName(d)
 }

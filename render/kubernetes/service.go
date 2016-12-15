@@ -10,16 +10,17 @@ import (
 
 // createServices creates all services needed for the given task group.
 func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]v1.Service, error) {
-	d := v1.Service{}
-	d.TypeMeta.Kind = "Service"
-	d.TypeMeta.APIVersion = "v1"
-
-	d.ObjectMeta.Name = resourceName(pod.name, kindService)
-	d.ObjectMeta.Namespace = ctx.Namespace
-	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
-
-	d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
+	var services []v1.Service
 	for _, t := range pod.tasks {
+		d := v1.Service{}
+		d.TypeMeta.Kind = "Service"
+		d.TypeMeta.APIVersion = "v1"
+
+		d.ObjectMeta.Name = taskServiceName(t)
+		d.ObjectMeta.Namespace = ctx.Namespace
+		setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+
+		d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
 		for _, p := range t.Ports {
 			pp, err := p.Parse()
 			if err != nil {
@@ -34,9 +35,10 @@ func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]v1.Ser
 			}
 			d.Spec.Ports = append(d.Spec.Ports, servicePort)
 		}
+		services = append(services, d)
 	}
 
-	return []v1.Service{d}, nil
+	return services, nil
 }
 
 type serviceResource struct {

@@ -251,6 +251,11 @@ func (t *Task) JobName() JobName {
 	return t.group.job.Name
 }
 
+// GroupName returns the name of the group containing this task.
+func (t *Task) GroupName() TaskGroupName {
+	return t.group.Name
+}
+
 // GroupGlobal returns true if the Global flag of the containing group is set.
 func (t *Task) GroupGlobal() bool {
 	return t.group.Global
