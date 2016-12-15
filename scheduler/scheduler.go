@@ -15,6 +15,8 @@
 package scheduler
 
 import (
+	"time"
+
 	"github.com/pulcy/j2/jobs"
 )
 
@@ -41,6 +43,9 @@ type Scheduler interface {
 	IsUnitForScalingGroup(unit Unit, scalingGroup uint) bool
 	IsUnitForJob(unit Unit) bool
 	IsUnitForTaskGroup(unit Unit, g jobs.TaskGroupName) bool
+
+	UpdateStopDelay(time.Duration) time.Duration
+	UpdateDestroyDelay(time.Duration) time.Duration
 }
 
 type UnitState struct {

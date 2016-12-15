@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/juju/errgo"
 
@@ -191,13 +192,11 @@ func (s *k8sScheduler) IsUnitForScalingGroup(unit scheduler.Unit, scalingGroup u
 // IsUnitForJob returns true if the given unit is part of the job this scheduler was build for.
 func (s *k8sScheduler) IsUnitForJob(unit scheduler.Unit) bool {
 	if ku, ok := unit.(Unit); !ok {
-		panic("Expected Unit")
 		return false
 	} else {
 		found := ku.ObjectMeta().Labels[k8s.LabelJobName]
 		expected := k8s.ResourceName(s.job.Name.String())
 		if found != expected {
-			panic(fmt.Sprintf("Expected '%s'\nFound '%s'\n\n\n\n\n\n\n", found, expected))
 			return false
 		}
 		return true
@@ -208,19 +207,26 @@ func (s *k8sScheduler) IsUnitForJob(unit scheduler.Unit) bool {
 // and part of the task group with given name.
 func (s *k8sScheduler) IsUnitForTaskGroup(unit scheduler.Unit, g jobs.TaskGroupName) bool {
 	if !s.IsUnitForJob(unit) {
-		panic("IsUnitForTaskGroup: !job")
 		return false
 	}
 	if ku, ok := unit.(Unit); !ok {
-		panic("IsUnitForTaskGroup: !Unit")
 		return false
 	} else {
 		if ku.ObjectMeta().Labels[k8s.LabelTaskGroupName] == k8s.ResourceName(g.String()) {
 			return true
 		}
-		panic("IsUnitForTaskGroup: false")
 		return false
 	}
+}
+
+func (s *k8sScheduler) UpdateStopDelay(d time.Duration) time.Duration {
+	// Stopping is done by Kubernetes, do not wait for it
+	return time.Duration(0)
+}
+
+func (s *k8sScheduler) UpdateDestroyDelay(d time.Duration) time.Duration {
+	// Destroying is done inline by Kubernetes, do not wait for it
+	return time.Duration(0)
 }
 
 func createNamespace(name string) *v1.Namespace {

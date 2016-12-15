@@ -44,7 +44,9 @@ func (ds *Deployment) ObjectMeta() v1.ObjectMeta {
 
 // Content returns a JSON representation of the resource.
 func (ds *Deployment) Content() string {
-	return mustRender(ds.Deployment)
+	x := ds.Deployment
+	x.Status.Reset()
+	return mustRender(x)
 }
 
 // Destroy deletes the deployment from the cluster.

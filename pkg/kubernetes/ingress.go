@@ -44,7 +44,9 @@ func (ds *Ingress) ObjectMeta() v1.ObjectMeta {
 
 // Content returns a JSON representation of the resource.
 func (ds *Ingress) Content() string {
-	return mustRender(ds.Ingress)
+	x := ds.Ingress
+	x.Status.Reset()
+	return mustRender(x)
 }
 
 // Destroy deletes the ingress from the cluster.

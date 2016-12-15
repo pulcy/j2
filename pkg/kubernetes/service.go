@@ -43,7 +43,9 @@ func (ds *Service) ObjectMeta() v1.ObjectMeta {
 
 // Content returns a JSON representation of the resource.
 func (ds *Service) Content() string {
-	return mustRender(ds.Service)
+	x := ds.Service
+	x.Status.Reset()
+	return mustRender(x)
 }
 
 // Destroy deletes the service from the cluster.

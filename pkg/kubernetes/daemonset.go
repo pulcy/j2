@@ -44,7 +44,9 @@ func (ds *DaemonSet) ObjectMeta() v1.ObjectMeta {
 
 // Content returns a JSON representation of the resource.
 func (ds *DaemonSet) Content() string {
-	return mustRender(ds.DaemonSet)
+	x := ds.DaemonSet
+	x.Status.Reset()
+	return mustRender(x)
 }
 
 // Destroy deletes the daemonset from the cluster.

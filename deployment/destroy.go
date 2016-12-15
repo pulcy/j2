@@ -81,7 +81,7 @@ func (d *Deployment) destroyUnits(f scheduler.Scheduler, modifiedUnits, failedUn
 		}
 
 		if stats.StoppedGlobalUnits > 0 {
-			InterruptibleSleep(ui.MessageSink, d.StopDelay, "Waiting for %s...")
+			InterruptibleSleep(ui.MessageSink, f.UpdateStopDelay(d.StopDelay), "Waiting for %s...")
 		}
 
 		ui.MessageSink <- fmt.Sprintf("Destroying %d unit(s)", len(units))

@@ -111,7 +111,7 @@ func (d *Deployment) Run() error {
 				return maskAny(err)
 			}
 
-			InterruptibleSleep(ui.MessageSink, d.DestroyDelay, "Waiting for %s...")
+			InterruptibleSleep(ui.MessageSink, s.UpdateDestroyDelay(d.DestroyDelay), "Waiting for %s...")
 		}
 
 		// Now launch everything

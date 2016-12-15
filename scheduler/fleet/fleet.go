@@ -16,6 +16,7 @@ package fleetscheduler
 
 import (
 	"sync"
+	"time"
 
 	"github.com/juju/errgo"
 
@@ -144,6 +145,14 @@ func (s *fleetScheduler) IsUnitForJob(unit scheduler.Unit) bool {
 
 func (s *fleetScheduler) IsUnitForTaskGroup(unit scheduler.Unit, g jobs.TaskGroupName) bool {
 	return IsUnitForTaskGroup(unit.Name(), s.job.Name, g)
+}
+
+func (s *fleetScheduler) UpdateStopDelay(d time.Duration) time.Duration {
+	return d // Do not modify
+}
+
+func (s *fleetScheduler) UpdateDestroyDelay(d time.Duration) time.Duration {
+	return d // Do not modify
 }
 
 func (s *fleetScheduler) getStatus() (*fleet.StatusMap, error) {
