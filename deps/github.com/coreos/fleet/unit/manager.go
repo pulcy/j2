@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ import (
 
 type UnitManager interface {
 	Load(string, UnitFile) error
-	Unload(string)
+	Unload(string) error
 	ReloadUnitFiles() error
 
-	TriggerStart(string)
-	TriggerStop(string)
+	TriggerStart(string) error
+	TriggerStop(string) error
 
 	Units() ([]string, error)
 	GetUnitStates(pkg.Set) (map[string]*UnitState, error)

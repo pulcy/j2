@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,6 +58,9 @@ func (r *reconciler) Run(stop <-chan struct{}) {
 	go func() {
 		abort := make(chan struct{})
 		for {
+			if r.eStream == nil {
+				return
+			}
 			select {
 			case <-stop:
 				close(abort)

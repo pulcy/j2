@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,6 +77,21 @@ Description=Testing
 [X-Fleet]
 Conflicts=*bar*
 `, []string{"*bar*"}},
+		{``, []string{}},
+		{`[Unit]
+Description=Testing
+
+[X-Fleet]
+Conflicts=*bar* *foo*
+`, []string{"*bar*", "*foo*"}},
+		{``, []string{}},
+		{`[Unit]
+Description=Testing
+
+[X-Fleet]
+Conflicts=*bar*
+Conflicts=*foo*
+`, []string{"*bar*", "*foo*"}},
 	}
 	for i, tt := range testCases {
 		j := NewJob("echo.service", *newUnit(t, tt.contents))

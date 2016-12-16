@@ -1094,6 +1094,7 @@ func unmarshalTimestamp(info TypeInfo, data []byte, value interface{}) error {
 		return nil
 	case *time.Time:
 		if len(data) == 0 {
+			*v = time.Time{}
 			return nil
 		}
 		x := decBigInt(data)
@@ -1141,6 +1142,10 @@ func marshalList(info TypeInfo, value interface{}) ([]byte, error) {
 	listInfo, ok := info.(CollectionType)
 	if !ok {
 		return nil, marshalErrorf("marshal: can not marshal non collection type into list")
+	}
+
+	if value == nil {
+		return nil, nil
 	}
 
 	rv := reflect.ValueOf(value)
@@ -1253,6 +1258,10 @@ func marshalMap(info TypeInfo, value interface{}) ([]byte, error) {
 	mapInfo, ok := info.(CollectionType)
 	if !ok {
 		return nil, marshalErrorf("marshal: can not marshal none collection type into map")
+	}
+
+	if value == nil {
+		return nil, nil
 	}
 
 	rv := reflect.ValueOf(value)
@@ -1581,7 +1590,7 @@ func marshalUDT(info TypeInfo, value interface{}) ([]byte, error) {
 		for _, e := range udt.Elements {
 			val, ok := v[e.Name]
 			if !ok {
-				return nil, marshalErrorf("missing UDT field in map: %s", e.Name)
+				continue
 			}
 
 			data, err := Marshal(e.Type, val)
@@ -1647,6 +1656,9 @@ func unmarshalUDT(info TypeInfo, data []byte, value interface{}) error {
 		udt := info.(UDTTypeInfo)
 
 		for _, e := range udt.Elements {
+			if len(data) == 0 {
+				return nil
+			}
 			size := readInt(data[:4])
 			data = data[4:]
 
@@ -1685,6 +1697,9 @@ func unmarshalUDT(info TypeInfo, data []byte, value interface{}) error {
 		m := *v
 
 		for _, e := range udt.Elements {
+			if len(data) == 0 {
+				return nil
+			}
 			size := readInt(data[:4])
 			data = data[4:]
 

@@ -10,7 +10,8 @@ The unit name must be of the form `string.suffix` or `string@instance.suffix`, w
 
 * `string` must not be an empty string and can only contain alphanumeric characters and any of `:_.@-`. Formally, it must match the regular expression `[a-zA-Z0-9:_.@-]+`
 * `instance` can be empty, and can only contain the same characters as are valid for `string`. Formally, it must match the regular expression `[a-zA-Z0-9:_.@-]*`
-* `suffix` must be one of the following unit types: `service`, `socket`, `device`, `mount`, `automount`, `timer`, `path`
+* `suffix` must be one of the following unit types: `automount`, `busname`, `device`, `mount`, `path`, `scope`, `service`, `slice`, `snapshot`, `socket`, `swap`, `target`, `timer`
+* `suffix` of templates must be one of the following unit types: `path`, `service`, `socket`, `target`, `timer`. Other types such as `mount` are not allowed to be used for templates.
 
 Note that these requirements are derived directly from systemd, with the only exception that the unit types are a subset of those supported by systemd.
 
@@ -22,7 +23,7 @@ Note that these requirements are derived directly from systemd, with the only ex
 | `MachineOf` | Limit eligible machines to the one that hosts a specific unit. |
 | `MachineMetadata` | Limit eligible machines to those with this specific metadata. |
 | `Conflicts` | Prevent a unit from being collocated with other units using glob-matching on the other unit names. |
-| `Global` | Schedule this unit on all agents in the cluster. A unit is considered invalid if options other than `MachineMetadata` are provided alongside `Global=true`. |
+| `Global` | Schedule this unit on those agents in the cluster, which satisfy the conditions of both `MachineMetadata` and `Conflicts` if any of them is also given. A unit is considered invalid if options other than `MachineMetadata` and `Conflicts` are provided alongside `Global=true`. If `MachineMetadata` is provided alongside `Global=true`, only the agents having the metadata can be scheduled on. If `Conflicts` is provided alongside `Global=true`, only the agents not having the conflicting units can be scheduled on. The conflicting units also can not be scheduled on the agents which already have the existing conflicting global unit.|
 | `Replaces` | Schedule a specified unit on another machine. A unit is considered invalid if options `Global` or `Conflicts` are provided alongside `Replaces=`. A circular replacement between multiple units is not allowed. |
 
 See [more information][unit-scheduling] on these parameters and how they impact scheduling decisions.
@@ -58,6 +59,35 @@ To use instance units, simply create a unit file whose name matches the `<name>@
 
 When working with instance units, it is strongly recommended that all units be _entirely homogenous_. This means that any unit created as, say, `foo@1.service`, should be created only from the unit named `foo@.service`. This homogeneity will be enforced by the fleet API in future.
 
+## Definition of the Install Section
+
+Unit files which have an `[Install]` section will be automatically enabled by fleet. This means that the states of such unit files cannot be tracked by fleet. For example, assume we have loaded this `my.service` unit file:
+
+```ini
+[Service]
+ExecStart=/bin/bash -c "while true; do echo my.service unit file; sleep 1; done"
+```
+
+and then loaded an additional [sidekick][sidekick] discovery unit `my_discovery.service`:
+
+```ini
+[Unit]
+BindsTo=my.service
+
+[Service]
+ExecStart=/bin/bash -c "while true; do echo my_discovery.service unit file; sleep 1; done"
+
+[Install]
+WantedBy=my.service
+
+[X-Fleet]
+MachineOf=my.service
+```
+
+fleet will load and enable the `my_discovery.service` unit above because it contains an `[Install]` section. When `my.service` is started, systemd will also start `my_discovery.service`, independent of the desired state defined for `my_discovery.service` in fleet. This can cause confusion between the output of `fleetctl list-units` and `systemctl list-units`, which will not match in this scenario. Use `fleetctl status my_discovery.service` to explicitly identify the service and get its actual unit status.
+
+If systemd can not enable the unit which has `[Install]` section, fleet will interrupt load process and return an error.
+
 ## systemd specifiers
 
 When evaluating the `[X-Fleet]` section, fleet supports a subset of systemd's [specifiers][systemd specifiers] to perform variable substitution. The following specifiers are currently supported:
@@ -89,7 +119,7 @@ For more details on the specific behavior of the engine, read more about [fleet'
 
 For non-global units, several different directives are available to control the engine's scheduling decision.
 
-##### Schedule unit to specific machine
+## Schedule unit to specific machine
 
 The `MachineID` option of a unit file causes the system to schedule a unit to a machine identified by the option's value.
 
@@ -99,7 +129,7 @@ One must use the entire ID when setting `MachineID` - the shortened ID returned 
 fleet depends on its host to generate an identifier at `/etc/machine-id`, which is handled today by systemd.
 Read more about machine IDs in the [official systemd documentation][machine-id].
 
-##### Schedule unit to machine with specific metadata
+## Schedule unit to machine with specific metadata
 
 The `MachineMetadata` option of a unit file allows you to set conditional metadata required for a machine to be elegible.
 
@@ -180,9 +210,9 @@ app.service     fd1d3e94.../10.0.0.1    active  running
 ```
 
 A machine is not automatically configured with metadata.
-A deployer may define machine metadata using the `metadata` [config option][config-option].
+A deployer may define machine metadata using the `metadata` [config option][config-option] or via the [HTTP api][http-api].
 
-##### Schedule unit next to another unit
+## Schedule unit next to another unit
 
 In order for a unit to be scheduled to the same machine as another unit, a unit file can define `MachineOf`.
 The value of this option is the exact name of another unit in the system, which we'll call the target unit.
@@ -194,13 +224,13 @@ Follower units will reschedule themselves around the cluster to ensure their `Ma
 
 Note that currently `MachineOf` _cannot_ be a bidirectional dependency: i.e., if unit `foo.service` has `MachineOf=bar.service`, then `bar.service` must not have a `MachineOf=foo.service`, or fleet will be unable to schedule the units.
 
-##### Schedule unit away from other unit(s)
+## Schedule unit away from other unit(s)
 
 The value of the `Conflicts` option is a [glob pattern][glob-pattern] defining which other units next to which a given unit must not be scheduled. A unit may have multiple `Conflicts` options.
 
 If a unit is scheduled to the system without an `Conflicts` option, other units' conflicts still take effect and prevent the new unit from being scheduled to machines where conflicts exist.
 
-##### Dynamic requirements
+## Dynamic requirements
 
 fleet supports several [systemd specifiers][systemd-specifiers] to allow requirements to be dynamically determined based on a Unit's name. This means that the same unit can be used for multiple Units and the requirements are dynamically substituted when the Unit is scheduled.
 
@@ -214,6 +244,7 @@ MachineOf=%p.socket
 would result in an effective `MachineOf` of `foo.socket`. Using the same unit snippet with a Unit called `bar.service`, on the other hand, would result in an effective `MachineOf` of `bar.socket`.
 
 [config-option]: deployment-and-configuration.md#metadata
+[http-api]: api-v1.md#edit-machine-metadata
 [systemd-guide]: https://github.com/coreos/docs/blob/master/os/getting-started-with-systemd.md
 [systemd instances]: http://0pointer.de/blog/projects/instances.html
 [systemd specifiers]: http://www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers
@@ -222,4 +253,5 @@ would result in an effective `MachineOf` of `foo.socket`. Using the same unit sn
 [glob-pattern]: http://golang.org/pkg/path/#Match
 [unit-scheduling]: #unit-scheduling
 [example-deployment]: examples/example-deployment.md#service-files
+[sidekick]: examples/service-discovery.md
 [systemd-specifiers]: #systemd-specifiers

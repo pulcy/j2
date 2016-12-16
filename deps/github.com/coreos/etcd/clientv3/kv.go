@@ -17,13 +17,15 @@ package clientv3
 import (
 	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 type (
-	PutResponse    pb.PutResponse
-	GetResponse    pb.RangeResponse
-	DeleteResponse pb.DeleteRangeResponse
-	TxnResponse    pb.TxnResponse
+	CompactResponse pb.CompactionResponse
+	PutResponse     pb.PutResponse
+	GetResponse     pb.RangeResponse
+	DeleteResponse  pb.DeleteRangeResponse
+	TxnResponse     pb.TxnResponse
 )
 
 type KV interface {
@@ -47,7 +49,7 @@ type KV interface {
 	Delete(ctx context.Context, key string, opts ...OpOption) (*DeleteResponse, error)
 
 	// Compact compacts etcd KV history before the given rev.
-	Compact(ctx context.Context, rev int64) error
+	Compact(ctx context.Context, rev int64, opts ...CompactOption) (*CompactResponse, error)
 
 	// Do applies a single Op on KV without a transaction.
 	// Do is useful when declaring operations to be issued at a later time
@@ -80,7 +82,11 @@ type kv struct {
 }
 
 func NewKV(c *Client) KV {
-	return &kv{remote: pb.NewKVClient(c.conn)}
+	return &kv{remote: RetryKVClient(c)}
+}
+
+func NewKVFromKVClient(remote pb.KVClient) KV {
+	return &kv{remote: remote}
 }
 
 func (kv *kv) Put(ctx context.Context, key, val string, opts ...OpOption) (*PutResponse, error) {
@@ -98,11 +104,12 @@ func (kv *kv) Delete(ctx context.Context, key string, opts ...OpOption) (*Delete
 	return r.del, toErr(ctx, err)
 }
 
-func (kv *kv) Compact(ctx context.Context, rev int64) error {
-	if _, err := kv.remote.Compact(ctx, &pb.CompactionRequest{Revision: rev}); err != nil {
-		return toErr(ctx, err)
+func (kv *kv) Compact(ctx context.Context, rev int64, opts ...CompactOption) (*CompactResponse, error) {
+	resp, err := kv.remote.Compact(ctx, OpCompact(rev, opts...).toRequest())
+	if err != nil {
+		return nil, toErr(ctx, err)
 	}
-	return nil
+	return (*CompactResponse)(resp), err
 }
 
 func (kv *kv) Txn(ctx context.Context) Txn {
@@ -118,6 +125,7 @@ func (kv *kv) Do(ctx context.Context, op Op) (OpResponse, error) {
 		if err == nil {
 			return resp, nil
 		}
+
 		if isHaltErr(ctx, err) {
 			return resp, toErr(ctx, err)
 		}
@@ -134,26 +142,20 @@ func (kv *kv) do(ctx context.Context, op Op) (OpResponse, error) {
 	// TODO: handle other ops
 	case tRange:
 		var resp *pb.RangeResponse
-		r := &pb.RangeRequest{Key: op.key, RangeEnd: op.end, Limit: op.limit, Revision: op.rev, Serializable: op.serializable}
-		if op.sort != nil {
-			r.SortOrder = pb.RangeRequest_SortOrder(op.sort.Order)
-			r.SortTarget = pb.RangeRequest_SortTarget(op.sort.Target)
-		}
-
-		resp, err = kv.remote.Range(ctx, r)
+		resp, err = kv.remote.Range(ctx, op.toRangeRequest(), grpc.FailFast(false))
 		if err == nil {
 			return OpResponse{get: (*GetResponse)(resp)}, nil
 		}
 	case tPut:
 		var resp *pb.PutResponse
-		r := &pb.PutRequest{Key: op.key, Value: op.val, Lease: int64(op.leaseID)}
+		r := &pb.PutRequest{Key: op.key, Value: op.val, Lease: int64(op.leaseID), PrevKv: op.prevKV}
 		resp, err = kv.remote.Put(ctx, r)
 		if err == nil {
 			return OpResponse{put: (*PutResponse)(resp)}, nil
 		}
 	case tDeleteRange:
 		var resp *pb.DeleteRangeResponse
-		r := &pb.DeleteRangeRequest{Key: op.key, RangeEnd: op.end}
+		r := &pb.DeleteRangeRequest{Key: op.key, RangeEnd: op.end, PrevKv: op.prevKV}
 		resp, err = kv.remote.DeleteRange(ctx, r)
 		if err == nil {
 			return OpResponse{del: (*DeleteResponse)(resp)}, nil

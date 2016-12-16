@@ -35,7 +35,7 @@ const (
 	// to apply functions instead of a valid txn ID.
 	noTxn = -1
 
-	warnApplyDuration = 10 * time.Millisecond
+	warnApplyDuration = 100 * time.Millisecond
 )
 
 type applyResult struct {
@@ -78,6 +78,8 @@ type applierV3 interface {
 	RoleGet(ua *pb.AuthRoleGetRequest) (*pb.AuthRoleGetResponse, error)
 	RoleRevokePermission(ua *pb.AuthRoleRevokePermissionRequest) (*pb.AuthRoleRevokePermissionResponse, error)
 	RoleDelete(ua *pb.AuthRoleDeleteRequest) (*pb.AuthRoleDeleteResponse, error)
+	UserList(ua *pb.AuthUserListRequest) (*pb.AuthUserListResponse, error)
+	RoleList(ua *pb.AuthRoleListRequest) (*pb.AuthRoleListResponse, error)
 }
 
 type applierV3backend struct {
@@ -140,6 +142,10 @@ func (a *applierV3backend) Apply(r *pb.InternalRaftRequest) *applyResult {
 		ar.resp, ar.err = a.s.applyV3.RoleRevokePermission(r.AuthRoleRevokePermission)
 	case r.AuthRoleDelete != nil:
 		ar.resp, ar.err = a.s.applyV3.RoleDelete(r.AuthRoleDelete)
+	case r.AuthUserList != nil:
+		ar.resp, ar.err = a.s.applyV3.UserList(r.AuthUserList)
+	case r.AuthRoleList != nil:
+		ar.resp, ar.err = a.s.applyV3.RoleList(r.AuthRoleList)
 	default:
 		panic("not implemented")
 	}
@@ -153,6 +159,22 @@ func (a *applierV3backend) Put(txnID int64, p *pb.PutRequest) (*pb.PutResponse, 
 		rev int64
 		err error
 	)
+
+	var rr *mvcc.RangeResult
+	if p.PrevKv {
+		if txnID != noTxn {
+			rr, err = a.s.KV().TxnRange(txnID, p.Key, nil, mvcc.RangeOptions{})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			rr, err = a.s.KV().Range(p.Key, nil, mvcc.RangeOptions{})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	if txnID != noTxn {
 		rev, err = a.s.KV().TxnPut(txnID, p.Key, p.Value, lease.LeaseID(p.Lease))
 		if err != nil {
@@ -168,6 +190,9 @@ func (a *applierV3backend) Put(txnID int64, p *pb.PutRequest) (*pb.PutResponse, 
 		rev = a.s.KV().Put(p.Key, p.Value, leaseID)
 	}
 	resp.Header.Revision = rev
+	if rr != nil && len(rr.KVs) != 0 {
+		resp.PrevKv = &rr.KVs[0]
+	}
 	return resp, nil
 }
 
@@ -185,6 +210,21 @@ func (a *applierV3backend) DeleteRange(txnID int64, dr *pb.DeleteRangeRequest) (
 		dr.RangeEnd = []byte{}
 	}
 
+	var rr *mvcc.RangeResult
+	if dr.PrevKv {
+		if txnID != noTxn {
+			rr, err = a.s.KV().TxnRange(txnID, dr.Key, dr.RangeEnd, mvcc.RangeOptions{})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			rr, err = a.s.KV().Range(dr.Key, dr.RangeEnd, mvcc.RangeOptions{})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	if txnID != noTxn {
 		n, rev, err = a.s.KV().TxnDeleteRange(txnID, dr.Key, dr.RangeEnd)
 		if err != nil {
@@ -195,6 +235,11 @@ func (a *applierV3backend) DeleteRange(txnID int64, dr *pb.DeleteRangeRequest) (
 	}
 
 	resp.Deleted = n
+	if rr != nil {
+		for i := range rr.KVs {
+			resp.PrevKvs = append(resp.PrevKvs, &rr.KVs[i])
+		}
+	}
 	resp.Header.Revision = rev
 	return resp, nil
 }
@@ -204,8 +249,7 @@ func (a *applierV3backend) Range(txnID int64, r *pb.RangeRequest) (*pb.RangeResp
 	resp.Header = &pb.ResponseHeader{}
 
 	var (
-		kvs []mvccpb.KeyValue
-		rev int64
+		rr  *mvcc.RangeResult
 		err error
 	)
 
@@ -214,7 +258,9 @@ func (a *applierV3backend) Range(txnID int64, r *pb.RangeRequest) (*pb.RangeResp
 	}
 
 	limit := r.Limit
-	if r.SortOrder != pb.RangeRequest_NONE {
+	if r.SortOrder != pb.RangeRequest_NONE ||
+		r.MinModRevision != 0 || r.MaxModRevision != 0 ||
+		r.MinCreateRevision != 0 || r.MaxCreateRevision != 0 {
 		// fetch everything; sort and truncate afterwards
 		limit = 0
 	}
@@ -223,48 +269,82 @@ func (a *applierV3backend) Range(txnID int64, r *pb.RangeRequest) (*pb.RangeResp
 		limit = limit + 1
 	}
 
+	ro := mvcc.RangeOptions{
+		Limit: limit,
+		Rev:   r.Revision,
+		Count: r.CountOnly,
+	}
+
 	if txnID != noTxn {
-		kvs, rev, err = a.s.KV().TxnRange(txnID, r.Key, r.RangeEnd, limit, r.Revision)
+		rr, err = a.s.KV().TxnRange(txnID, r.Key, r.RangeEnd, ro)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		kvs, rev, err = a.s.KV().Range(r.Key, r.RangeEnd, limit, r.Revision)
+		rr, err = a.s.KV().Range(r.Key, r.RangeEnd, ro)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if r.SortOrder != pb.RangeRequest_NONE {
+	if r.MaxModRevision != 0 {
+		f := func(kv *mvccpb.KeyValue) bool { return kv.ModRevision > r.MaxModRevision }
+		pruneKVs(rr, f)
+	}
+	if r.MinModRevision != 0 {
+		f := func(kv *mvccpb.KeyValue) bool { return kv.ModRevision < r.MinModRevision }
+		pruneKVs(rr, f)
+	}
+	if r.MaxCreateRevision != 0 {
+		f := func(kv *mvccpb.KeyValue) bool { return kv.CreateRevision > r.MaxCreateRevision }
+		pruneKVs(rr, f)
+	}
+	if r.MinCreateRevision != 0 {
+		f := func(kv *mvccpb.KeyValue) bool { return kv.CreateRevision < r.MinCreateRevision }
+		pruneKVs(rr, f)
+	}
+
+	sortOrder := r.SortOrder
+	if r.SortTarget != pb.RangeRequest_KEY && sortOrder == pb.RangeRequest_NONE {
+		// Since current mvcc.Range implementation returns results
+		// sorted by keys in lexiographically ascending order,
+		// sort ASCEND by default only when target is not 'KEY'
+		sortOrder = pb.RangeRequest_ASCEND
+	}
+	if sortOrder != pb.RangeRequest_NONE {
 		var sorter sort.Interface
 		switch {
 		case r.SortTarget == pb.RangeRequest_KEY:
-			sorter = &kvSortByKey{&kvSort{kvs}}
+			sorter = &kvSortByKey{&kvSort{rr.KVs}}
 		case r.SortTarget == pb.RangeRequest_VERSION:
-			sorter = &kvSortByVersion{&kvSort{kvs}}
+			sorter = &kvSortByVersion{&kvSort{rr.KVs}}
 		case r.SortTarget == pb.RangeRequest_CREATE:
-			sorter = &kvSortByCreate{&kvSort{kvs}}
+			sorter = &kvSortByCreate{&kvSort{rr.KVs}}
 		case r.SortTarget == pb.RangeRequest_MOD:
-			sorter = &kvSortByMod{&kvSort{kvs}}
+			sorter = &kvSortByMod{&kvSort{rr.KVs}}
 		case r.SortTarget == pb.RangeRequest_VALUE:
-			sorter = &kvSortByValue{&kvSort{kvs}}
+			sorter = &kvSortByValue{&kvSort{rr.KVs}}
 		}
 		switch {
-		case r.SortOrder == pb.RangeRequest_ASCEND:
+		case sortOrder == pb.RangeRequest_ASCEND:
 			sort.Sort(sorter)
-		case r.SortOrder == pb.RangeRequest_DESCEND:
+		case sortOrder == pb.RangeRequest_DESCEND:
 			sort.Sort(sort.Reverse(sorter))
 		}
 	}
 
-	if r.Limit > 0 && len(kvs) > int(r.Limit) {
-		kvs = kvs[:r.Limit]
+	if r.Limit > 0 && len(rr.KVs) > int(r.Limit) {
+		rr.KVs = rr.KVs[:r.Limit]
 		resp.More = true
 	}
 
-	resp.Header.Revision = rev
-	for i := range kvs {
-		resp.Kvs = append(resp.Kvs, &kvs[i])
+	resp.Header.Revision = rr.Rev
+	resp.Count = int64(rr.Count)
+	for i := range rr.KVs {
+		if r.KeysOnly {
+			rr.KVs[i].Value = nil
+		}
+		resp.Kvs = append(resp.Kvs, &rr.KVs[i])
 	}
 	return resp, nil
 }
@@ -291,34 +371,23 @@ func (a *applierV3backend) Txn(rt *pb.TxnRequest) (*pb.TxnResponse, error) {
 		return nil, err
 	}
 
-	revision := a.s.KV().Rev()
-
 	// When executing the operations of txn, we need to hold the txn lock.
 	// So the reader will not see any intermediate results.
 	txnID := a.s.KV().TxnBegin()
-	defer func() {
-		err := a.s.KV().TxnEnd(txnID)
-		if err != nil {
-			panic(fmt.Sprint("unexpected error when closing txn", txnID))
-		}
-	}()
 
 	resps := make([]*pb.ResponseOp, len(reqs))
-	changedKV := false
 	for i := range reqs {
-		if reqs[i].GetRequestRange() == nil {
-			changedKV = true
-		}
 		resps[i] = a.applyUnion(txnID, reqs[i])
 	}
 
-	if changedKV {
-		revision += 1
+	err := a.s.KV().TxnEnd(txnID)
+	if err != nil {
+		panic(fmt.Sprint("unexpected error when closing txn", txnID))
 	}
 
 	txnResp := &pb.TxnResponse{}
 	txnResp.Header = &pb.ResponseHeader{}
-	txnResp.Header.Revision = revision
+	txnResp.Header.Revision = a.s.KV().Rev()
 	txnResp.Responses = resps
 	txnResp.Succeeded = ok
 	return txnResp, nil
@@ -328,7 +397,9 @@ func (a *applierV3backend) Txn(rt *pb.TxnRequest) (*pb.TxnResponse, error) {
 // It returns the revision at which the comparison happens. If the comparison
 // succeeds, the it returns true. Otherwise it returns false.
 func (a *applierV3backend) applyCompare(c *pb.Compare) (int64, bool) {
-	ckvs, rev, err := a.s.KV().Range(c.Key, nil, 1, 0)
+	rr, err := a.s.KV().Range(c.Key, nil, mvcc.RangeOptions{})
+	rev := rr.Rev
+
 	if err != nil {
 		if err == mvcc.ErrTxnIDMismatch {
 			panic("unexpected txn ID mismatch error")
@@ -336,8 +407,8 @@ func (a *applierV3backend) applyCompare(c *pb.Compare) (int64, bool) {
 		return rev, false
 	}
 	var ckv mvccpb.KeyValue
-	if len(ckvs) != 0 {
-		ckv = ckvs[0]
+	if len(rr.KVs) != 0 {
+		ckv = rr.KVs[0]
 	} else {
 		// Use the zero value of ckv normally. However...
 		if c.Target == pb.Compare_VALUE {
@@ -380,6 +451,10 @@ func (a *applierV3backend) applyCompare(c *pb.Compare) (int64, bool) {
 		if result != 0 {
 			return rev, false
 		}
+	case pb.Compare_NOT_EQUAL:
+		if result == 0 {
+			return rev, false
+		}
 	case pb.Compare_GREATER:
 		if result != 1 {
 			return rev, false
@@ -398,7 +473,7 @@ func (a *applierV3backend) applyUnion(txnID int64, union *pb.RequestOp) *pb.Resp
 		if tv.RequestRange != nil {
 			resp, err := a.Range(txnID, tv.RequestRange)
 			if err != nil {
-				panic("unexpected error during txn")
+				plog.Panicf("unexpected error during txn: %v", err)
 			}
 			return &pb.ResponseOp{Response: &pb.ResponseOp_ResponseRange{ResponseRange: resp}}
 		}
@@ -406,7 +481,7 @@ func (a *applierV3backend) applyUnion(txnID int64, union *pb.RequestOp) *pb.Resp
 		if tv.RequestPut != nil {
 			resp, err := a.Put(txnID, tv.RequestPut)
 			if err != nil {
-				panic("unexpected error during txn")
+				plog.Panicf("unexpected error during txn: %v", err)
 			}
 			return &pb.ResponseOp{Response: &pb.ResponseOp_ResponsePut{ResponsePut: resp}}
 		}
@@ -414,7 +489,7 @@ func (a *applierV3backend) applyUnion(txnID int64, union *pb.RequestOp) *pb.Resp
 		if tv.RequestDeleteRange != nil {
 			resp, err := a.DeleteRange(txnID, tv.RequestDeleteRange)
 			if err != nil {
-				panic("unexpected error during txn")
+				plog.Panicf("unexpected error during txn: %v", err)
 			}
 			return &pb.ResponseOp{Response: &pb.ResponseOp_ResponseDeleteRange{ResponseDeleteRange: resp}}
 		}
@@ -434,7 +509,8 @@ func (a *applierV3backend) Compaction(compaction *pb.CompactionRequest) (*pb.Com
 		return nil, ch, err
 	}
 	// get the current revision. which key to get is not important.
-	_, resp.Header.Revision, _ = a.s.KV().Range([]byte("compaction"), nil, 1, 0)
+	rr, _ := a.s.KV().Range([]byte("compaction"), nil, mvcc.RangeOptions{})
+	resp.Header.Revision = rr.Rev
 	return resp, ch, err
 }
 
@@ -443,7 +519,7 @@ func (a *applierV3backend) LeaseGrant(lc *pb.LeaseGrantRequest) (*pb.LeaseGrantR
 	resp := &pb.LeaseGrantResponse{}
 	if err == nil {
 		resp.ID = int64(l.ID)
-		resp.TTL = l.TTL
+		resp.TTL = l.TTL()
 		resp.Header = &pb.ResponseHeader{Revision: a.s.KV().Rev()}
 	}
 
@@ -590,6 +666,14 @@ func (a *applierV3backend) RoleDelete(r *pb.AuthRoleDeleteRequest) (*pb.AuthRole
 	return a.s.AuthStore().RoleDelete(r)
 }
 
+func (a *applierV3backend) UserList(r *pb.AuthUserListRequest) (*pb.AuthUserListResponse, error) {
+	return a.s.AuthStore().UserList(r)
+}
+
+func (a *applierV3backend) RoleList(r *pb.AuthRoleListRequest) (*pb.AuthRoleListResponse, error) {
+	return a.s.AuthStore().RoleList(r)
+}
+
 type quotaApplierV3 struct {
 	applierV3
 	q Quota
@@ -718,4 +802,37 @@ func compareInt64(a, b int64) int {
 // sending empty byte strings as nil; >= is encoded in the range end as '\0'.
 func isGteRange(rangeEnd []byte) bool {
 	return len(rangeEnd) == 1 && rangeEnd[0] == 0
+}
+
+func noSideEffect(r *pb.InternalRaftRequest) bool {
+	return r.Range != nil || r.AuthUserGet != nil || r.AuthRoleGet != nil
+}
+
+func removeNeedlessRangeReqs(txn *pb.TxnRequest) {
+	f := func(ops []*pb.RequestOp) []*pb.RequestOp {
+		j := 0
+		for i := 0; i < len(ops); i++ {
+			if _, ok := ops[i].Request.(*pb.RequestOp_RequestRange); ok {
+				continue
+			}
+			ops[j] = ops[i]
+			j++
+		}
+
+		return ops[:j]
+	}
+
+	txn.Success = f(txn.Success)
+	txn.Failure = f(txn.Failure)
+}
+
+func pruneKVs(rr *mvcc.RangeResult, isPrunable func(*mvccpb.KeyValue) bool) {
+	j := 0
+	for i := range rr.KVs {
+		rr.KVs[j] = rr.KVs[i]
+		if !isPrunable(&rr.KVs[i]) {
+			j++
+		}
+	}
+	rr.KVs = rr.KVs[:j]
 }

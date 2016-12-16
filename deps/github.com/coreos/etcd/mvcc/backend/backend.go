@@ -40,7 +40,7 @@ var (
 	// This only works for linux.
 	InitialMmapSize = int64(10 * 1024 * 1024 * 1024)
 
-	plog = capnslog.NewPackageLogger("github.com/coreos/etcd/mvcc", "backend")
+	plog = capnslog.NewPackageLogger("github.com/coreos/etcd", "mvcc/backend")
 )
 
 const (
@@ -55,7 +55,7 @@ const (
 type Backend interface {
 	BatchTx() BatchTx
 	Snapshot() Snapshot
-	Hash() (uint32, error)
+	Hash(ignores map[IgnoreKey]struct{}) (uint32, error)
 	// Size returns the current size of the backend.
 	Size() int64
 	Defrag() error
@@ -144,7 +144,12 @@ func (b *backend) Snapshot() Snapshot {
 	return &snapshot{tx}
 }
 
-func (b *backend) Hash() (uint32, error) {
+type IgnoreKey struct {
+	Bucket string
+	Key    string
+}
+
+func (b *backend) Hash(ignores map[IgnoreKey]struct{}) (uint32, error) {
 	h := crc32.New(crc32.MakeTable(crc32.Castagnoli))
 
 	b.mu.RLock()
@@ -158,8 +163,11 @@ func (b *backend) Hash() (uint32, error) {
 			}
 			h.Write(next)
 			b.ForEach(func(k, v []byte) error {
-				h.Write(k)
-				h.Write(v)
+				bk := IgnoreKey{Bucket: string(next), Key: string(k)}
+				if _, ok := ignores[bk]; !ok {
+					h.Write(k)
+					h.Write(v)
+				}
 				return nil
 			})
 		}
@@ -179,15 +187,17 @@ func (b *backend) Size() int64 {
 
 func (b *backend) run() {
 	defer close(b.donec)
-
+	t := time.NewTimer(b.batchInterval)
+	defer t.Stop()
 	for {
 		select {
-		case <-time.After(b.batchInterval):
+		case <-t.C:
 		case <-b.stopc:
 			b.batchTx.CommitAndStop()
 			return
 		}
 		b.batchTx.Commit()
+		t.Reset(b.batchInterval)
 	}
 }
 

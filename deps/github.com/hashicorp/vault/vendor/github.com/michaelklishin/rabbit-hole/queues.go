@@ -63,6 +63,8 @@ type QueueInfo struct {
 	Memory int64 `json:"memory"`
 	// How many consumers this queue has
 	Consumers int `json:"consumers"`
+	// Utilisation of all the consumers
+	ConsumerUtilisation float64 `json:"consumer_utilisation"`
 	// If there is an exclusive consumer, its consumer tag
 	ExclusiveConsumerTag string `json:"exclusive_consumer_tag"`
 
@@ -250,6 +252,24 @@ func (c *Client) DeclareQueue(vhost, queue string, info QueueSettings) (res *htt
 
 func (c *Client) DeleteQueue(vhost, queue string) (res *http.Response, err error) {
 	req, err := newRequestWithBody(c, "DELETE", "queues/"+url.QueryEscape(vhost)+"/"+url.QueryEscape(queue), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err = executeRequest(c, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+//
+// DELETE /api/queues/{vhost}/{name}/contents
+//
+
+func (c *Client) PurgeQueue(vhost, queue string) (res *http.Response, err error) {
+	req, err := newRequestWithBody(c, "DELETE", "queues/"+url.QueryEscape(vhost)+"/"+url.QueryEscape(queue)+"/contents", nil)
 	if err != nil {
 		return nil, err
 	}

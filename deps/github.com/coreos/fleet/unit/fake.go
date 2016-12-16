@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,15 +41,16 @@ func (fum *FakeUnitManager) ReloadUnitFiles() error {
 	return nil
 }
 
-func (fum *FakeUnitManager) Unload(name string) {
+func (fum *FakeUnitManager) Unload(name string) error {
 	fum.Lock()
 	defer fum.Unlock()
 
 	delete(fum.u, name)
+	return nil
 }
 
-func (fum *FakeUnitManager) TriggerStart(string) {}
-func (fum *FakeUnitManager) TriggerStop(string)  {}
+func (fum *FakeUnitManager) TriggerStart(string) error { return nil }
+func (fum *FakeUnitManager) TriggerStop(string) error  { return nil }
 
 func (fum *FakeUnitManager) Units() ([]string, error) {
 	fum.RLock()

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -152,8 +151,15 @@ type Conn struct {
 }
 
 // Connect establishes a connection to a Cassandra node.
-func Connect(host *HostInfo, addr string, cfg *ConnConfig,
-	errorHandler ConnErrorHandler, session *Session) (*Conn, error) {
+func Connect(host *HostInfo, cfg *ConnConfig, errorHandler ConnErrorHandler, session *Session) (*Conn, error) {
+	// TODO(zariel): remove these
+	if host == nil {
+		panic("host is nil")
+	} else if len(host.Peer()) == 0 {
+		panic("host missing peer ip address")
+	} else if host.Port() == 0 {
+		panic("host missing port")
+	}
 
 	var (
 		err  error
@@ -163,6 +169,11 @@ func Connect(host *HostInfo, addr string, cfg *ConnConfig,
 	dialer := &net.Dialer{
 		Timeout: cfg.Timeout,
 	}
+
+	// TODO(zariel): handle ipv6 zone
+	translatedPeer, translatedPort := session.cfg.translateAddressPort(host.Peer(), host.Port())
+	addr := (&net.TCPAddr{IP: translatedPeer, Port: translatedPort}).String()
+	//addr := (&net.TCPAddr{IP: host.Peer(), Port: host.Port()}).String()
 
 	if cfg.tlsConfig != nil {
 		// the TLS config is safe to be reused by connections but it must not
@@ -430,6 +441,17 @@ func (c *Conn) discardFrame(head frameHeader) error {
 	return nil
 }
 
+type protocolError struct {
+	frame frame
+}
+
+func (p *protocolError) Error() string {
+	if err, ok := p.frame.(error); ok {
+		return err.Error()
+	}
+	return fmt.Sprintf("gocql: received unexpected frame on stream %d: %v", p.frame.Header().stream, p.frame)
+}
+
 func (c *Conn) recv() error {
 	// not safe for concurrent reads
 
@@ -469,11 +491,8 @@ func (c *Conn) recv() error {
 			return err
 		}
 
-		switch v := frame.(type) {
-		case error:
-			return fmt.Errorf("gocql: error on stream %d: %v", head.stream, v)
-		default:
-			return fmt.Errorf("gocql: received frame on stream %d: %v", head.stream, frame)
+		return &protocolError{
+			frame: frame,
 		}
 	}
 
@@ -481,7 +500,7 @@ func (c *Conn) recv() error {
 	call, ok := c.calls[head.stream]
 	c.mu.RUnlock()
 	if call == nil || call.framer == nil || !ok {
-		log.Printf("gocql: received response for stream which has no handler: header=%v\n", head)
+		Logger.Printf("gocql: received response for stream which has no handler: header=%v\n", head)
 		return c.discardFrame(head)
 	}
 
@@ -861,7 +880,7 @@ func (c *Conn) executeQuery(qry *Query) *Iter {
 		iter := &Iter{framer: framer}
 		if err := c.awaitSchemaAgreement(); err != nil {
 			// TODO: should have this behind a flag
-			log.Println(err)
+			Logger.Println(err)
 		}
 		// dont return an error from this, might be a good idea to give a warning
 		// though. The impact of this returning an error would be that the cluster
@@ -1072,7 +1091,7 @@ func (c *Conn) awaitSchemaAgreement() (err error) {
 		var schemaVersion string
 		for iter.Scan(&schemaVersion) {
 			if schemaVersion == "" {
-				log.Println("skipping peer entry with empty schema_version")
+				Logger.Println("skipping peer entry with empty schema_version")
 				continue
 			}
 

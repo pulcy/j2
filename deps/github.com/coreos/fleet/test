@@ -12,12 +12,12 @@
 # Invoke ./cover for HTML output
 COVER=${COVER:-"-cover"}
 
-CDIR=$(cd `dirname $0` && pwd)
-cd $CDIR
+CDIR=$(cd `dirname "$0"` && pwd)
+cd "$CDIR"
 
 source ./build
 
-TESTABLE="agent api config engine fleetctl job machine pkg pkg/lease registry ssh systemd unit"
+TESTABLE="agent api config engine fleetctl job machine pkg pkg/lease registry registry/rpc ssh systemd unit"
 FORMATTABLE="$TESTABLE client functional functional/platform heart server fleetd"
 
 # user has not provided PKG override
@@ -53,6 +53,15 @@ echo "Checking govet..."
 vetRes=$(go vet $TEST)
 if [ -n "${vetRes}" ]; then
 	echo -e "govet checking failed:\n${vetRes}"
+	exit 255
+fi
+
+echo "Checking for license header..."
+licRes=$(for file in $(find . -type f -iname '*.go' ! -path './vendor/*' ! -path './gopath/*' ); do
+		head -n3 "${file}" | grep -Eq "(Copyright|generated|GENERATED)" || echo -e "  ${file}"
+	done;)
+if [ -n "${licRes}" ]; then
+	echo -e "license header checking failed:\n${licRes}"
 	exit 255
 fi
 

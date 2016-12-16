@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,10 +82,90 @@ func TestHasConflicts(t *testing.T) {
 			want:     true,
 			conflict: "bar.service",
 		},
+
+		// existing job has conflict with new job,
+		// one of multiple conflicts defined in a single line
+		{
+			cState: &AgentState{
+				MState: &machine.MachineState{ID: "XXX"},
+				Units: map[string]*job.Unit{
+					"bar.service": &job.Unit{
+						Name: "bar.service",
+						Unit: fleetUnit(t, "Conflicts=foo.service bar.service"),
+					},
+				},
+			},
+			job: &job.Job{
+				Name: "foo.service",
+				Unit: unit.UnitFile{},
+			},
+			want:     true,
+			conflict: "bar.service",
+		},
+
+		// existing job has conflict with new job,
+		// one of multiple conflicts over multiple lines
+		{
+			cState: &AgentState{
+				MState: &machine.MachineState{ID: "XXX"},
+				Units: map[string]*job.Unit{
+					"bar.service": &job.Unit{
+						Name: "bar.service",
+						Unit: fleetUnit(t, "Conflicts=foo.service\nConflicts=bar.service"),
+					},
+				},
+			},
+			job: &job.Job{
+				Name: "foo.service",
+				Unit: unit.UnitFile{},
+			},
+			want:     true,
+			conflict: "bar.service",
+		},
+
+		// new job has conflict with existing job,
+		// one of multiple conflicts defined in a single line
+		{
+			cState: &AgentState{
+				MState: &machine.MachineState{ID: "XXX"},
+				Units: map[string]*job.Unit{
+					"bar.service": &job.Unit{
+						Name: "bar.service",
+						Unit: unit.UnitFile{},
+					},
+				},
+			},
+			job: &job.Job{
+				Name: "foo.service",
+				Unit: fleetUnit(t, "Conflicts=foo.service bar.service"),
+			},
+			want:     true,
+			conflict: "bar.service",
+		},
+
+		// new job has conflict with existing job,
+		// one of multiple conflicts over multiple lines
+		{
+			cState: &AgentState{
+				MState: &machine.MachineState{ID: "XXX"},
+				Units: map[string]*job.Unit{
+					"bar.service": &job.Unit{
+						Name: "bar.service",
+						Unit: unit.UnitFile{},
+					},
+				},
+			},
+			job: &job.Job{
+				Name: "foo.service",
+				Unit: fleetUnit(t, "Conflicts=foo.service\nConflicts=bar.service"),
+			},
+			want:     true,
+			conflict: "bar.service",
+		},
 	}
 
 	for i, tt := range tests {
-		got, conflict := tt.cState.hasConflict(tt.job.Name, tt.job.Conflicts())
+		got, conflict := tt.cState.HasConflict(tt.job.Name, tt.job.Conflicts())
 		if got != tt.want {
 			var msg string
 			if tt.want == true {

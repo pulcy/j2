@@ -39,8 +39,11 @@ type (
 	AuthRoleGetResponse              pb.AuthRoleGetResponse
 	AuthRoleRevokePermissionResponse pb.AuthRoleRevokePermissionResponse
 	AuthRoleDeleteResponse           pb.AuthRoleDeleteResponse
+	AuthUserListResponse             pb.AuthUserListResponse
+	AuthRoleListResponse             pb.AuthRoleListResponse
 
 	PermissionType authpb.Permission_Type
+	Permission     authpb.Permission
 )
 
 const (
@@ -71,6 +74,9 @@ type Auth interface {
 	// UserGet gets a detailed information of a user.
 	UserGet(ctx context.Context, name string) (*AuthUserGetResponse, error)
 
+	// UserList gets a list of all users.
+	UserList(ctx context.Context) (*AuthUserListResponse, error)
+
 	// UserRevokeRole revokes a role of a user.
 	UserRevokeRole(ctx context.Context, name string, role string) (*AuthUserRevokeRoleResponse, error)
 
@@ -82,6 +88,9 @@ type Auth interface {
 
 	// RoleGet gets a detailed information of a role.
 	RoleGet(ctx context.Context, role string) (*AuthRoleGetResponse, error)
+
+	// RoleList gets a list of all roles.
+	RoleList(ctx context.Context) (*AuthRoleListResponse, error)
 
 	// RoleRevokePermission revokes a permission from a role.
 	RoleRevokePermission(ctx context.Context, role string, key, rangeEnd string) (*AuthRoleRevokePermissionResponse, error)
@@ -107,12 +116,12 @@ func NewAuth(c *Client) Auth {
 }
 
 func (auth *auth) AuthEnable(ctx context.Context) (*AuthEnableResponse, error) {
-	resp, err := auth.remote.AuthEnable(ctx, &pb.AuthEnableRequest{})
+	resp, err := auth.remote.AuthEnable(ctx, &pb.AuthEnableRequest{}, grpc.FailFast(false))
 	return (*AuthEnableResponse)(resp), toErr(ctx, err)
 }
 
 func (auth *auth) AuthDisable(ctx context.Context) (*AuthDisableResponse, error) {
-	resp, err := auth.remote.AuthDisable(ctx, &pb.AuthDisableRequest{})
+	resp, err := auth.remote.AuthDisable(ctx, &pb.AuthDisableRequest{}, grpc.FailFast(false))
 	return (*AuthDisableResponse)(resp), toErr(ctx, err)
 }
 
@@ -137,8 +146,13 @@ func (auth *auth) UserGrantRole(ctx context.Context, user string, role string) (
 }
 
 func (auth *auth) UserGet(ctx context.Context, name string) (*AuthUserGetResponse, error) {
-	resp, err := auth.remote.UserGet(ctx, &pb.AuthUserGetRequest{Name: name})
+	resp, err := auth.remote.UserGet(ctx, &pb.AuthUserGetRequest{Name: name}, grpc.FailFast(false))
 	return (*AuthUserGetResponse)(resp), toErr(ctx, err)
+}
+
+func (auth *auth) UserList(ctx context.Context) (*AuthUserListResponse, error) {
+	resp, err := auth.remote.UserList(ctx, &pb.AuthUserListRequest{}, grpc.FailFast(false))
+	return (*AuthUserListResponse)(resp), toErr(ctx, err)
 }
 
 func (auth *auth) UserRevokeRole(ctx context.Context, name string, role string) (*AuthUserRevokeRoleResponse, error) {
@@ -162,8 +176,13 @@ func (auth *auth) RoleGrantPermission(ctx context.Context, name string, key, ran
 }
 
 func (auth *auth) RoleGet(ctx context.Context, role string) (*AuthRoleGetResponse, error) {
-	resp, err := auth.remote.RoleGet(ctx, &pb.AuthRoleGetRequest{Role: role})
+	resp, err := auth.remote.RoleGet(ctx, &pb.AuthRoleGetRequest{Role: role}, grpc.FailFast(false))
 	return (*AuthRoleGetResponse)(resp), toErr(ctx, err)
+}
+
+func (auth *auth) RoleList(ctx context.Context) (*AuthRoleListResponse, error) {
+	resp, err := auth.remote.RoleList(ctx, &pb.AuthRoleListRequest{}, grpc.FailFast(false))
+	return (*AuthRoleListResponse)(resp), toErr(ctx, err)
 }
 
 func (auth *auth) RoleRevokePermission(ctx context.Context, role string, key, rangeEnd string) (*AuthRoleRevokePermissionResponse, error) {
@@ -190,7 +209,7 @@ type authenticator struct {
 }
 
 func (auth *authenticator) authenticate(ctx context.Context, name string, password string) (*AuthenticateResponse, error) {
-	resp, err := auth.remote.Authenticate(ctx, &pb.AuthenticateRequest{Name: name, Password: password})
+	resp, err := auth.remote.Authenticate(ctx, &pb.AuthenticateRequest{Name: name, Password: password}, grpc.FailFast(false))
 	return (*AuthenticateResponse)(resp), toErr(ctx, err)
 }
 

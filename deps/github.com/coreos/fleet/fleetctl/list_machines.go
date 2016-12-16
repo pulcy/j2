@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -89,7 +89,10 @@ func runListMachines(cCmd *cobra.Command, args []string) (exit int) {
 
 	machines, err := cAPI.Machines()
 	if err != nil {
-		stderr("Error retrieving list of active machines: %v", err)
+		stderr("Error retrieving list of active machines from fleet API (%v)", err)
+		stderr("Possible issues:")
+		stderr("  etcd is unhealthy and/or lost quorum")
+		stderr("  connection cannot be established to any etcd servers")
 		return 1
 	}
 

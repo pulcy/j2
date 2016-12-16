@@ -49,7 +49,7 @@ To start a proxy that will connect to a statically defined etcd cluster, specify
 
 ```
 etcd --proxy on \
---listen-client-urls http://127.0.0.1:8080 \
+--listen-client-urls http://127.0.0.1:2379 \
 --initial-cluster infra0=http://10.0.1.10:2380,infra1=http://10.0.1.11:2380,infra2=http://10.0.1.12:2380
 ```
 
@@ -60,7 +60,7 @@ To start a proxy using the discovery service, specify the `discovery` flag. The 
 
 ```
 etcd --proxy on \
---listen-client-urls http://127.0.0.1:8080 \
+--listen-client-urls http://127.0.0.1:2379 \
 --discovery https://discovery.etcd.io/3e86b59982e49066c5d813af1c2e2579cbf573de \
 ```
 
@@ -105,7 +105,7 @@ ETCD_INITIAL_CLUSTER_STATE=existing
 
 ### Stop the proxy process
 
-Stop the existing proxy so we can wipe it's state on disk and reload it with the new configuration:
+Stop the existing proxy so we can wipe its state on disk and reload it with the new configuration:
 
 ``` bash
 px aux | grep etcd
@@ -149,5 +149,5 @@ If an error occurs, check the [add member troubleshooting doc][runtime-configura
 
 [discovery-service]: clustering.md#discovery
 [goreman]: https://github.com/mattn/goreman
-[procfile]: /Procfile
+[procfile]: https://github.com/coreos/etcd/blob/master/Procfile
 [runtime-configuration]: runtime-configuration.md#error-cases-when-adding-members

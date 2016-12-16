@@ -19,6 +19,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/coreos/etcd/etcdserver/api"
 	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"github.com/coreos/etcd/etcdserver/membership"
 	"github.com/coreos/etcd/pkg/pbutil"
@@ -65,9 +66,8 @@ func (a *applierV2store) Put(r *pb.Request) Response {
 		if exists {
 			if r.PrevIndex == 0 && r.PrevValue == "" {
 				return toResponse(a.store.Update(r.Path, r.Val, ttlOptions))
-			} else {
-				return toResponse(a.store.CompareAndSwap(r.Path, r.PrevValue, r.PrevIndex, r.Val, ttlOptions))
 			}
+			return toResponse(a.store.CompareAndSwap(r.Path, r.PrevValue, r.PrevIndex, r.Val, ttlOptions))
 		}
 		return toResponse(a.store.Create(r.Path, r.Dir, r.Val, false, ttlOptions))
 	case r.PrevIndex > 0 || r.PrevValue != "":
@@ -87,7 +87,7 @@ func (a *applierV2store) Put(r *pb.Request) Response {
 		}
 		if r.Path == membership.StoreClusterVersionKey() {
 			if a.cluster != nil {
-				a.cluster.SetVersion(semver.Must(semver.NewVersion(r.Val)))
+				a.cluster.SetVersion(semver.Must(semver.NewVersion(r.Val)), api.UpdateCapability)
 			}
 			// return an empty response since there is no consumer.
 			return Response{}

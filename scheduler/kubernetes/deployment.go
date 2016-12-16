@@ -15,19 +15,21 @@
 package kubernetes
 
 import (
-	k8s "github.com/pulcy/j2/pkg/kubernetes"
+	"context"
+
+	pkg "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 // listDeployments returns all deployments in the namespace
-func (s *k8sScheduler) listDeployments() ([]scheduler.Unit, error) {
+func (s *k8sScheduler) listDeployments(ctx context.Context) ([]scheduler.Unit, error) {
 	var units []scheduler.Unit
-	if list, err := s.clientset.Deployments(s.defaultNamespace).List(v1.ListOptions{}); err != nil {
+	api := s.client.ExtensionsV1Beta1()
+	if list, err := api.ListDeployments(ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		for _, d := range list.Items {
-			units = append(units, &k8s.Deployment{Deployment: d})
+			units = append(units, &pkg.Deployment{Deployment: *d})
 		}
 	}
 	return units, nil

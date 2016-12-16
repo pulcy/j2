@@ -43,9 +43,9 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringSliceVar(&globalFlags.Endpoints, "endpoints", []string{"127.0.0.1:2379", "127.0.0.1:22379", "127.0.0.1:32379"}, "gRPC endpoints")
+	rootCmd.PersistentFlags().StringSliceVar(&globalFlags.Endpoints, "endpoints", []string{"127.0.0.1:2379"}, "gRPC endpoints")
 
-	rootCmd.PersistentFlags().StringVarP(&globalFlags.OutputFormat, "write-out", "w", "simple", "set the output format (simple, json, etc..)")
+	rootCmd.PersistentFlags().StringVarP(&globalFlags.OutputFormat, "write-out", "w", "simple", "set the output format (fields, json, proto, simple, table)")
 	rootCmd.PersistentFlags().BoolVar(&globalFlags.IsHex, "hex", false, "print byte strings as hex encoded strings")
 
 	rootCmd.PersistentFlags().DurationVar(&globalFlags.DialTimeout, "dial-timeout", defaultDialTimeout, "dial timeout for client connections")
@@ -76,8 +76,8 @@ func init() {
 		command.NewMakeMirrorCommand(),
 		command.NewMigrateCommand(),
 		command.NewLockCommand(),
-		command.NewAuthCommand(),
 		command.NewElectCommand(),
+		command.NewAuthCommand(),
 		command.NewUserCommand(),
 		command.NewRoleCommand(),
 	)

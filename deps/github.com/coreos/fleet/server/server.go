@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import (
 	"github.com/coreos/fleet/pkg"
 	"github.com/coreos/fleet/pkg/lease"
 	"github.com/coreos/fleet/registry"
+	"github.com/coreos/fleet/registry/rpc"
 	"github.com/coreos/fleet/systemd"
 	"github.com/coreos/fleet/unit"
 	"github.com/coreos/fleet/version"
@@ -75,7 +76,7 @@ func New(cfg config.Config, listeners []net.Listener) (*Server, error) {
 		return nil, err
 	}
 
-	mgr, err := systemd.NewSystemdUnitManager(systemd.DefaultUnitsDirectory)
+	mgr, err := systemd.NewSystemdUnitManager(cfg.UnitsDirectory, cfg.SystemdUser)
 	if err != nil {
 		return nil, err
 	}
@@ -94,14 +95,35 @@ func New(cfg config.Config, listeners []net.Listener) (*Server, error) {
 		Transport:               &http.Transport{TLSClientConfig: tlsConfig},
 		Endpoints:               cfg.EtcdServers,
 		HeaderTimeoutPerRequest: (time.Duration(cfg.EtcdRequestTimeout*1000) * time.Millisecond),
+		Username:                cfg.EtcdUsername,
+		Password:                cfg.EtcdPassword,
 	}
+
 	eClient, err := etcd.New(eCfg)
 	if err != nil {
 		return nil, err
 	}
 
 	kAPI := etcd.NewKeysAPI(eClient)
-	reg := registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix)
+
+	var (
+		reg        engine.CompleteRegistry
+		genericReg interface{}
+	)
+	lManager := lease.NewEtcdLeaseManager(kAPI, cfg.EtcdKeyPrefix)
+
+	if !cfg.EnableGRPC {
+		genericReg = registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix)
+		if obj, ok := genericReg.(engine.CompleteRegistry); ok {
+			reg = obj
+		}
+	} else {
+		etcdReg := registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix)
+		genericReg = rpc.NewRegistryMux(etcdReg, mach, lManager)
+		if obj, ok := genericReg.(engine.CompleteRegistry); ok {
+			reg = obj
+		}
+	}
 
 	pub := agent.NewUnitStatePublisher(reg, mach, agentTTL)
 	gen := unit.NewUnitStateGenerator(mgr)
@@ -112,11 +134,19 @@ func New(cfg config.Config, listeners []net.Listener) (*Server, error) {
 	if !cfg.DisableWatches {
 		rStream = registry.NewEtcdEventStream(kAPI, cfg.EtcdKeyPrefix)
 	}
-	lManager := lease.NewEtcdLeaseManager(kAPI, cfg.EtcdKeyPrefix)
 
 	ar := agent.NewReconciler(reg, rStream)
 
-	e := engine.New(reg, lManager, rStream, mach)
+	var e *engine.Engine
+	if !cfg.EnableGRPC {
+		e = engine.New(reg, lManager, rStream, mach, nil)
+	} else {
+		regMux := genericReg.(*rpc.RegistryMux)
+		e = engine.New(reg, lManager, rStream, mach, regMux.EngineChanged)
+		if cfg.DisableEngine {
+			go regMux.ConnectToRegistry(e)
+		}
+	}
 
 	if len(listeners) == 0 {
 		listeners, err = activation.Listeners(false)
@@ -156,9 +186,10 @@ func New(cfg config.Config, listeners []net.Listener) (*Server, error) {
 
 func newMachineFromConfig(cfg config.Config, mgr unit.UnitManager) (*machine.CoreOSMachine, error) {
 	state := machine.MachineState{
-		PublicIP: cfg.PublicIP,
-		Metadata: cfg.Metadata(),
-		Version:  version.Version,
+		PublicIP:     cfg.PublicIP,
+		Metadata:     cfg.Metadata(),
+		Capabilities: cfg.Capabilities(),
+		Version:      version.Version,
 	}
 
 	mach := machine.NewCoreOSMachine(state, mgr)
@@ -189,7 +220,7 @@ func (s *Server) Run() {
 				break
 			}
 		}
-		log.Errorf("Server register machine failed: %v", err)
+		log.Warningf("Server register machine failed: %v, retrying in %d sec.", err, sleep)
 		time.Sleep(sleep)
 	}
 

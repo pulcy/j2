@@ -14,18 +14,24 @@
 
 package kubernetes
 
-import (
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-)
+import "github.com/ericchiang/k8s"
+import "context"
 
 // deletePods deletes the pods that match the given selector from the cluster.
-func deletePods(cs *kubernetes.Clientset, namespace, labelSelector string) error {
-	api := cs.Pods(namespace)
-	if err := api.DeleteCollection(createDeleteOptions(), v1.ListOptions{
-		LabelSelector: labelSelector,
-	}); err != nil {
+func deletePods(cs *k8s.Client, namespace string, labelSelector map[string]string) error {
+	ctx := k8s.NamespaceContext(context.Background(), namespace)
+	api := cs.CoreV1()
+	all, err := api.ListPods(ctx)
+	if err != nil {
 		return maskAny(err)
+	}
+	for _, p := range all.Items {
+		if !hasLabels(p.GetMetadata(), labelSelector) {
+			continue
+		}
+		if err := api.DeletePod(ctx, p.GetMetadata().GetName()); err != nil {
+			return maskAny(err)
+		}
 	}
 	return nil
 }

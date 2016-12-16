@@ -15,10 +15,13 @@
 package kubernetes
 
 import (
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
-	metav1 "k8s.io/client-go/pkg/apis/meta/v1"
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/ericchiang/k8s"
+	"github.com/ericchiang/k8s/api/v1"
+	"github.com/ericchiang/k8s/apis/extensions/v1beta1"
 )
 
 // Deployment is a wrapper for a kubernetes v1beta1.Deployment that implements
@@ -29,71 +32,75 @@ type Deployment struct {
 
 // Name returns a name of the resource
 func (ds *Deployment) Name() string {
-	return ds.Deployment.Name
+	return ds.Deployment.GetMetadata().GetName()
 }
 
 // Namespace returns the namespace the resource should be added to.
 func (ds *Deployment) Namespace() string {
-	return ds.Deployment.ObjectMeta.Namespace
+	return ds.Deployment.GetMetadata().GetNamespace()
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.
-func (ds *Deployment) ObjectMeta() v1.ObjectMeta {
-	return ds.Deployment.ObjectMeta
+func (ds *Deployment) ObjectMeta() *v1.ObjectMeta {
+	return ds.Deployment.GetMetadata()
 }
 
 // Content returns a JSON representation of the resource.
 func (ds *Deployment) Content() string {
 	x := ds.Deployment
-	x.Status.Reset()
+	x.Status = nil
 	return mustRender(x)
 }
 
 // Destroy deletes the deployment from the cluster.
-func (ds *Deployment) Destroy(cs *kubernetes.Clientset, events chan string) error {
-	api := cs.Deployments(ds.Deployment.Namespace)
+func (ds *Deployment) Destroy(cs *k8s.Client, events chan string) error {
+	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
+	api := cs.ExtensionsV1Beta1()
 	// Fetch current deployment
-	current, err := api.Get(ds.Deployment.Name, metav1.GetOptions{})
+	current, err := api.GetDeployment(ctx, ds.Name())
 	if err != nil {
 		return maskAny(err)
 	}
-	labelSelector := createLabelSelector(current.ObjectMeta)
+	labelSelector := createLabelSelector(current.GetMetadata())
 
 	// Delete deployment itself
 	events <- "deleting deployment"
-	if err := api.Delete(ds.Deployment.Name, createDeleteOptions()); err != nil {
+	if err := api.DeleteDeployment(ctx, ds.Name()); err != nil {
 		return maskAny(err)
 	}
 
 	// Delete created replicaSets.
 	events <- "deleting replicaSets"
-	if err := deleteReplicaSets(cs, ds.Deployment.Namespace, labelSelector); err != nil {
+	if err := deleteReplicaSets(cs, ds.Namespace(), labelSelector); err != nil {
 		return maskAny(err)
 	}
 
 	// Delete created pods.
 	events <- "deleting pods"
-	if err := deletePods(cs, ds.Deployment.Namespace, labelSelector); err != nil {
+	if err := deletePods(cs, ds.Namespace(), labelSelector); err != nil {
 		return maskAny(err)
 	}
 	return nil
 }
 
 // Start creates/updates the deployment
-func (ds *Deployment) Start(cs *kubernetes.Clientset, events chan string) error {
-	api := cs.Deployments(ds.Namespace())
-	current, err := api.Get(ds.Deployment.ObjectMeta.Name, metav1.GetOptions{})
+func (ds *Deployment) Start(cs *k8s.Client, events chan string) error {
+	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
+	api := cs.ExtensionsV1Beta1()
+	current, err := api.GetDeployment(ctx, ds.Name())
 	if err == nil {
 		// Update
 		events <- "updating"
-		ds.Deployment.ObjectMeta.ResourceVersion = current.ObjectMeta.ResourceVersion
-		if _, err := api.Update(&ds.Deployment); err != nil {
+		updateMetadataFromCurrent(ds.Deployment.GetMetadata(), current.GetMetadata())
+		if _, err := api.UpdateDeployment(ctx, &ds.Deployment); err != nil {
+			m, _ := json.Marshal(err)
+			fmt.Printf("Error=%s\n", string(m))
 			return maskAny(err)
 		}
 	} else {
 		// Create
 		events <- "creating"
-		if _, err := api.Create(&ds.Deployment); err != nil {
+		if _, err := api.CreateDeployment(ctx, &ds.Deployment); err != nil {
 			return maskAny(err)
 		}
 	}

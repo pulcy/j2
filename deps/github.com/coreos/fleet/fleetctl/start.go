@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,10 +81,14 @@ func runStartUnit(cCmd *cobra.Command, args []string) (exit int) {
 		}
 	}
 
-	exitVal := tryWaitForUnitStates(starting, "start", job.JobStateLaunched, getBlockAttempts(cCmd), os.Stdout)
-	if exitVal != 0 {
-		stderr("Error waiting for unit states, exit status: %d", exitVal)
-		return exitVal
+	if err := tryWaitForUnitStates(starting, "start", job.JobStateLaunched, getBlockAttempts(cCmd), os.Stdout); err != nil {
+		stderr("Error waiting for unit states, exit status: %v", err)
+		return 1
+	}
+
+	if err := tryWaitForSystemdActiveState(starting, getBlockAttempts(cCmd)); err != nil {
+		stderr("Error waiting for systemd unit states, err: %v", err)
+		return 1
 	}
 
 	return 0

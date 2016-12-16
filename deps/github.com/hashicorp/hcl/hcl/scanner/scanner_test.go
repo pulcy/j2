@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/hcl/hcl/token"
 )
 
-var f100 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+var f100 = strings.Repeat("f", 100)
 
 type tokenPair struct {
 	tok  token.Type
@@ -283,6 +283,11 @@ func TestPosition(t *testing.T) {
 	}
 }
 
+func TestNullChar(t *testing.T) {
+	s := New([]byte("\"\\0"))
+	s.Scan() // Used to panic
+}
+
 func TestComment(t *testing.T) {
 	testTokenList(t, tokenLists["comment"])
 }
@@ -358,7 +363,7 @@ func TestRealExample(t *testing.T) {
 
 	provider "aws" {
 	  access_key = "foo"
-	  secret_key = "bar"
+	  secret_key = "${replace(var.foo, ".", "\\.")}"
 	}
 
 	resource "aws_security_group" "firewall" {
@@ -378,7 +383,7 @@ func TestRealExample(t *testing.T) {
 Main interface
 EOF
 	    }
-	    
+
 		network_interface {
 	        device_index = 1
 	        description = <<-EOF
@@ -411,7 +416,7 @@ EOF
 		{token.STRING, `"foo"`},
 		{token.IDENT, `secret_key`},
 		{token.ASSIGN, `=`},
-		{token.STRING, `"bar"`},
+		{token.STRING, `"${replace(var.foo, ".", "\\.")}"`},
 		{token.RBRACE, `}`},
 		{token.IDENT, `resource`},
 		{token.STRING, `"aws_security_group"`},
@@ -471,6 +476,36 @@ EOF
 
 }
 
+func TestScan_crlf(t *testing.T) {
+	complexHCL := "foo {\r\n  bar = \"baz\"\r\n}\r\n"
+
+	literals := []struct {
+		tokenType token.Type
+		literal   string
+	}{
+		{token.IDENT, `foo`},
+		{token.LBRACE, `{`},
+		{token.IDENT, `bar`},
+		{token.ASSIGN, `=`},
+		{token.STRING, `"baz"`},
+		{token.RBRACE, `}`},
+		{token.EOF, ``},
+	}
+
+	s := New([]byte(complexHCL))
+	for _, l := range literals {
+		tok := s.Scan()
+		if l.tokenType != tok.Type {
+			t.Errorf("got: %s want %s for %s\n", tok, l.tokenType, tok.String())
+		}
+
+		if l.literal != tok.Text {
+			t.Errorf("got:\n%+v\n%s\n want:\n%+v\n%s\n", []byte(tok.String()), tok, []byte(l.literal), l.literal)
+		}
+	}
+
+}
+
 func TestError(t *testing.T) {
 	testError(t, "\x80", "1:1", "illegal UTF-8 encoding", token.ILLEGAL)
 	testError(t, "\xff", "1:1", "illegal UTF-8 encoding", token.ILLEGAL)
@@ -490,7 +525,9 @@ func TestError(t *testing.T) {
 	testError(t, `"`, "1:2", "literal not terminated", token.STRING)
 	testError(t, `"abc`, "1:5", "literal not terminated", token.STRING)
 	testError(t, `"abc`+"\n", "1:5", "literal not terminated", token.STRING)
+	testError(t, `"${abc`+"\n", "2:1", "literal not terminated", token.STRING)
 	testError(t, `/*/`, "1:4", "comment not terminated", token.COMMENT)
+	testError(t, `/foo`, "1:1", "expected '/' for comment", token.COMMENT)
 }
 
 func testError(t *testing.T, src, pos, msg string, tok token.Type) {

@@ -3,11 +3,21 @@ package kubernetes
 import (
 	"strings"
 
+	k8s "github.com/ericchiang/k8s"
+	"github.com/ericchiang/k8s/api/unversioned"
+	"github.com/ericchiang/k8s/api/v1"
 	"github.com/juju/errgo"
 	"github.com/pulcy/j2/jobs"
-	k8s "github.com/pulcy/j2/pkg/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	metav1 "k8s.io/client-go/pkg/apis/meta/v1"
+	pkg "github.com/pulcy/j2/pkg/kubernetes"
+)
+
+const (
+	NodeSelectorOpIn           = "In"
+	NodeSelectorOpNotIn        = "NotIn"
+	NodeSelectorOpExists       = "Exists"
+	NodeSelectorOpDoesNotExist = "DoesNotExist"
+	NodeSelectorOpGt           = "Gt"
+	NodeSelectorOpLt           = "Lt"
 )
 
 // createAffinity creates an affinity object for the given constraints.
@@ -17,22 +27,22 @@ func createAffinity(constraints jobs.Constraints, tg *jobs.TaskGroup, pod pod, c
 	}
 
 	a := &v1.Affinity{}
-	nodeSelector := v1.NodeSelectorTerm{}
-	podSelector := v1.PodAffinityTerm{}
-	antiPodSelector := v1.PodAffinityTerm{}
+	nodeSelector := &v1.NodeSelectorTerm{}
+	podSelector := &v1.PodAffinityTerm{}
+	antiPodSelector := &v1.PodAffinityTerm{}
 
 	for _, c := range constraints {
 		if strings.HasPrefix(c.Attribute, jobs.MetaAttributePrefix) {
 			// meta.<somekey>
 			key := c.Attribute[len(jobs.MetaAttributePrefix):]
-			req := v1.NodeSelectorRequirement{
-				Key: key,
+			req := &v1.NodeSelectorRequirement{
+				Key: k8s.StringP(key),
 			}
 			if c.OperatorEquals(jobs.OperatorEqual) {
-				req.Operator = v1.NodeSelectorOpIn
+				req.Operator = k8s.StringP(NodeSelectorOpIn)
 				req.Values = []string{c.Value}
 			} else if c.OperatorEquals(jobs.OperatorNotEqual) {
-				req.Operator = v1.NodeSelectorOpNotIn
+				req.Operator = k8s.StringP(NodeSelectorOpNotIn)
 				req.Values = []string{c.Value}
 			} else {
 				return nil, errgo.WithCausef(nil, ValidationError, "constraint with attribute '%s' has unsupported operator '%s'", c.Attribute, c.Operator)
@@ -41,14 +51,14 @@ func createAffinity(constraints jobs.Constraints, tg *jobs.TaskGroup, pod pod, c
 		} else {
 			switch c.Attribute {
 			case jobs.AttributeNodeID:
-				req := v1.NodeSelectorRequirement{
-					Key: "id",
+				req := &v1.NodeSelectorRequirement{
+					Key: k8s.StringP("id"),
 				}
 				if c.OperatorEquals(jobs.OperatorEqual) {
-					req.Operator = v1.NodeSelectorOpIn
+					req.Operator = k8s.StringP(NodeSelectorOpIn)
 					req.Values = []string{c.Value}
 				} else if c.OperatorEquals(jobs.OperatorNotEqual) {
-					req.Operator = v1.NodeSelectorOpNotIn
+					req.Operator = k8s.StringP(NodeSelectorOpNotIn)
 					req.Values = []string{c.Value}
 				} else {
 					return nil, errgo.WithCausef(nil, ValidationError, "constraint with attribute '%s' has unsupported operator '%s'", c.Attribute, c.Operator)
@@ -65,17 +75,17 @@ func createAffinity(constraints jobs.Constraints, tg *jobs.TaskGroup, pod pod, c
 				}
 				var term *v1.PodAffinityTerm
 				if c.OperatorEquals(jobs.OperatorEqual) {
-					term = &podSelector
+					term = podSelector
 				} else if c.OperatorEquals(jobs.OperatorNotEqual) {
-					term = &antiPodSelector
+					term = antiPodSelector
 				} else {
 					return nil, errgo.WithCausef(nil, ValidationError, "constraint with attribute '%s' has unsupported operator '%s'", c.Attribute, c.Operator)
 				}
 				if term.LabelSelector == nil {
-					term.LabelSelector = &metav1.LabelSelector{}
+					term.LabelSelector = &unversioned.LabelSelector{}
 				}
-				term.TopologyKey = "node"
-				term.LabelSelector.MatchLabels[k8s.LabelTaskGroupFullName] = group.FullName()
+				term.TopologyKey = k8s.StringP("node")
+				term.LabelSelector.MatchLabels[pkg.LabelTaskGroupFullName] = group.FullName()
 			default:
 				return nil, errgo.WithCausef(nil, ValidationError, "Unknown constraint attribute '%s'", c.Attribute)
 			}
@@ -85,18 +95,18 @@ func createAffinity(constraints jobs.Constraints, tg *jobs.TaskGroup, pod pod, c
 	if len(nodeSelector.MatchExpressions) > 0 {
 		a.NodeAffinity = &v1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-				NodeSelectorTerms: []v1.NodeSelectorTerm{nodeSelector},
+				NodeSelectorTerms: []*v1.NodeSelectorTerm{nodeSelector},
 			},
 		}
 	}
 	if podSelector.LabelSelector != nil {
 		a.PodAffinity = &v1.PodAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{podSelector},
+			RequiredDuringSchedulingIgnoredDuringExecution: []*v1.PodAffinityTerm{podSelector},
 		}
 	}
 	if antiPodSelector.LabelSelector != nil {
 		a.PodAntiAffinity = &v1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{antiPodSelector},
+			RequiredDuringSchedulingIgnoredDuringExecution: []*v1.PodAffinityTerm{antiPodSelector},
 		}
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -84,6 +84,15 @@ func (rc *RegistryClient) CreateUnit(u *schema.Unit) error {
 	}
 
 	return rc.Registry.CreateUnit(&rUnit)
+}
+
+func (rc *RegistryClient) UnitState(name string) (*schema.UnitState, error) {
+	rUnitState, err := rc.Registry.UnitState(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return schema.MapUnitStateToSchemaUnitState(rUnitState), nil
 }
 
 func (rc *RegistryClient) UnitStates() ([]*schema.UnitState, error) {

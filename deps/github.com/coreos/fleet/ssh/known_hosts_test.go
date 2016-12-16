@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"syscall"
 	"testing"
@@ -165,7 +166,13 @@ func TestWrongHostKeyFile(t *testing.T) {
 	// If run as root, drop privileges temporarily
 	if id := syscall.Geteuid(); id == 0 {
 		if err := syscall.Setuid(12345); err != nil {
-			t.Fatalf("error setting uid: %v", err)
+			if runtime.GOOS == "linux" {
+				// On Linux syscall.Setuid is not supported, so we should not fail
+				// the test, but just skip for now. - dpark 20161021
+				t.Skipf("error setting uid: %v", err)
+			} else {
+				t.Fatalf("error setting uid: %v", err)
+			}
 		}
 		defer syscall.Setuid(id)
 	}

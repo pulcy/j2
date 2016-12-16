@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,8 +37,13 @@ type Registry interface {
 	ScheduleUnit(name, machID string) error
 	SetUnitTargetState(name string, state job.JobState) error
 	SetMachineState(ms machine.MachineState, ttl time.Duration) (uint64, error)
+	MachineState(machID string) (machine.MachineState, error)
 	UnscheduleUnit(name, machID string) error
+	SetMachineMetadata(machID string, key string, value string) error
+	DeleteMachineMetadata(machID string, key string) error
 
+	IsRegistryReady() bool
+	UseEtcdRegistry() bool
 	UnitRegistry
 }
 
@@ -47,6 +52,7 @@ type UnitRegistry interface {
 	ScheduledUnit(name string) (*job.ScheduledUnit, error)
 	Unit(name string) (*job.Unit, error)
 	Units() ([]job.Unit, error)
+	UnitState(name string) (*unit.UnitState, error)
 	UnitStates() ([]*unit.UnitState, error)
 }
 

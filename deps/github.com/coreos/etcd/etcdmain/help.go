@@ -14,7 +14,11 @@
 
 package etcdmain
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/coreos/etcd/embed"
+)
 
 var (
 	usageline = `usage: etcd [flags]
@@ -48,9 +52,9 @@ member flags:
 		list of URLs to listen on for peer traffic.
 	--listen-client-urls 'http://localhost:2379'
 		list of URLs to listen on for client traffic.
-	--max-snapshots '` + strconv.Itoa(defaultMaxSnapshots) + `'
+	--max-snapshots '` + strconv.Itoa(embed.DefaultMaxSnapshots) + `'
 		maximum number of snapshot files to retain (0 is unlimited).
-	--max-wals '` + strconv.Itoa(defaultMaxWALs) + `'
+	--max-wals '` + strconv.Itoa(embed.DefaultMaxWALs) + `'
 		maximum number of wal files to retain (0 is unlimited).
 	--cors ''
 		comma-separated whitelist of origins for CORS (cross-origin resource sharing).
@@ -75,14 +79,18 @@ clustering flags:
 		discovery URL used to bootstrap the cluster.
 	--discovery-fallback 'proxy'
 		expected behavior ('exit' or 'proxy') when discovery services fails.
+		"proxy" supports v2 API only.
 	--discovery-proxy ''
 		HTTP proxy to use for traffic to discovery service.
 	--discovery-srv ''
 		dns srv domain used to bootstrap the cluster.
 	--strict-reconfig-check
 		reject reconfiguration requests that would cause quorum loss.
+	--auto-compaction-retention '0'
+		auto compaction retention in hour. 0 means disable auto compaction.
 
 proxy flags:
+	"proxy" supports v2 API only.
 
 	--proxy 'off'
 		proxy mode setting ('off', 'readonly' or 'on').
@@ -131,6 +139,8 @@ logging flags
 		enable debug-level logging for etcd.
 	--log-package-levels ''
 		specify a particular log level for each etcd package (eg: 'etcdmain=CRITICAL,etcdserver=DEBUG').
+	--log-output 'default'
+		specify 'stdout' or 'stderr' to skip journald logging even when running under systemd.
 
 unsafe flags:
 
@@ -139,15 +149,9 @@ given by the consensus protocol.
 
 	--force-new-cluster 'false'
 		force to create a new one-member cluster.
-
-
-experimental flags:
-
-	--experimental-auto-compaction-retention '0'
-		auto compaction retention in hour. 0 means disable auto compaction.
-
+	
 profiling flags:
 	--enable-pprof 'false'
-		Enable runtime profiling data via HTTP server. Address is at client URL + "/debug/pprof"
+		Enable runtime profiling data via HTTP server. Address is at client URL + "/debug/pprof/"
 `
 )

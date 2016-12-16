@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,8 +71,8 @@ func (r *EtcdRegistry) Schedule() ([]job.ScheduledUnit, error) {
 	for name, su := range uMap {
 		sortable = append(sortable, name)
 		key := MUSKey{
-			machID: su.TargetMachineID,
-			name:   name,
+			MachID: su.TargetMachineID,
+			Name:   name,
 		}
 		us := states[key]
 		js := determineJobState(heartbeats[name], su.TargetMachineID, us)
@@ -312,7 +312,7 @@ func (r *EtcdRegistry) DestroyUnit(name string) error {
 }
 
 // CreateUnit attempts to store a Unit and its associated unit file in the registry
-func (r *EtcdRegistry) CreateUnit(u *job.Unit) (err error) {
+func (r *EtcdRegistry) CreateUnit(u *job.Unit) error {
 	if err := r.storeOrGetUnitFile(u.Unit); err != nil {
 		return err
 	}
@@ -323,7 +323,7 @@ func (r *EtcdRegistry) CreateUnit(u *job.Unit) (err error) {
 	}
 	val, err := marshal(jm)
 	if err != nil {
-		return
+		return err
 	}
 
 	opts := &etcd.SetOptions{
@@ -335,7 +335,7 @@ func (r *EtcdRegistry) CreateUnit(u *job.Unit) (err error) {
 	key := r.prefixed(jobPrefix, u.Name, "object")
 	_, err = r.kAPI.Set(context.Background(), key, val, opts)
 	if err != nil {
-		return
+		return err
 	}
 
 	return r.SetUnitTargetState(u.Name, u.TargetState)

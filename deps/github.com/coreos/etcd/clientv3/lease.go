@@ -21,6 +21,7 @@ import (
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
 	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 type (
@@ -43,6 +44,21 @@ type LeaseKeepAliveResponse struct {
 	TTL int64
 }
 
+// LeaseTimeToLiveResponse is used to convert the protobuf lease timetolive response.
+type LeaseTimeToLiveResponse struct {
+	*pb.ResponseHeader
+	ID LeaseID `json:"id"`
+
+	// TTL is the remaining TTL in seconds for the lease; the lease will expire in under TTL+1 seconds.
+	TTL int64 `json:"ttl"`
+
+	// GrantedTTL is the initial granted time in seconds upon lease creation/renewal.
+	GrantedTTL int64 `json:"granted-ttl"`
+
+	// Keys is the list of keys attached to this lease.
+	Keys [][]byte `json:"keys"`
+}
+
 const (
 	// defaultTTL is the assumed lease TTL used for the first keepalive
 	// deadline before the actual TTL is known to the client.
@@ -53,12 +69,30 @@ const (
 	NoLease LeaseID = 0
 )
 
+// ErrKeepAliveHalted is returned if client keep alive loop halts with an unexpected error.
+//
+// This usually means that automatic lease renewal via KeepAlive is broken, but KeepAliveOnce will still work as expected.
+type ErrKeepAliveHalted struct {
+	Reason error
+}
+
+func (e ErrKeepAliveHalted) Error() string {
+	s := "etcdclient: leases keep alive halted"
+	if e.Reason != nil {
+		s += ": " + e.Reason.Error()
+	}
+	return s
+}
+
 type Lease interface {
 	// Grant creates a new lease.
 	Grant(ctx context.Context, ttl int64) (*LeaseGrantResponse, error)
 
 	// Revoke revokes the given lease.
 	Revoke(ctx context.Context, id LeaseID) (*LeaseRevokeResponse, error)
+
+	// TimeToLive retrieves the lease information of the given lease ID.
+	TimeToLive(ctx context.Context, id LeaseID, opts ...LeaseOption) (*LeaseTimeToLiveResponse, error)
 
 	// KeepAlive keeps the given lease alive forever.
 	KeepAlive(ctx context.Context, id LeaseID) (<-chan *LeaseKeepAliveResponse, error)
@@ -75,8 +109,9 @@ type Lease interface {
 type lessor struct {
 	mu sync.Mutex // guards all fields
 
-	// donec is closed when recvKeepAliveLoop stops
-	donec chan struct{}
+	// donec is closed and loopErr is set when recvKeepAliveLoop stops
+	donec   chan struct{}
+	loopErr error
 
 	remote pb.LeaseClient
 
@@ -109,7 +144,7 @@ func NewLease(c *Client) Lease {
 	l := &lessor{
 		donec:                 make(chan struct{}),
 		keepAlives:            make(map[LeaseID]*keepAlive),
-		remote:                pb.NewLeaseClient(c.conn),
+		remote:                RetryLeaseClient(c),
 		firstKeepAliveTimeout: c.cfg.DialTimeout + time.Second,
 	}
 	if l.firstKeepAliveTimeout == time.Second {
@@ -140,7 +175,7 @@ func (l *lessor) Grant(ctx context.Context, ttl int64) (*LeaseGrantResponse, err
 			return gresp, nil
 		}
 		if isHaltErr(cctx, err) {
-			return nil, toErr(ctx, err)
+			return nil, toErr(cctx, err)
 		}
 		if nerr := l.newStream(); nerr != nil {
 			return nil, nerr
@@ -169,10 +204,43 @@ func (l *lessor) Revoke(ctx context.Context, id LeaseID) (*LeaseRevokeResponse, 
 	}
 }
 
+func (l *lessor) TimeToLive(ctx context.Context, id LeaseID, opts ...LeaseOption) (*LeaseTimeToLiveResponse, error) {
+	cctx, cancel := context.WithCancel(ctx)
+	done := cancelWhenStop(cancel, l.stopCtx.Done())
+	defer close(done)
+
+	for {
+		r := toLeaseTimeToLiveRequest(id, opts...)
+		resp, err := l.remote.LeaseTimeToLive(cctx, r, grpc.FailFast(false))
+		if err == nil {
+			gresp := &LeaseTimeToLiveResponse{
+				ResponseHeader: resp.GetHeader(),
+				ID:             LeaseID(resp.ID),
+				TTL:            resp.TTL,
+				GrantedTTL:     resp.GrantedTTL,
+				Keys:           resp.Keys,
+			}
+			return gresp, nil
+		}
+		if isHaltErr(cctx, err) {
+			return nil, toErr(cctx, err)
+		}
+	}
+}
+
 func (l *lessor) KeepAlive(ctx context.Context, id LeaseID) (<-chan *LeaseKeepAliveResponse, error) {
 	ch := make(chan *LeaseKeepAliveResponse, leaseResponseChSize)
 
 	l.mu.Lock()
+	// ensure that recvKeepAliveLoop is still running
+	select {
+	case <-l.donec:
+		err := l.loopErr
+		l.mu.Unlock()
+		close(ch)
+		return ch, ErrKeepAliveHalted{Reason: err}
+	default:
+	}
 	ka, ok := l.keepAlives[id]
 	if !ok {
 		// create fresh keep alive
@@ -261,7 +329,7 @@ func (l *lessor) keepAliveOnce(ctx context.Context, id LeaseID) (*LeaseKeepAlive
 	cctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	stream, err := l.remote.LeaseKeepAlive(cctx)
+	stream, err := l.remote.LeaseKeepAlive(cctx, grpc.FailFast(false))
 	if err != nil {
 		return nil, toErr(ctx, err)
 	}
@@ -284,10 +352,11 @@ func (l *lessor) keepAliveOnce(ctx context.Context, id LeaseID) (*LeaseKeepAlive
 	return karesp, nil
 }
 
-func (l *lessor) recvKeepAliveLoop() {
+func (l *lessor) recvKeepAliveLoop() (gerr error) {
 	defer func() {
 		l.mu.Lock()
 		close(l.donec)
+		l.loopErr = gerr
 		for _, ka := range l.keepAlives {
 			ka.Close()
 		}
@@ -300,13 +369,14 @@ func (l *lessor) recvKeepAliveLoop() {
 		resp, err := stream.Recv()
 		if err != nil {
 			if isHaltErr(l.stopCtx, err) {
-				return
+				return err
 			}
 			stream, serr = l.resetRecv()
 			continue
 		}
 		l.recvKeepAlive(resp)
 	}
+	return serr
 }
 
 // resetRecv opens a new lease stream and starts sending LeaseKeepAliveRequests
@@ -354,8 +424,8 @@ func (l *lessor) recvKeepAlive(resp *pb.LeaseKeepAliveResponse) {
 	}
 }
 
-// deadlineLoop reaps any keep alive channels that have not recieved a resposne within
-// the lease TTL
+// deadlineLoop reaps any keep alive channels that have not received a response
+// within the lease TTL
 func (l *lessor) deadlineLoop() {
 	for {
 		select {
@@ -389,7 +459,7 @@ func (l *lessor) sendKeepAliveLoop(stream pb.Lease_LeaseKeepAliveClient) {
 			return
 		}
 
-		tosend := make([]LeaseID, 0)
+		var tosend []LeaseID
 
 		now := time.Now()
 		l.mu.Lock()
@@ -418,7 +488,7 @@ func (l *lessor) getKeepAliveStream() pb.Lease_LeaseKeepAliveClient {
 
 func (l *lessor) newStream() error {
 	sctx, cancel := context.WithCancel(l.stopCtx)
-	stream, err := l.remote.LeaseKeepAlive(sctx)
+	stream, err := l.remote.LeaseKeepAlive(sctx, grpc.FailFast(false))
 	if err != nil {
 		cancel()
 		return toErr(sctx, err)

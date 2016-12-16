@@ -1,0 +1,140 @@
+hash: dfcc3738a6efb04cb1d9541548b748d63ea7a820b945defb03265620f71026be
+updated: 2016-11-25T15:01:29.518002886+01:00
+imports:
+- name: github.com/beorn7/perks
+  version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+  subpackages:
+  - quantile
+- name: github.com/coreos/etcd
+  version: c31b1ab8d18ff7990a43bd258ca54f80c5a3c952
+  subpackages:
+  - client
+  - error
+  - pkg/pathutil
+  - pkg/types
+- name: github.com/coreos/go-semver
+  version: 8ab6407b697782a06568d4b7f1db25550ec2e4c6
+  subpackages:
+  - semver
+- name: github.com/coreos/go-systemd
+  version: efa0506b99d3d9cfade280f5c7a1c1980d8c6c48
+  subpackages:
+  - activation
+  - dbus
+  - unit
+- name: github.com/glacjay/goini
+  version: fd3024d87ee21a36d3ccc4367f509fec89cd90ee
+- name: github.com/godbus/dbus
+  version: 097c117a8cd6cd44cd63e088f4bc9d75f9b064c8
+- name: github.com/gogo/protobuf
+  version: 8d70fb3182befc465c4a1eac8ad4d38ff49778e2
+  subpackages:
+  - gogoproto
+  - io
+  - jsonpb
+  - jsonpb/jsonpb_test_proto
+  - plugin
+  - plugin/gostring
+  - plugin/testgen
+  - proto
+  - proto/proto3_proto
+  - protoc-gen-gogo/descriptor
+  - protoc-gen-gogo/generator
+  - protoc-gen-gogo/grpc
+  - protoc-gen-gogo/plugin
+  - sortkeys
+  - types
+  - vanity
+  - vanity/command
+  - version
+- name: github.com/golang/protobuf
+  version: 8ee79997227bf9b34611aee7946ae64735e6fd93
+  subpackages:
+  - proto
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/jonboulle/clockwork
+  version: bcac9884e7502bb2b474c0339d889cb981a2f27f
+- name: github.com/matttproud/golang_protobuf_extensions
+  version: c12348ce28de40eed0136aa2b644d0ee0650e56c
+  subpackages:
+  - pbutil
+- name: github.com/pborman/uuid
+  version: 3d4f2ba23642d3cfd06bd4b54cf03d99d95c0f1b
+- name: github.com/prometheus/client_golang
+  version: 575f371f7862609249a1be4c9145f429fe065e32
+  subpackages:
+  - prometheus
+- name: github.com/prometheus/client_model
+  version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+  subpackages:
+  - go
+- name: github.com/prometheus/common
+  version: 0d5de9d6d8629cb8bee6d4674da4127cd8b615a3
+  subpackages:
+  - expfmt
+  - internal/bitbucket.org/ww/goautoneg
+  - model
+- name: github.com/prometheus/procfs
+  version: abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
+- name: github.com/rakyll/globalconf
+  version: 7afbf15d8da4ed30174874a9db565d16755e99f7
+- name: github.com/spf13/cobra
+  version: 9495bc009a56819bdb0ddbc1a373e29c140bc674
+- name: github.com/spf13/pflag
+  version: 5ccb023bc27df288a957c5e994cd44fd19619465
+- name: github.com/spf13/viper
+  version: 651d9d916abc3c3d6a91a12549495caba5edffd2
+- name: github.com/ugorji/go
+  version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
+  subpackages:
+  - codec
+- name: github.com/vishvananda/netlink
+  version: a4f22d8ad2327663017dbb309b5e3f8b6f348020
+  subpackages:
+  - nl
+- name: github.com/vishvananda/netns
+  version: 8ba1072b58e0c2a240eb5f6120165c7776c3e7b8
+- name: golang.org/x/crypto
+  version: ede567c8e044a5913dad1d1af3696d9da953104c
+  subpackages:
+  - curve25519
+  - ed25519
+  - ed25519/internal/edwards25519
+  - ssh
+  - ssh/agent
+  - ssh/terminal
+- name: golang.org/x/net
+  version: 6acef71eb69611914f7a30939ea9f6e194c78172
+  subpackages:
+  - context
+  - html
+  - html/atom
+  - http2
+  - http2/hpack
+  - internal
+  - internal/timeseries
+  - trace
+  - websocket
+- name: google.golang.org/api
+  version: c8d75a8ec737f9b8b1ed2676c28feedbe21f543f
+  subpackages:
+  - gensupport
+  - googleapi
+  - googleapi/internal/uritemplates
+- name: google.golang.org/genproto
+  version: 08f135d1a31b6ba454287638a3ce23a55adace6f
+  subpackages:
+  - googleapis
+- name: google.golang.org/grpc
+  version: 777daa17ff9b5daef1cfdf915088a2ada3332bf0
+  subpackages:
+  - codes
+  - credentials
+  - grpclog
+  - internal
+  - metadata
+  - naming
+  - peer
+  - transport
+testImports: []

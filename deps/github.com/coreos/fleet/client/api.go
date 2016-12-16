@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,9 +21,12 @@ import (
 
 type API interface {
 	Machines() ([]machine.MachineState, error)
+	SetMachineMetadata(machID, key, value string) error
+	DeleteMachineMetadata(machID, key string) error
 
 	Unit(string) (*schema.Unit, error)
 	Units() ([]*schema.Unit, error)
+	UnitState(string) (*schema.UnitState, error)
 	UnitStates() ([]*schema.UnitState, error)
 
 	SetUnitTargetState(name, target string) error

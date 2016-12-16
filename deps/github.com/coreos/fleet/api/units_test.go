@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -114,7 +114,7 @@ func TestUnitsListBadNextPageToken(t *testing.T) {
 
 	err = assertErrorResponse(rw, http.StatusBadRequest)
 	if err != nil {
-		t.Error(err.Error())
+		t.Error(err)
 	}
 }
 
@@ -650,7 +650,7 @@ func TestValidateOptions(t *testing.T) {
 			},
 			true,
 		},
-		// Global with Peers/Conflicts no good
+		// Global with Conflicts is ok
 		{
 			[]*schema.UnitOption{
 				&schema.UnitOption{
@@ -660,7 +660,7 @@ func TestValidateOptions(t *testing.T) {
 				},
 				makeConflictUO("foo.service"),
 			},
-			false,
+			true,
 		},
 		{
 			[]*schema.UnitOption{
@@ -671,8 +671,9 @@ func TestValidateOptions(t *testing.T) {
 				},
 				makeConflictUO("bar.service"),
 			},
-			false,
+			true,
 		},
+		// Global with peer no good
 		{
 			[]*schema.UnitOption{
 				&schema.UnitOption{
@@ -758,6 +759,15 @@ func TestValidateName(t *testing.T) {
 		// cannot start in "@"
 		"@foo.service",
 		"@this.mount",
+		// template cannot be used for particular types
+		"foo@1.automount",
+		"foo@1.busname",
+		"foo@1.device",
+		"foo@1.mount",
+		"foo@1.scope",
+		"foo@1.slice",
+		"foo@1.snapshot",
+		"foo@1.swap",
 	}
 	for _, name := range badTestCases {
 		if err := ValidateName(name); err == nil {
@@ -778,6 +788,12 @@ func TestValidateName(t *testing.T) {
 		"jalapano_chips.service",
 		// generate a name the exact length of unitNameMax
 		fmt.Sprintf("%0"+strconv.Itoa(unitNameMax)+"s", ".service"),
+		// template can be used for particular types
+		"foo@1.path",
+		"foo@1.service",
+		"foo@1.socket",
+		"foo@1.target",
+		"foo@1.timer",
 	}
 	for _, name := range goodTestCases {
 		if err := ValidateName(name); err != nil {

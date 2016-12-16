@@ -16,24 +16,30 @@ package command
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
 
+var (
+	grantPermissionPrefix bool
+)
+
 // NewRoleCommand returns the cobra command for "role".
 func NewRoleCommand() *cobra.Command {
 	ac := &cobra.Command{
 		Use:   "role <subcommand>",
-		Short: "role related command",
+		Short: "Role related commands",
 	}
 
 	ac.AddCommand(newRoleAddCommand())
 	ac.AddCommand(newRoleDeleteCommand())
 	ac.AddCommand(newRoleGetCommand())
-	ac.AddCommand(newRoleRevokePermissionCommand())
+	ac.AddCommand(newRoleListCommand())
 	ac.AddCommand(newRoleGrantPermissionCommand())
+	ac.AddCommand(newRoleRevokePermissionCommand())
 
 	return ac
 }
@@ -41,7 +47,7 @@ func NewRoleCommand() *cobra.Command {
 func newRoleAddCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "add <role name>",
-		Short: "add a new role",
+		Short: "Adds a new role",
 		Run:   roleAddCommandFunc,
 	}
 }
@@ -49,7 +55,7 @@ func newRoleAddCommand() *cobra.Command {
 func newRoleDeleteCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <role name>",
-		Short: "delete a role",
+		Short: "Deletes a role",
 		Run:   roleDeleteCommandFunc,
 	}
 }
@@ -57,23 +63,35 @@ func newRoleDeleteCommand() *cobra.Command {
 func newRoleGetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <role name>",
-		Short: "get detailed information of a role",
+		Short: "Gets detailed information of a role",
 		Run:   roleGetCommandFunc,
 	}
 }
 
-func newRoleGrantPermissionCommand() *cobra.Command {
+func newRoleListCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "grant-permission <role name> <permission type> <key> [endkey]",
-		Short: "grant a key to a role",
+		Use:   "list",
+		Short: "Lists all roles",
+		Run:   roleListCommandFunc,
+	}
+}
+
+func newRoleGrantPermissionCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "grant-permission [options] <role name> <permission type> <key> [endkey]",
+		Short: "Grants a key to a role",
 		Run:   roleGrantPermissionCommandFunc,
 	}
+
+	cmd.Flags().BoolVar(&grantPermissionPrefix, "prefix", false, "grant a prefix permission")
+
+	return cmd
 }
 
 func newRoleRevokePermissionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "revoke-permission <role name> <key> [endkey]",
-		Short: "revoke a key from a role",
+		Short: "Revokes a key from a role",
 		Run:   roleRevokePermissionCommandFunc,
 	}
 }
@@ -106,25 +124,26 @@ func roleDeleteCommandFunc(cmd *cobra.Command, args []string) {
 	fmt.Printf("Role %s deleted\n", args[0])
 }
 
-// roleGetCommandFunc executes the "role get" command.
-func roleGetCommandFunc(cmd *cobra.Command, args []string) {
-	if len(args) != 1 {
-		ExitWithError(ExitBadArgs, fmt.Errorf("role get command requires role name as its argument."))
-	}
-
-	resp, err := mustClientFromCmd(cmd).Auth.RoleGet(context.TODO(), args[0])
-	if err != nil {
-		ExitWithError(ExitError, err)
-	}
-
-	fmt.Printf("Role %s\n", args[0])
+func printRolePermissions(name string, resp *clientv3.AuthRoleGetResponse) {
+	fmt.Printf("Role %s\n", name)
 	fmt.Println("KV Read:")
+
+	printRange := func(perm *clientv3.Permission) {
+		sKey := string(perm.Key)
+		sRangeEnd := string(perm.RangeEnd)
+		fmt.Printf("\t[%s, %s)", sKey, sRangeEnd)
+		if strings.Compare(clientv3.GetPrefixRangeEnd(sKey), sRangeEnd) == 0 {
+			fmt.Printf(" (prefix %s)", sKey)
+		}
+		fmt.Printf("\n")
+	}
+
 	for _, perm := range resp.Perm {
 		if perm.PermType == clientv3.PermRead || perm.PermType == clientv3.PermReadWrite {
 			if len(perm.RangeEnd) == 0 {
 				fmt.Printf("\t%s\n", string(perm.Key))
 			} else {
-				fmt.Printf("\t[%s, %s)\n", string(perm.Key), string(perm.RangeEnd))
+				printRange((*clientv3.Permission)(perm))
 			}
 		}
 	}
@@ -134,9 +153,40 @@ func roleGetCommandFunc(cmd *cobra.Command, args []string) {
 			if len(perm.RangeEnd) == 0 {
 				fmt.Printf("\t%s\n", string(perm.Key))
 			} else {
-				fmt.Printf("\t[%s, %s)\n", string(perm.Key), string(perm.RangeEnd))
+				printRange((*clientv3.Permission)(perm))
 			}
 		}
+	}
+}
+
+// roleGetCommandFunc executes the "role get" command.
+func roleGetCommandFunc(cmd *cobra.Command, args []string) {
+	if len(args) != 1 {
+		ExitWithError(ExitBadArgs, fmt.Errorf("role get command requires role name as its argument."))
+	}
+
+	name := args[0]
+	resp, err := mustClientFromCmd(cmd).Auth.RoleGet(context.TODO(), name)
+	if err != nil {
+		ExitWithError(ExitError, err)
+	}
+
+	printRolePermissions(name, resp)
+}
+
+// roleListCommandFunc executes the "role list" command.
+func roleListCommandFunc(cmd *cobra.Command, args []string) {
+	if len(args) != 0 {
+		ExitWithError(ExitBadArgs, fmt.Errorf("role list command requires no arguments."))
+	}
+
+	resp, err := mustClientFromCmd(cmd).Auth.RoleList(context.TODO())
+	if err != nil {
+		ExitWithError(ExitError, err)
+	}
+
+	for _, role := range resp.Roles {
+		fmt.Printf("%s\n", role)
 	}
 }
 
@@ -153,7 +203,12 @@ func roleGrantPermissionCommandFunc(cmd *cobra.Command, args []string) {
 
 	rangeEnd := ""
 	if 4 <= len(args) {
+		if grantPermissionPrefix {
+			ExitWithError(ExitBadArgs, fmt.Errorf("don't pass both of --prefix option and range end to grant permission command"))
+		}
 		rangeEnd = args[3]
+	} else if grantPermissionPrefix {
+		rangeEnd = clientv3.GetPrefixRangeEnd(args[2])
 	}
 
 	_, err = mustClientFromCmd(cmd).Auth.RoleGrantPermission(context.TODO(), args[0], args[2], rangeEnd, perm)
@@ -180,5 +235,9 @@ func roleRevokePermissionCommandFunc(cmd *cobra.Command, args []string) {
 		ExitWithError(ExitError, err)
 	}
 
-	fmt.Printf("Permission of key %s is revoked from role %s\n", args[1], args[0])
+	if len(rangeEnd) == 0 {
+		fmt.Printf("Permission of key %s is revoked from role %s\n", args[1], args[0])
+	} else {
+		fmt.Printf("Permission of range [%s, %s) is revoked from role %s\n", args[1], rangeEnd, args[0])
+	}
 }

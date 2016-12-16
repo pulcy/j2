@@ -71,7 +71,7 @@ update-vendor:
 		github.com/ryanuber/columnize \
 		github.com/smartystreets/goconvey \
 		golang.org/x/sync/errgroup \
-		k8s.io/client-go/kubernetes
+		github.com/ericchiang/k8s
 
 $(GOEXTPOINTS): $(GOBUILDDIR) 
 	docker run \

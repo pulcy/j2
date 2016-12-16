@@ -15,19 +15,21 @@
 package kubernetes
 
 import (
-	k8s "github.com/pulcy/j2/pkg/kubernetes"
+	"context"
+
+	pkg "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 // listDaemonSets returns all daemonSets in the namespace
-func (s *k8sScheduler) listDaemonSets() ([]scheduler.Unit, error) {
+func (s *k8sScheduler) listDaemonSets(ctx context.Context) ([]scheduler.Unit, error) {
 	var units []scheduler.Unit
-	if list, err := s.clientset.DaemonSets(s.defaultNamespace).List(v1.ListOptions{}); err != nil {
+	api := s.client.ExtensionsV1Beta1()
+	if list, err := api.ListDaemonSets(ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		for _, d := range list.Items {
-			units = append(units, &k8s.DaemonSet{DaemonSet: d})
+			units = append(units, &pkg.DaemonSet{DaemonSet: *d})
 		}
 	}
 	return units, nil

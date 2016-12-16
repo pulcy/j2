@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,4 +42,13 @@ func (r *EtcdRegistry) prefixed(p ...string) string {
 func isEtcdError(err error, code int) bool {
 	eerr, ok := err.(etcd.Error)
 	return ok && eerr.Code == code
+}
+
+func (r *EtcdRegistry) IsRegistryReady() bool {
+	// TODO(hector):
+	return true
+}
+
+func (r *EtcdRegistry) UseEtcdRegistry() bool {
+	return true
 }

@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,13 +23,16 @@ import (
 )
 
 type JobState string
+type JobAction string
 
 const (
 	JobStateInactive = JobState("inactive")
 	JobStateLoaded   = JobState("loaded")
 	JobStateLaunched = JobState("launched")
 
-	JobReschedule = "jobreschedule"
+	JobActionSchedule   = JobAction("job_action_schedule")
+	JobActionUnschedule = JobAction("job_action_unschedule")
+	JobActionReschedule = JobAction("job_action_reschedule")
 )
 
 // fleet-specific unit file requirement keys.
@@ -217,8 +220,13 @@ func (j *Job) ValidateRequirements() error {
 // machine as this Job.
 func (j *Job) Conflicts() []string {
 	conflicts := make([]string, 0)
-	conflicts = append(conflicts, j.requirements()[deprecatedXPrefix+fleetConflicts]...)
-	conflicts = append(conflicts, j.requirements()[fleetConflicts]...)
+
+	ldConflicts := splitCombine(j.requirements()[deprecatedXPrefix+fleetConflicts])
+	conflicts = append(conflicts, ldConflicts...)
+
+	dConflicts := splitCombine(j.requirements()[fleetConflicts])
+	conflicts = append(conflicts, dConflicts...)
+
 	return conflicts
 }
 
@@ -328,4 +336,15 @@ func unitPrintf(s string, nu unit.UnitNameInfo) (out string) {
 func isTruthyValue(s string) bool {
 	chl := strings.ToLower(s)
 	return chl == "true" || chl == "yes" || chl == "1" || chl == "on" || chl == "t"
+}
+
+// splitCombine retrieves each word from an input string slice, to put each
+// one again into a single slice.
+func splitCombine(inStrs []string) []string {
+	outStrs := make([]string, 0)
+	for _, str := range inStrs {
+		inStrs := strings.Fields(str)
+		outStrs = append(outStrs, inStrs...)
+	}
+	return outStrs
 }

@@ -15,18 +15,17 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/juju/errgo"
 
+	k8s "github.com/ericchiang/k8s"
+	"github.com/ericchiang/k8s/api/v1"
 	"github.com/pulcy/j2/jobs"
-	k8s "github.com/pulcy/j2/pkg/kubernetes"
+	pkg "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	metav1 "k8s.io/client-go/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -36,32 +35,28 @@ var (
 // Unit extends scheduler.Unit with methods used to start & stop units.
 type Unit interface {
 	scheduler.UnitData
-	ObjectMeta() v1.ObjectMeta
+	ObjectMeta() *v1.ObjectMeta
 	Namespace() string
-	Start(cs *kubernetes.Clientset, events chan string) error
-	Destroy(cs *kubernetes.Clientset, events chan string) error
+	Start(cs *k8s.Client, events chan string) error
+	Destroy(cs *k8s.Client, events chan string) error
 }
 
 // NewScheduler creates a new kubernetes implementation of scheduler.Scheduler.
 func NewScheduler(j jobs.Job, kubeConfig string) (scheduler.Scheduler, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-	if err != nil {
-		return nil, maskAny(err)
-	}
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	// creates the client
+	client, err := createClientFromConfig(kubeConfig)
 	if err != nil {
 		return nil, maskAny(err)
 	}
 	return &k8sScheduler{
-		clientset:        clientset,
-		defaultNamespace: k8s.ResourceName(j.Name.String()),
+		client:           client,
+		defaultNamespace: pkg.ResourceName(j.Name.String()),
 		job:              j,
 	}, nil
 }
 
 type k8sScheduler struct {
-	clientset        *kubernetes.Clientset
+	client           *k8s.Client
 	defaultNamespace string
 	job              jobs.Job
 }
@@ -69,22 +64,23 @@ type k8sScheduler struct {
 // List returns the names of all units on the cluster
 func (s *k8sScheduler) List() ([]scheduler.Unit, error) {
 	var units []scheduler.Unit
-	if list, err := s.listDeployments(); err != nil {
+	ctx := k8s.NamespaceContext(context.Background(), s.defaultNamespace)
+	if list, err := s.listDeployments(ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		units = append(units, list...)
 	}
-	if list, err := s.listDaemonSets(); err != nil {
+	if list, err := s.listDaemonSets(ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		units = append(units, list...)
 	}
-	if list, err := s.listServices(); err != nil {
+	if list, err := s.listServices(ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		units = append(units, list...)
 	}
-	if list, err := s.listIngresses(); err != nil {
+	if list, err := s.listIngresses(ctx); err != nil {
 		return nil, maskAny(err)
 	} else {
 		units = append(units, list...)
@@ -134,7 +130,7 @@ func (s *k8sScheduler) Destroy(events chan scheduler.Event, reason scheduler.Rea
 				}
 			}
 		}()
-		if err := ku.Destroy(s.clientset, destroyEvents); err != nil {
+		if err := ku.Destroy(s.client, destroyEvents); err != nil {
 			return maskAny(err)
 		}
 		close(destroyEvents)
@@ -155,9 +151,10 @@ func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDa
 		}
 
 		// Ensure namespace exists
-		nsAPI := s.clientset.Namespaces()
-		if _, err := nsAPI.Get(ku.Namespace(), metav1.GetOptions{}); err != nil {
-			if _, err := nsAPI.Create(createNamespace(ku.Namespace())); err != nil {
+		nsAPI := s.client.CoreV1()
+		ctx := k8s.NamespaceContext(context.Background(), ku.Namespace())
+		if _, err := nsAPI.GetNamespace(ctx, ku.Namespace()); err != nil {
+			if _, err := nsAPI.CreateNamespace(ctx, createNamespace(ku.Namespace())); err != nil {
 				return maskAny(err)
 			}
 		}
@@ -172,7 +169,7 @@ func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDa
 				}
 			}
 		}()
-		if err := ku.Start(s.clientset, startEvents); err != nil {
+		if err := ku.Start(s.client, startEvents); err != nil {
 			return maskAny(err)
 		}
 		close(startEvents)
@@ -194,8 +191,8 @@ func (s *k8sScheduler) IsUnitForJob(unit scheduler.Unit) bool {
 	if ku, ok := unit.(Unit); !ok {
 		return false
 	} else {
-		found := ku.ObjectMeta().Labels[k8s.LabelJobName]
-		expected := k8s.ResourceName(s.job.Name.String())
+		found := ku.ObjectMeta().Labels[pkg.LabelJobName]
+		expected := pkg.ResourceName(s.job.Name.String())
 		if found != expected {
 			return false
 		}
@@ -212,7 +209,7 @@ func (s *k8sScheduler) IsUnitForTaskGroup(unit scheduler.Unit, g jobs.TaskGroupN
 	if ku, ok := unit.(Unit); !ok {
 		return false
 	} else {
-		if ku.ObjectMeta().Labels[k8s.LabelTaskGroupName] == k8s.ResourceName(g.String()) {
+		if ku.ObjectMeta().Labels[pkg.LabelTaskGroupName] == pkg.ResourceName(g.String()) {
 			return true
 		}
 		return false
@@ -230,15 +227,10 @@ func (s *k8sScheduler) UpdateDestroyDelay(d time.Duration) time.Duration {
 }
 
 func createNamespace(name string) *v1.Namespace {
-	ns := &v1.Namespace{}
-	ns.TypeMeta.Kind = "Namespace"
-	ns.ObjectMeta.Name = name
-	return ns
-}
-
-func createDeleteOptions() *v1.DeleteOptions {
-	orphanDependents := true
-	return &v1.DeleteOptions{
-		OrphanDependents: &orphanDependents,
+	ns := &v1.Namespace{
+		Metadata: &v1.ObjectMeta{
+			Name: k8s.StringP(name),
+		},
 	}
+	return ns
 }

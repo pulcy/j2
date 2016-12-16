@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -87,7 +87,10 @@ func TestAgentLoadUnloadUnit(t *testing.T) {
 		t.Fatalf("Received unexpected collection of Units: %#v\nExpected: %#v", units, expectUnits)
 	}
 
-	a.unloadUnit("foo.service")
+	err = a.unloadUnit("foo.service")
+	if err != nil {
+		t.Fatalf("Failed calling Agent.unloadUnit: %v", err)
+	}
 
 	units, err = a.units()
 	if err != nil {
@@ -114,7 +117,10 @@ func TestAgentLoadStartStopUnit(t *testing.T) {
 		t.Fatalf("Failed calling Agent.loadUnit: %v", err)
 	}
 
-	a.startUnit("foo.service")
+	err = a.startUnit("foo.service")
+	if err != nil {
+		t.Fatalf("Failed starting unit foo.service: %v", err)
+	}
 
 	units, err := a.units()
 	if err != nil {
@@ -132,7 +138,10 @@ func TestAgentLoadStartStopUnit(t *testing.T) {
 		t.Fatalf("Received unexpected collection of Units: %#v\nExpected: %#v", units, expectUnits)
 	}
 
-	a.stopUnit("foo.service")
+	err = a.stopUnit("foo.service")
+	if err != nil {
+		t.Fatalf("Failed stopping unit foo.service: %v", err)
+	}
 
 	units, err = a.units()
 	if err != nil {

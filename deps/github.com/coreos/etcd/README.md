@@ -20,7 +20,7 @@ etcd is a distributed, consistent key-value store for shared configuration and s
 
 etcd is written in Go and uses the [Raft][raft] consensus algorithm to manage a highly-available replicated log.
 
-etcd is used [in production by many companies](./Documentation/production-users.md), and the development team stands behind it in critical deployment scenarios, where etcd is frequently teamed with applications such as [Kubernetes][k8s], [fleet][fleet], [locksmith][locksmith], [vulcand][vulcand], [Doorman][doorman], and many others.
+etcd is used [in production by many companies](./Documentation/production-users.md), and the development team stands behind it in critical deployment scenarios, where etcd is frequently teamed with applications such as [Kubernetes][k8s], [fleet][fleet], [locksmith][locksmith], [vulcand][vulcand], [Doorman][doorman], and many others. Reliability is further ensured by rigorous [testing][etcd-tests].
 
 See [etcdctl][etcdctl] for a simple command line client.
 
@@ -31,6 +31,7 @@ See [etcdctl][etcdctl] for a simple command line client.
 [locksmith]: https://github.com/coreos/locksmith
 [vulcand]: https://github.com/vulcand/vulcand
 [etcdctl]: https://github.com/coreos/etcd/tree/master/etcdctl
+[etcd-tests]: http://dash.etcd.io
 
 ## Getting started
 
@@ -38,13 +39,14 @@ See [etcdctl][etcdctl] for a simple command line client.
 
 The easiest way to get etcd is to use one of the pre-built release binaries which are available for OSX, Linux, Windows, AppC (ACI), and Docker. Instructions for using these binaries are on the [GitHub releases page][github-release].
 
-For those wanting to try the very latest version, you can build the latest version of etcd from the `master` branch.
-You will first need [*Go*](https://golang.org/) installed on your machine (version 1.5+ is required).
+For those wanting to try the very latest version, you can [build the latest version of etcd][dl-build] from the `master` branch.
+You will first need [*Go*](https://golang.org/) installed on your machine (version 1.6+ is required).
 All development occurs on `master`, including new features and bug fixes.
 Bug fixes are first targeted at `master` and subsequently ported to release branches, as described in the [branch management][branch-management] guide.
 
 [github-release]: https://github.com/coreos/etcd/releases/
 [branch-management]: ./Documentation/branch_management.md
+[dl-build]: ./Documentation/dl_build.md#build-the-latest-version
 
 ### Running etcd
 
@@ -63,7 +65,13 @@ ETCDCTL_API=3 etcdctl put mykey "this is awesome"
 ETCDCTL_API=3 etcdctl get mykey
 ```
 
-That's it! etcd is now running and serving client requests.
+That's it! etcd is now running and serving client requests. For more
+
+- [Animated quick demo][demo-gif]
+- [Interactive etcd playground][etcd-play]
+
+[demo-gif]: ./Documentation/demo.md
+[etcd-play]: http://play.etcd.io/
 
 ### etcd TCP ports
 
@@ -84,6 +92,10 @@ goreman start
 This will bring up 3 etcd members `infra1`, `infra2` and `infra3` and etcd proxy `proxy`, which runs locally and composes a cluster.
 
 Every cluster member and proxy accepts key value reads and key value writes.
+
+### Running etcd on Kubernetes
+
+If you want to run etcd cluster on Kubernetes, try [etcd operator](https://github.com/coreos/etcd-operator).
 
 ### Next steps
 
@@ -120,37 +132,8 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting patches and the co
 
 See [reporting bugs](Documentation/reporting_bugs.md) for details about reporting any issue you may encounter.
 
-## Project details
-
-### Versioning
-
-#### Service versioning
-
-etcd uses [semantic versioning](http://semver.org)
-New minor versions may add additional features to the API.
-
-Get the running etcd cluster version with `etcdctl`:
-
-```sh
-ETCDCTL_API=3 etcdctl --endpoints=127.0.0.1:2379 endpoint status
-```
-
-#### API versioning
-
-The `v3` API responses should not change after the 3.0.0 release but new features will be added over time.
-
-#### 32-bit and other unsupported systems
-
-etcd has known issues on 32-bit systems due to a bug in the Go runtime. See #[358][358] for more information.
-
-To avoid inadvertently running a possibly unstable etcd server, `etcd` on unsupported architectures will print
-a warning message and immediately exit if the environment variable `ETCD_UNSUPPORTED_ARCH` is not set to
-the target architecture.
-
-Currently only the amd64 architecture is officially supported by `etcd`.
-
-[358]: https://github.com/coreos/etcd/issues/358
-
 ### License
 
 etcd is under the Apache 2.0 license. See the [LICENSE](LICENSE) file for details.
+
+

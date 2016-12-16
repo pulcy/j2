@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,10 +28,6 @@ import (
 	"github.com/coreos/fleet/unit"
 )
 
-const (
-	DefaultUnitsDirectory = "/run/fleet/units/"
-)
-
 type systemdUnitManager struct {
 	systemd  *dbus.Conn
 	unitsDir string
@@ -40,8 +36,14 @@ type systemdUnitManager struct {
 	mutex  sync.RWMutex
 }
 
-func NewSystemdUnitManager(uDir string) (*systemdUnitManager, error) {
-	systemd, err := dbus.New()
+func NewSystemdUnitManager(uDir string, systemdUser bool) (*systemdUnitManager, error) {
+	var systemd *dbus.Conn
+	var err error
+	if systemdUser {
+		systemd, err = dbus.NewUserConnection()
+	} else {
+		systemd, err = dbus.New()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -106,39 +108,49 @@ func (m *systemdUnitManager) Load(name string, u unit.UnitFile) error {
 	if err != nil {
 		return err
 	}
+	if _, exists := u.Contents["Install"]; exists {
+		log.Debugf("Detected [Install] section in the systemd unit (%s)", name)
+		ok, err := m.enableUnit(name)
+		if err != nil || !ok {
+			m.removeUnit(name)
+			return fmt.Errorf("Failed to enable systemd unit %s: %v", name, err)
+		}
+	}
 	m.hashes[name] = u.Hash()
 	return nil
 }
 
 // Unload removes the indicated unit from the filesystem, deletes its
 // associated Hash from the cache and clears its unit status in systemd
-func (m *systemdUnitManager) Unload(name string) {
+func (m *systemdUnitManager) Unload(name string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	delete(m.hashes, name)
-	m.removeUnit(name)
+	return m.removeUnit(name)
 }
 
 // TriggerStart asynchronously starts the unit identified by the given name.
 // This function does not block for the underlying unit to actually start.
-func (m *systemdUnitManager) TriggerStart(name string) {
+func (m *systemdUnitManager) TriggerStart(name string) error {
 	jobID, err := m.systemd.StartUnit(name, "replace", nil)
-	if err == nil {
-		log.Infof("Triggered systemd unit %s start: job=%d", name, jobID)
-	} else {
+	if err != nil {
 		log.Errorf("Failed to trigger systemd unit %s start: %v", name, err)
+		return err
 	}
+	log.Infof("Triggered systemd unit %s start: job=%d", name, jobID)
+	return nil
 }
 
 // TriggerStop asynchronously starts the unit identified by the given name.
 // This function does not block for the underlying unit to actually stop.
-func (m *systemdUnitManager) TriggerStop(name string) {
+func (m *systemdUnitManager) TriggerStop(name string) error {
 	jobID, err := m.systemd.StopUnit(name, "replace", nil)
-	if err == nil {
-		log.Infof("Triggered systemd unit %s stop: job=%d", name, jobID)
-	} else {
+	if err != nil {
 		log.Errorf("Failed to trigger systemd unit %s stop: %v", name, err)
+		return err
 	}
+	log.Infof("Triggered systemd unit %s stop: job=%d", name, jobID)
+	return nil
 }
 
 // GetUnitState generates a UnitState object representing the
@@ -196,17 +208,25 @@ func (m *systemdUnitManager) GetUnitStates(filter pkg.Set) (map[string]*unit.Uni
 	// operations could mutate the hashes before we've retrieved the state
 	// for every unit in the filter, since they won't necessarily all be
 	// present in the initial ListUnits() call.
+	fallback := false
+
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	dbusStatuses, err := m.systemd.ListUnits()
+	dbusStatuses, err := m.systemd.ListUnitsByNames(filter.Values())
 
 	if err != nil {
-		return nil, err
+		fallback = true
+		log.Debugf("ListUnitsByNames is not implemented in your systemd version (requires at least systemd 230), fallback to ListUnits: %v", err)
+		dbusStatuses, err = m.systemd.ListUnits()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	states := make(map[string]*unit.UnitState)
 	for _, dus := range dbusStatuses {
-		if !filter.Contains(dus.Name) {
+		if fallback && !filter.Contains(dus.Name) {
+			// If filter could not be applied on DBus side, we will filter unit files here
 			continue
 		}
 
@@ -221,21 +241,23 @@ func (m *systemdUnitManager) GetUnitStates(filter pkg.Set) (map[string]*unit.Uni
 		states[dus.Name] = us
 	}
 
-	// grab data on subscribed units that didn't show up in ListUnits, most
+	// grab data on subscribed units that didn't show up in ListUnits in fallback mode, most
 	// likely due to being inactive
-	for _, name := range filter.Values() {
-		if _, ok := states[name]; ok {
-			continue
-		}
+	if fallback {
+		for _, name := range filter.Values() {
+			if _, ok := states[name]; ok {
+				continue
+			}
 
-		us, err := m.getUnitState(name)
-		if err != nil {
-			return nil, err
+			us, err := m.getUnitState(name)
+			if err != nil {
+				return nil, err
+			}
+			if h, ok := m.hashes[name]; ok {
+				us.UnitHash = h.String()
+			}
+			states[name] = us
 		}
-		if h, ok := m.hashes[name]; ok {
-			us.UnitHash = h.String()
-		}
-		states[name] = us
 	}
 
 	return states, nil
@@ -255,14 +277,40 @@ func (m *systemdUnitManager) writeUnit(name string, contents string) error {
 	return err
 }
 
-func (m *systemdUnitManager) removeUnit(name string) {
+func (m *systemdUnitManager) enableUnit(name string) (bool, error) {
+	log.Infof("Enabling systemd unit %s", name)
+
+	ufPath := m.getUnitFilePath(name)
+
+	ok, _, err := m.systemd.EnableUnitFiles([]string{ufPath}, true, true)
+	return ok, err
+}
+
+func (m *systemdUnitManager) removeUnit(name string) (err error) {
 	log.Infof("Removing systemd unit %s", name)
 
-	m.systemd.DisableUnitFiles([]string{name}, true)
-	m.systemd.ResetFailedUnit(name)
+	// both DisableUnitFiles() and ResetFailedUnit() must be followed by
+	// removing the unit file. Otherwise "systemctl stop fleet" could end up
+	// hanging forever.
+	var errf error
+	func(name string) {
+		_, errf = m.systemd.DisableUnitFiles([]string{name}, true)
+		if errf != nil {
+			err = fmt.Errorf("%v, %v", err, errf)
+		}
+	}(name)
+
+	func(name string) {
+		errf = m.systemd.ResetFailedUnit(name)
+		if errf != nil {
+			err = fmt.Errorf("%v, %v", err, errf)
+		}
+	}(name)
 
 	ufPath := m.getUnitFilePath(name)
 	os.Remove(ufPath)
+
+	return err
 }
 
 func (m *systemdUnitManager) getUnitFilePath(name string) string {

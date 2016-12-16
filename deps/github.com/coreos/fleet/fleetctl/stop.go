@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,6 +66,11 @@ func runStopUnit(cCmd *cobra.Command, args []string) (exit int) {
 		return 1
 	}
 
+	if len(units) == 0 {
+		stderr("Units not found in registry")
+		return 0
+	}
+
 	stopping := make([]string, 0)
 	for _, u := range units {
 		if !suToGlobal(u) {
@@ -87,12 +92,12 @@ func runStopUnit(cCmd *cobra.Command, args []string) (exit int) {
 		}
 	}
 
-	exit = tryWaitForUnitStates(stopping, "stop", job.JobStateLoaded, getBlockAttempts(cCmd), os.Stdout)
-	if exit == 0 {
-		stderr("Successfully stopped units %v.", stopping)
-	} else {
-		stderr("Failed to stop units %v. exit == %d.", stopping, exit)
+	err = tryWaitForUnitStates(stopping, "stop", job.JobStateLoaded, getBlockAttempts(cCmd), os.Stdout)
+	if err != nil {
+		stderr("Failed to stop units %v. err: %v", stopping, err)
+		return 1
 	}
 
-	return
+	stderr("Successfully stopped units %v.", stopping)
+	return 0
 }

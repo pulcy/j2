@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package registry
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -79,6 +80,14 @@ func (f *FakeRegistry) SetUnitStates(states []unit.UnitState) {
 		}
 		f.jobStates[name][us.MachineID] = &us
 	}
+}
+
+func (f *FakeRegistry) IsRegistryReady() bool {
+	return true
+}
+
+func (f *FakeRegistry) UseEtcdRegistry() bool {
+	return false
 }
 
 func (f *FakeRegistry) Machines() ([]machine.MachineState, error) {
@@ -273,11 +282,68 @@ func (f *FakeRegistry) UnitStates() ([]*unit.UnitState, error) {
 	return states, nil
 }
 
+func (f *FakeRegistry) UnitState(unitName string) (*unit.UnitState, error) {
+	f.Lock()
+	defer f.Unlock()
+
+	var us *unit.UnitState
+	for name := range f.jobStates {
+		sMIDs := make([]string, 0)
+		for machineID := range f.jobStates[name] {
+			sMIDs = append(sMIDs, machineID)
+		}
+		for _, mID := range sMIDs {
+			js := f.jobStates[name][mID]
+			if name == js.UnitName {
+				us = js
+				break
+			}
+		}
+	}
+
+	if us == nil {
+		return nil, fmt.Errorf("Cannot find unit(%s) from fakeRegistry", unitName)
+	}
+
+	return us, nil
+}
+
 func (f *FakeRegistry) UnitHeartbeat(name, machID string, ttl time.Duration) error {
 	return nil
 }
 
 func (f *FakeRegistry) ClearUnitHeartbeat(string) {}
+
+func (f *FakeRegistry) SetMachineMetadata(machID string, key string, value string) error {
+	for _, mach := range f.machines {
+		if mach.ID == machID {
+			mach.Metadata[key] = value
+		}
+	}
+	return nil
+}
+
+func (f *FakeRegistry) DeleteMachineMetadata(machID string, key string) error {
+	for _, mach := range f.machines {
+		if mach.ID == machID {
+			delete(mach.Metadata, key)
+		}
+	}
+	return nil
+}
+
+func (f *FakeRegistry) MachineState(machID string) (machine.MachineState, error) {
+	f.RLock()
+	defer f.RUnlock()
+
+	for _, mach := range f.machines {
+		if mach.ID == machID {
+			return mach, nil
+		}
+	}
+
+	return machine.MachineState{}, errors.New("Machine state not found")
+}
 
 func NewFakeClusterRegistry(dVersion *semver.Version, eVersion int) *FakeClusterRegistry {
 	return &FakeClusterRegistry{

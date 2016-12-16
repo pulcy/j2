@@ -1,9 +1,9 @@
 package kubernetes
 
 import (
+	"github.com/ericchiang/k8s/api/v1"
 	"github.com/pulcy/j2/jobs"
 	k8s "github.com/pulcy/j2/pkg/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 // setLabel sets a label in the given meta data, creating the Labels map when needed

@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -235,7 +235,7 @@ func runCommand(cCmd *cobra.Command, machID string, cmd string, args ...string) 
 			addr := findSSHPort(cCmd, ms.PublicIP)
 			err, retcode = runRemoteCommand(cCmd, addr, cmd, args...)
 			if err != nil {
-				stderr("Error running remote command: %v", err)
+				stderr("Unable to SSH to remote host: %v", err)
 			}
 		}
 	}

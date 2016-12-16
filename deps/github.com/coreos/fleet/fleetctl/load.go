@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ var cmdLoad = &cobra.Command{
 	Short: "Schedule one or more units in the cluster, first submitting them if necessary.",
 	Long: `Load one or many units in the cluster into systemd, but do not start.
 
-Select units to load by glob matching for units in the current working directory 
+Select units to load by glob matching for units in the current working directory
 or matching the names of previously submitted units.
 
 For units which are not global, load operations are performed synchronously,
@@ -73,9 +73,9 @@ func runLoadUnit(cCmd *cobra.Command, args []string) (exit int) {
 		}
 	}
 
-	exitVal := tryWaitForUnitStates(loading, "load", job.JobStateLoaded, getBlockAttempts(cCmd), os.Stdout)
-	if exitVal != 0 {
-		stderr("Error waiting for unit states, exit status: %d", exitVal)
+	err = tryWaitForUnitStates(loading, "load", job.JobStateLoaded, getBlockAttempts(cCmd), os.Stdout)
+	if err != nil {
+		stderr("Error waiting for unit states, exit status: %v", err)
 		return 1
 	}
 

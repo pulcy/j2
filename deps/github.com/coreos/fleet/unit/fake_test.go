@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,7 +65,10 @@ func TestFakeUnitManagerLoadUnload(t *testing.T) {
 		t.Fatalf("Expected UnitState %v, got %v", eus, *us)
 	}
 
-	fum.Unload("hello.service")
+	err = fum.Unload("hello.service")
+	if err != nil {
+		t.Fatalf("Expected no error from Unload(), got %v", err)
+	}
 
 	units, err = fum.Units()
 	if err != nil {
