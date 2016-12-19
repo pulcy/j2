@@ -1,16 +1,11 @@
 package kubernetes
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"fmt"
-	"io/ioutil"
-	"net/http"
-
-	"github.com/ericchiang/k8s"
+	k8s "github.com/YakLabs/k8s-client"
+	"github.com/YakLabs/k8s-client/http"
 )
 
-func createClientFromConfig(kubeConfig string) (*k8s.Client, error) {
+func createClientFromConfig(kubeConfig string) (k8s.Client, error) {
 	// Load configuration
 	config, err := loadKubeConfig(kubeConfig)
 	if err != nil {
@@ -29,34 +24,37 @@ func createClientFromConfig(kubeConfig string) (*k8s.Client, error) {
 		return nil, maskAny(err)
 	}
 
+	// Prepare options
+	opts := []http.OptionsFunc{
+		// Endpoint
+		http.SetServer(cluster.Server),
+	}
+
 	// Load client cert.
-	clientCert, err := tls.LoadX509KeyPair(user.ClientCertificate, user.ClientKey)
-	if err != nil {
-		return nil, maskAny(err)
+	if len(user.ClientCertificateData) > 0 {
+		opts = append(opts, http.SetClientCert(user.ClientCertificateData))
+	} else {
+		opts = append(opts, http.SetClientCertFromFile(user.ClientCertificate))
+	}
+	if len(user.ClientKeyData) > 0 {
+		opts = append(opts, http.SetClientKey(user.ClientKeyData))
+	} else {
+		opts = append(opts, http.SetClientKeyFromFile(user.ClientKey))
 	}
 
-	// Load API server's CA.
-	caData, err := ioutil.ReadFile(cluster.CertificateAuthority)
-	if err != nil {
-		return nil, maskAny(err)
+	// API server's CA.
+	if len(cluster.CertificateAuthorityData) > 0 {
+		opts = append(opts, http.SetCA(cluster.CertificateAuthorityData))
+	} else {
+		opts = append(opts, http.SetCAFromFile(cluster.CertificateAuthority))
 	}
-	rootCAs := x509.NewCertPool()
-	if !rootCAs.AppendCertsFromPEM(caData) {
-		return nil, maskAny(fmt.Errorf("Failed to append CA certificates"))
+	if cluster.InsecureSkipTLSVerify {
+		opts = append(opts, http.SetInsecureSkipVerify(true))
 	}
 
-	// Create a client with a custom TLS config.
-	client := &k8s.Client{
-		Endpoint:  cluster.Server,
-		Namespace: "default",
-		Client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs:      rootCAs,
-					Certificates: []tls.Certificate{clientCert},
-				},
-			},
-		},
+	client, err := http.New(opts...)
+	if err != nil {
+		return nil, maskAny(err)
 	}
 	return client, nil
 }

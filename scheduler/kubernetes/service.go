@@ -15,21 +15,18 @@
 package kubernetes
 
 import (
-	"context"
-
 	pkg "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
 )
 
 // listServices returns all services in the namespace
-func (s *k8sScheduler) listServices(ctx context.Context) ([]scheduler.Unit, error) {
+func (s *k8sScheduler) listServices() ([]scheduler.Unit, error) {
 	var units []scheduler.Unit
-	api := s.client.CoreV1()
-	if list, err := api.ListServices(ctx); err != nil {
+	if list, err := s.client.ListServices(s.defaultNamespace, nil); err != nil {
 		return nil, maskAny(err)
 	} else {
 		for _, d := range list.Items {
-			units = append(units, &pkg.Service{Service: *d})
+			units = append(units, &pkg.Service{Service: d})
 		}
 	}
 	return units, nil

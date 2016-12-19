@@ -14,33 +14,27 @@
 
 package kubernetes
 
-import (
-	"context"
-
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
-	"github.com/ericchiang/k8s/apis/extensions/v1beta1"
-)
+import k8s "github.com/YakLabs/k8s-client"
 
 // Ingress is a wrapper for a kubernetes v1beta1.Ingress that implements
 // scheduler.UnitData.
 type Ingress struct {
-	v1beta1.Ingress
+	k8s.Ingress
 }
 
 // Name returns a name of the resource
 func (ds *Ingress) Name() string {
-	return ds.Ingress.GetMetadata().GetName()
+	return ds.Ingress.ObjectMeta.Name
 }
 
 // Namespace returns the namespace the resource should be added to.
 func (ds *Ingress) Namespace() string {
-	return ds.Ingress.GetMetadata().GetNamespace()
+	return ds.Ingress.ObjectMeta.Namespace
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.
-func (ds *Ingress) ObjectMeta() *v1.ObjectMeta {
-	return ds.Ingress.GetMetadata()
+func (ds *Ingress) ObjectMeta() *k8s.ObjectMeta {
+	return &ds.Ingress.ObjectMeta
 }
 
 // Content returns a JSON representation of the resource.
@@ -51,28 +45,24 @@ func (ds *Ingress) Content() string {
 }
 
 // Destroy deletes the ingress from the cluster.
-func (ds *Ingress) Destroy(cs *k8s.Client, events chan string) error {
-	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
-	api := cs.ExtensionsV1Beta1()
-	return maskAny(api.DeleteIngress(ctx, ds.Name()))
+func (ds *Ingress) Destroy(cs k8s.Client, events chan string) error {
+	return maskAny(cs.DeleteIngress(ds.Namespace(), ds.Name()))
 }
 
 // Start creates/updates the ingress
-func (ds *Ingress) Start(cs *k8s.Client, events chan string) error {
-	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
-	api := cs.ExtensionsV1Beta1()
-	current, err := api.GetIngress(ctx, ds.Name())
+func (ds *Ingress) Start(cs k8s.Client, events chan string) error {
+	current, err := cs.GetIngress(ds.Namespace(), ds.Name())
 	if err == nil {
 		// Update
 		events <- "updating"
-		updateMetadataFromCurrent(ds.Ingress.GetMetadata(), current.GetMetadata())
-		if _, err := api.UpdateIngress(ctx, &ds.Ingress); err != nil {
+		updateMetadataFromCurrent(ds.ObjectMeta(), current.ObjectMeta)
+		if _, err := cs.UpdateIngress(ds.Namespace(), &ds.Ingress); err != nil {
 			return maskAny(err)
 		}
 	} else {
 		// Create
 		events <- "creating"
-		if _, err := api.CreateIngress(ctx, &ds.Ingress); err != nil {
+		if _, err := cs.CreateIngress(ds.Namespace(), &ds.Ingress); err != nil {
 			return maskAny(err)
 		}
 	}

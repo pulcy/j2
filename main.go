@@ -42,6 +42,7 @@ var (
 		PersistentPreRun: func(*cobra.Command, []string) {
 			setLogLevel(globalFlags.logLevel, defaultLogLevel, projectName)
 			setLogLevel(globalFlags.fleetLogLevel, globalFlags.logLevel, "fleet")
+			docker.SetupImages(dockerImages)
 		},
 	}
 	globalFlags struct {
@@ -50,22 +51,26 @@ var (
 		logLevel      string
 		fleetLogLevel string
 	}
-	log *logging.Logger
+	log          *logging.Logger
+	dockerImages = docker.Images{
+		VaultMonkey: "pulcy/vault-monkey:20161218163446",
+		Wormhole:    "pulcy/wormhole:latest",
+		Alpine:      "alpine:3.4",
+		CephVolume:  "pulcy/ceph-volume:latest",
+	}
 )
 
 func init() {
-	docker.SetupImages(docker.Images{
-		VaultMonkey: "pulcy/vault-monkey:latest",
-		Wormhole:    "pulcy/wormhole:latest",
-		Alpine:      "alpine:3.3",
-		CephVolume:  "pulcy/ceph-volume:latest",
-	})
-
 	log = logging.MustGetLogger(projectName)
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.debug, "debug", "D", false, "Print debug output")
 	cmdMain.PersistentFlags().BoolVarP(&globalFlags.verbose, "verbose", "v", false, "Print verbose output")
 	cmdMain.PersistentFlags().StringVar(&globalFlags.logLevel, "log-level", defaultLogLevel, "Log level (debug|info|warning|error)")
 	cmdMain.PersistentFlags().StringVar(&globalFlags.fleetLogLevel, "fleet-log-level", "", "Log level of the fleet tunnel (debug|info|warning|error)")
+
+	cmdMain.PersistentFlags().StringVar(&dockerImages.VaultMonkey, "image-vault-monkey", dockerImages.VaultMonkey, "Docker image for vault-monkey containers")
+	cmdMain.PersistentFlags().StringVar(&dockerImages.Wormhole, "image-wormhole", dockerImages.Wormhole, "Docker image for wormhole containers")
+	cmdMain.PersistentFlags().StringVar(&dockerImages.Alpine, "image-alpine", dockerImages.Alpine, "Docker image for alpine containers")
+	cmdMain.PersistentFlags().StringVar(&dockerImages.CephVolume, "image-ceph-volume", dockerImages.CephVolume, "Docker image for ceph volume containers")
 }
 
 func main() {

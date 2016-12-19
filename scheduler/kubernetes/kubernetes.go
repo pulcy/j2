@@ -15,14 +15,12 @@
 package kubernetes
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/juju/errgo"
 
-	k8s "github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
+	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
 	pkg "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
@@ -35,10 +33,10 @@ var (
 // Unit extends scheduler.Unit with methods used to start & stop units.
 type Unit interface {
 	scheduler.UnitData
-	ObjectMeta() *v1.ObjectMeta
+	ObjectMeta() *k8s.ObjectMeta
 	Namespace() string
-	Start(cs *k8s.Client, events chan string) error
-	Destroy(cs *k8s.Client, events chan string) error
+	Start(cs k8s.Client, events chan string) error
+	Destroy(cs k8s.Client, events chan string) error
 }
 
 // NewScheduler creates a new kubernetes implementation of scheduler.Scheduler.
@@ -56,7 +54,7 @@ func NewScheduler(j jobs.Job, kubeConfig string) (scheduler.Scheduler, error) {
 }
 
 type k8sScheduler struct {
-	client           *k8s.Client
+	client           k8s.Client
 	defaultNamespace string
 	job              jobs.Job
 }
@@ -64,23 +62,27 @@ type k8sScheduler struct {
 // List returns the names of all units on the cluster
 func (s *k8sScheduler) List() ([]scheduler.Unit, error) {
 	var units []scheduler.Unit
-	ctx := k8s.NamespaceContext(context.Background(), s.defaultNamespace)
-	if list, err := s.listDeployments(ctx); err != nil {
+	if list, err := s.listDeployments(); err != nil {
 		return nil, maskAny(err)
 	} else {
 		units = append(units, list...)
 	}
-	if list, err := s.listDaemonSets(ctx); err != nil {
+	if list, err := s.listDaemonSets(); err != nil {
 		return nil, maskAny(err)
 	} else {
 		units = append(units, list...)
 	}
-	if list, err := s.listServices(ctx); err != nil {
+	if list, err := s.listServices(); err != nil {
 		return nil, maskAny(err)
 	} else {
 		units = append(units, list...)
 	}
-	if list, err := s.listIngresses(ctx); err != nil {
+	if list, err := s.listSecrets(); err != nil {
+		return nil, maskAny(err)
+	} else {
+		units = append(units, list...)
+	}
+	if list, err := s.listIngresses(); err != nil {
 		return nil, maskAny(err)
 	} else {
 		units = append(units, list...)
@@ -151,10 +153,9 @@ func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDa
 		}
 
 		// Ensure namespace exists
-		nsAPI := s.client.CoreV1()
-		ctx := k8s.NamespaceContext(context.Background(), ku.Namespace())
-		if _, err := nsAPI.GetNamespace(ctx, ku.Namespace()); err != nil {
-			if _, err := nsAPI.CreateNamespace(ctx, createNamespace(ku.Namespace())); err != nil {
+		nsAPI := s.client
+		if _, err := nsAPI.GetNamespace(ku.Namespace()); err != nil {
+			if _, err := nsAPI.CreateNamespace(k8s.NewNamespace(ku.Namespace())); err != nil {
 				return maskAny(err)
 			}
 		}
@@ -224,13 +225,4 @@ func (s *k8sScheduler) UpdateStopDelay(d time.Duration) time.Duration {
 func (s *k8sScheduler) UpdateDestroyDelay(d time.Duration) time.Duration {
 	// Destroying is done inline by Kubernetes, do not wait for it
 	return time.Duration(0)
-}
-
-func createNamespace(name string) *v1.Namespace {
-	ns := &v1.Namespace{
-		Metadata: &v1.ObjectMeta{
-			Name: k8s.StringP(name),
-		},
-	}
-	return ns
 }

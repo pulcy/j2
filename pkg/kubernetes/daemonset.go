@@ -15,32 +15,28 @@
 package kubernetes
 
 import (
-	"context"
-
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
-	"github.com/ericchiang/k8s/apis/extensions/v1beta1"
+	k8s "github.com/YakLabs/k8s-client"
 )
 
 // DaemonSet is a wrapper for a kubernetes v1beta1.DaemonSet that implements
 // scheduler.UnitData.
 type DaemonSet struct {
-	v1beta1.DaemonSet
+	k8s.DaemonSet
 }
 
 // Name returns a name of the resource
 func (ds *DaemonSet) Name() string {
-	return ds.DaemonSet.GetMetadata().GetName()
+	return ds.DaemonSet.ObjectMeta.Name
 }
 
 // Namespace returns the namespace the resource should be added to.
 func (ds *DaemonSet) Namespace() string {
-	return ds.DaemonSet.GetMetadata().GetNamespace()
+	return ds.DaemonSet.ObjectMeta.Namespace
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.
-func (ds *DaemonSet) ObjectMeta() *v1.ObjectMeta {
-	return ds.DaemonSet.GetMetadata()
+func (ds *DaemonSet) ObjectMeta() *k8s.ObjectMeta {
+	return &ds.DaemonSet.ObjectMeta
 }
 
 // Content returns a JSON representation of the resource.
@@ -51,28 +47,24 @@ func (ds *DaemonSet) Content() string {
 }
 
 // Destroy deletes the daemonset from the cluster.
-func (ds *DaemonSet) Destroy(cs *k8s.Client, events chan string) error {
-	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
-	api := cs.ExtensionsV1Beta1()
-	return maskAny(api.DeleteDaemonSet(ctx, ds.Name()))
+func (ds *DaemonSet) Destroy(cs k8s.Client, events chan string) error {
+	return maskAny(cs.DeleteDaemonSet(ds.Namespace(), ds.Name()))
 }
 
 // Start creates/updates the daemonSet
-func (ds *DaemonSet) Start(cs *k8s.Client, events chan string) error {
-	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
-	api := cs.ExtensionsV1Beta1()
-	current, err := api.GetDaemonSet(ctx, ds.Name())
+func (ds *DaemonSet) Start(cs k8s.Client, events chan string) error {
+	current, err := cs.GetDaemonSet(ds.Namespace(), ds.Name())
 	if err == nil {
 		// Update
 		events <- "updating"
-		updateMetadataFromCurrent(ds.DaemonSet.GetMetadata(), current.GetMetadata())
-		if _, err := api.UpdateDaemonSet(ctx, &ds.DaemonSet); err != nil {
+		updateMetadataFromCurrent(ds.ObjectMeta(), current.ObjectMeta)
+		if _, err := cs.UpdateDaemonSet(ds.Namespace(), &ds.DaemonSet); err != nil {
 			return maskAny(err)
 		}
 	} else {
 		// Create
 		events <- "creating"
-		if _, err := api.CreateDaemonSet(ctx, &ds.DaemonSet); err != nil {
+		if _, err := cs.CreateDaemonSet(ds.Namespace(), &ds.DaemonSet); err != nil {
 			return maskAny(err)
 		}
 	}

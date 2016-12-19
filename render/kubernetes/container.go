@@ -3,8 +3,7 @@ package kubernetes
 import (
 	"fmt"
 
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
+	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
 )
 
@@ -18,15 +17,15 @@ const (
 )
 
 // createTaskContainers returns the init-containers and containers needed for the given task.
-func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]*v1.Container, []*v1.Container, error) {
+func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Container, []k8s.Container, error) {
 	if t.Type.IsProxy() {
 		// Proxy does not yield any containers
 		return nil, nil, nil
 	}
-	c := &v1.Container{
-		Name:            k8s.StringP(resourceName(t.FullName(), "")),
-		Image:           k8s.StringP(t.Image.String()),
-		ImagePullPolicy: k8s.StringP(PullAlways),
+	c := &k8s.Container{
+		Name:            resourceName(t.FullName(), ""),
+		Image:           t.Image.String(),
+		ImagePullPolicy: k8s.PullAlways,
 		Args:            t.Args,
 	}
 
@@ -41,10 +40,39 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]*v1.Co
 
 	// Environment variables
 	for k, v := range t.Environment {
-		c.Env = append(c.Env, &v1.EnvVar{
-			Name:  k8s.StringP(k),
-			Value: k8s.StringP(v),
+		c.Env = append(c.Env, k8s.EnvVar{
+			Name:  k,
+			Value: v,
 		})
+	}
+
+	// Secrets that will be passed as environment variables
+	var initContainers []k8s.Container
+	var envSecrets []jobs.Secret
+	for _, s := range t.Secrets {
+		ok, key := s.TargetEnviroment()
+		if !ok {
+			continue
+		}
+		envSecrets = append(envSecrets, s)
+		c.Env = append(c.Env, k8s.EnvVar{
+			Name: key,
+			ValueFrom: &k8s.EnvVarSource{
+				SecretKeyRef: &k8s.SecretKeySelector{
+					LocalObjectReference: k8s.LocalObjectReference{
+						Name: taskSecretName(t),
+					},
+					Key: key,
+				},
+			},
+		})
+	}
+	if len(envSecrets) > 0 {
+		c, err := createSecretExtractionContainer(envSecrets, t, pod, ctx)
+		if err != nil {
+			return nil, nil, maskAny(err)
+		}
+		initContainers = append(initContainers, *c)
 	}
 
 	// J2 specific Environment variables
@@ -71,32 +99,20 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]*v1.Co
 	// Create mounts
 	for _, t := range mountTasks {
 		for i, v := range t.Volumes {
-			mount := &v1.VolumeMount{
-				Name:      k8s.StringP(createVolumeName(t, i)),
-				MountPath: k8s.StringP(v.Path),
+			mount := k8s.VolumeMount{
+				Name:      createVolumeName(t, i),
+				MountPath: v.Path,
 			}
-			mount.ReadOnly = k8s.BoolP(v.IsReadOnly())
+			mount.ReadOnly = v.IsReadOnly()
 			c.VolumeMounts = append(c.VolumeMounts, mount)
 		}
 	}
 
-	var initContainers, containers []*v1.Container
+	var containers []k8s.Container
 	if t.Type.IsService() {
-		containers = append(containers, c)
+		containers = append(containers, *c)
 	} else if t.Type.IsOneshot() {
-		initContainers = append(initContainers, c)
+		initContainers = append(initContainers, *c)
 	}
 	return initContainers, containers, nil
-}
-
-// createEnvVarFromField creates a v1.EnvVar with a ValueFrom set to a ObjectFieldSelector
-func createEnvVarFromField(key, fieldPath string) *v1.EnvVar {
-	return &v1.EnvVar{
-		Name: k8s.StringP(key),
-		ValueFrom: &v1.EnvVarSource{
-			FieldRef: &v1.ObjectFieldSelector{
-				FieldPath: k8s.StringP(fieldPath),
-			},
-		},
-	}
 }

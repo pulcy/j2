@@ -25,6 +25,11 @@ type RenderContext interface {
 	ProjectName() string
 	ProjectVersion() string
 	ProjectBuild() string
+
+	ImageVaultMonkey() string // Docker image name of vault-monkey
+	ImageWormhole() string    // Docker image name of wormhole
+	ImageAlpine() string      // Docker image name of alpine linux
+	ImageCephVolume() string  // Docker image name of ceph-volume
 }
 
 type UnitData interface {

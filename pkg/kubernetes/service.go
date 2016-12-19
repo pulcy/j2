@@ -14,32 +14,27 @@
 
 package kubernetes
 
-import (
-	"context"
-
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
-)
+import k8s "github.com/YakLabs/k8s-client"
 
 // Service is a wrapper for a kubernetes v1.Service that implements
 // scheduler.UnitData.
 type Service struct {
-	v1.Service
+	k8s.Service
 }
 
 // Name returns a name of the resource
 func (ds *Service) Name() string {
-	return ds.Service.GetMetadata().GetName()
+	return ds.Service.ObjectMeta.Name
 }
 
 // Namespace returns the namespace the resource should be added to.
 func (ds *Service) Namespace() string {
-	return ds.Service.GetMetadata().GetNamespace()
+	return ds.Service.ObjectMeta.Namespace
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.
-func (ds *Service) ObjectMeta() *v1.ObjectMeta {
-	return ds.Service.GetMetadata()
+func (ds *Service) ObjectMeta() *k8s.ObjectMeta {
+	return &ds.Service.ObjectMeta
 }
 
 // Content returns a JSON representation of the resource.
@@ -50,29 +45,25 @@ func (ds *Service) Content() string {
 }
 
 // Destroy deletes the service from the cluster.
-func (ds *Service) Destroy(cs *k8s.Client, events chan string) error {
-	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
-	api := cs.CoreV1()
-	return maskAny(api.DeleteService(ctx, ds.Name()))
+func (ds *Service) Destroy(cs k8s.Client, events chan string) error {
+	return maskAny(cs.DeleteService(ds.Namespace(), ds.Name()))
 }
 
 // Start creates/updates the service
-func (ds *Service) Start(cs *k8s.Client, events chan string) error {
-	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
-	api := cs.CoreV1()
-	current, err := api.GetService(ctx, ds.Name())
+func (ds *Service) Start(cs k8s.Client, events chan string) error {
+	current, err := cs.GetService(ds.Namespace(), ds.Name())
 	if err == nil {
 		// Update
 		events <- "updating"
-		updateMetadataFromCurrent(ds.Service.GetMetadata(), current.GetMetadata())
+		updateMetadataFromCurrent(ds.ObjectMeta(), current.ObjectMeta)
 		ds.Service.Spec.ClusterIP = current.Spec.ClusterIP
-		if _, err := api.UpdateService(ctx, &ds.Service); err != nil {
+		if _, err := cs.UpdateService(ds.Namespace(), &ds.Service); err != nil {
 			return maskAny(err)
 		}
 	} else {
 		// Create
 		events <- "creating"
-		if _, err := api.CreateService(ctx, &ds.Service); err != nil {
+		if _, err := cs.CreateService(ds.Namespace(), &ds.Service); err != nil {
 			return maskAny(err)
 		}
 	}

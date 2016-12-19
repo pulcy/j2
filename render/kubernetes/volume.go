@@ -3,8 +3,7 @@ package kubernetes
 import (
 	"fmt"
 
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
+	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
 )
 
@@ -19,7 +18,7 @@ type volumeTaskPair struct {
 }
 
 // createVolumes creates the volumes defined in all tasks of a given pod.
-func createVolumes(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]*v1.Volume, error) {
+func createVolumes(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Volume, error) {
 	// Collect all volumes
 	var jVols []volumeTaskPair
 	seenJVols := make(map[string]struct{})
@@ -34,15 +33,14 @@ func createVolumes(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]*v1.Vol
 	}
 
 	// Create volume for each
-	var vols []*v1.Volume
+	var vols []k8s.Volume
 	for _, v := range jVols {
-		vol := &v1.Volume{
-			Name:         k8s.StringP(createVolumeName(v.Task, v.VolumeIndex)),
-			VolumeSource: &v1.VolumeSource{},
+		vol := k8s.Volume{
+			Name: createVolumeName(v.Task, v.VolumeIndex),
 		}
 		if v.Volume.IsLocal() {
-			vol.VolumeSource.HostPath = &v1.HostPathVolumeSource{
-				Path: k8s.StringP(v.Volume.HostPath),
+			vol.VolumeSource.HostPath = &k8s.HostPathVolumeSource{
+				Path: v.Volume.HostPath,
 			}
 		} else {
 			return nil, maskAny(fmt.Errorf("Non local volumes are not yet implemented"))

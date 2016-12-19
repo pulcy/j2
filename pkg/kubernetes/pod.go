@@ -14,22 +14,21 @@
 
 package kubernetes
 
-import "github.com/ericchiang/k8s"
-import "context"
+import (
+	k8s "github.com/YakLabs/k8s-client"
+)
 
 // deletePods deletes the pods that match the given selector from the cluster.
-func deletePods(cs *k8s.Client, namespace string, labelSelector map[string]string) error {
-	ctx := k8s.NamespaceContext(context.Background(), namespace)
-	api := cs.CoreV1()
-	all, err := api.ListPods(ctx)
+func deletePods(cs k8s.Client, namespace string, labelSelector map[string]string) error {
+	all, err := cs.ListPods(namespace, &k8s.ListOptions{LabelSelector: k8s.LabelSelector{MatchLabels: labelSelector}})
 	if err != nil {
 		return maskAny(err)
 	}
 	for _, p := range all.Items {
-		if !hasLabels(p.GetMetadata(), labelSelector) {
+		if !hasLabels(p.ObjectMeta, labelSelector) {
 			continue
 		}
-		if err := api.DeletePod(ctx, p.GetMetadata().GetName()); err != nil {
+		if err := cs.DeletePod(namespace, p.ObjectMeta.Name); err != nil {
 			return maskAny(err)
 		}
 	}

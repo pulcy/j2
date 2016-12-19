@@ -4,22 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
-	"github.com/ericchiang/k8s/util/intstr"
+	k8s "github.com/YakLabs/k8s-client"
+	"github.com/YakLabs/k8s-client/intstr"
 )
 
 func FromInt(i int32) intstr.IntOrString {
-	return intstr.IntOrString{
-		Type:   k8s.Int64P(0),
-		IntVal: k8s.Int32P(i),
-	}
+	return intstr.FromInt(int(i))
 }
 func FromString(s string) intstr.IntOrString {
-	return intstr.IntOrString{
-		Type:   k8s.Int64P(1),
-		StrVal: k8s.StringP(s),
-	}
+	return intstr.FromString(s)
 }
 
 func mustRender(resource interface{}) string {
@@ -30,12 +23,12 @@ func mustRender(resource interface{}) string {
 	return string(raw)
 }
 
-func createLabelSelector(meta *v1.ObjectMeta) map[string]string {
+func createLabelSelector(meta k8s.ObjectMeta) map[string]string {
 	labels := meta.GetLabels()
 	return labels
 }
 
-func hasLabels(meta *v1.ObjectMeta, labels map[string]string) bool {
+func hasLabels(meta k8s.ObjectMeta, labels map[string]string) bool {
 	found := meta.GetLabels()
 	for k, v := range labels {
 		if foundV, ok := found[k]; !ok {
@@ -47,7 +40,7 @@ func hasLabels(meta *v1.ObjectMeta, labels map[string]string) bool {
 	return true
 }
 
-func updateMetadataFromCurrent(meta, current *v1.ObjectMeta) {
-	meta.ResourceVersion = k8s.StringP(current.GetResourceVersion())
+func updateMetadataFromCurrent(meta *k8s.ObjectMeta, current k8s.ObjectMeta) {
+	meta.ResourceVersion = current.ResourceVersion
 	//meta.DeletionGracePeriodSeconds = current.GetDeletionGracePeriodSeconds()
 }

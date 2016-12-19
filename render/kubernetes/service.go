@@ -1,23 +1,16 @@
 package kubernetes
 
 import (
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
+	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
 )
 
 // createServices creates all services needed for the given task group.
-func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]v1.Service, error) {
-	var services []v1.Service
+func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Service, error) {
+	var services []k8s.Service
 	for _, t := range pod.tasks {
-		d := v1.Service{
-			Metadata: &v1.ObjectMeta{
-				Name:      k8s.StringP(taskServiceName(t)),
-				Namespace: k8s.StringP(ctx.Namespace),
-			},
-			Spec: &v1.ServiceSpec{},
-		}
-		setTaskGroupLabelsAnnotations(d.GetMetadata(), tg)
+		d := k8s.NewService(ctx.Namespace, taskServiceName(t))
+		setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
 
 		d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
 		for _, p := range t.Ports {
@@ -25,16 +18,16 @@ func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]v1.Ser
 			if err != nil {
 				return nil, maskAny(err)
 			}
-			servicePort := &v1.ServicePort{
-				Port:     k8s.Int32P(int32(pp.ContainerPort)),
-				Protocol: k8s.StringP("TCP"),
+			servicePort := k8s.ServicePort{
+				Port:     int32(pp.ContainerPort),
+				Protocol: "TCP",
 			}
 			if pp.IsUDP() {
-				servicePort.Protocol = k8s.StringP("UDP")
+				servicePort.Protocol = "UDP"
 			}
 			d.Spec.Ports = append(d.Spec.Ports, servicePort)
 		}
-		services = append(services, d)
+		services = append(services, *d)
 	}
 
 	return services, nil

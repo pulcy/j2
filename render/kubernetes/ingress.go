@@ -1,25 +1,17 @@
 package kubernetes
 
 import (
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
-	"github.com/ericchiang/k8s/apis/extensions/v1beta1"
+	k8s "github.com/YakLabs/k8s-client"
+	"github.com/YakLabs/k8s-client/intstr"
 	"github.com/pulcy/j2/jobs"
-	pkg "github.com/pulcy/j2/pkg/kubernetes"
 )
 
 // createIngresses creates allingressesservices needed for the given task group.
-func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]v1beta1.Ingress, error) {
-	d := v1beta1.Ingress{
-		Metadata: &v1.ObjectMeta{
-			Name:      k8s.StringP(resourceName(pod.name, kindIngress)),
-			Namespace: k8s.StringP(ctx.Namespace),
-		},
-		Spec: &v1beta1.IngressSpec{},
-	}
-	setTaskGroupLabelsAnnotations(d.GetMetadata(), tg)
+func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Ingress, error) {
+	d := k8s.NewIngress(ctx.Namespace, resourceName(pod.name, kindIngress))
+	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
 
-	port2Backend := map[int]*v1beta1.IngressBackend{}
+	port2Backend := map[int]*k8s.IngressBackend{}
 	for _, t := range pod.tasks {
 		for _, frontend := range t.PublicFrontEnds {
 			pathPrefix := frontend.PathPrefix
@@ -32,15 +24,13 @@ func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]v1bet
 				backend = createIngressBackend(pod, port)
 				port2Backend[port] = backend
 			}
-			rule := &v1beta1.IngressRule{
-				Host: k8s.StringP(frontend.Domain),
-				IngressRuleValue: &v1beta1.IngressRuleValue{
-					Http: &v1beta1.HTTPIngressRuleValue{
-						Paths: []*v1beta1.HTTPIngressPath{
-							&v1beta1.HTTPIngressPath{
-								Path:    k8s.StringP(pathPrefix),
-								Backend: backend,
-							},
+			rule := k8s.IngressRule{
+				Host: frontend.Domain,
+				HTTP: &k8s.HTTPIngressRuleValue{
+					Paths: []k8s.HTTPIngressPath{
+						k8s.HTTPIngressPath{
+							Path:    pathPrefix,
+							Backend: *backend,
 						},
 					},
 				},
@@ -50,13 +40,12 @@ func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]v1bet
 		}
 	}
 
-	return []v1beta1.Ingress{d}, nil
+	return []k8s.Ingress{*d}, nil
 }
 
-func createIngressBackend(pod pod, port int) *v1beta1.IngressBackend {
-	servicePort := pkg.FromInt(int32(port))
-	return &v1beta1.IngressBackend{
-		ServiceName: k8s.StringP(resourceName(pod.name, kindService)),
-		ServicePort: &servicePort,
+func createIngressBackend(pod pod, port int) *k8s.IngressBackend {
+	return &k8s.IngressBackend{
+		ServiceName: resourceName(pod.name, kindService),
+		ServicePort: intstr.FromInt(port),
 	}
 }

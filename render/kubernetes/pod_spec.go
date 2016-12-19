@@ -3,8 +3,7 @@ package kubernetes
 import (
 	"encoding/json"
 
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
+	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
 )
 
@@ -19,9 +18,9 @@ const (
 )
 
 // createPodSpec creates a pod-spec for all tasks in a given pod.
-func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*v1.PodSpec, map[string]string, error) {
-	spec := &v1.PodSpec{
-		RestartPolicy: k8s.StringP(RestartPolicyAlways),
+func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodSpec, map[string]string, error) {
+	spec := &k8s.PodSpec{
+		RestartPolicy: RestartPolicyAlways,
 	}
 
 	// Volumes
@@ -35,7 +34,7 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*v1.PodSp
 	annotations := make(map[string]string)
 	for _, t := range pod.tasks {
 		if t.Network.IsHost() {
-			spec.HostNetwork = k8s.BoolP(true)
+			spec.HostNetwork = true
 		}
 		initContainers, containers, err := createTaskContainers(t, pod, ctx)
 		if err != nil {

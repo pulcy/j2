@@ -101,3 +101,19 @@ func (r *renderContext) ProjectVersion() string {
 func (r *renderContext) ProjectBuild() string {
 	return r.projectBuild
 }
+
+func (r *renderContext) ImageVaultMonkey() string {
+	return dockerImages.VaultMonkey
+}
+
+func (r *renderContext) ImageWormhole() string {
+	return dockerImages.Wormhole
+}
+
+func (r *renderContext) ImageAlpine() string {
+	return dockerImages.Alpine
+}
+
+func (r *renderContext) ImageCephVolume() string {
+	return dockerImages.CephVolume
+}

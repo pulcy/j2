@@ -15,24 +15,20 @@
 package kubernetes
 
 import (
-	"context"
-
-	"github.com/ericchiang/k8s"
+	k8s "github.com/YakLabs/k8s-client"
 )
 
 // deleteReplicaSets deletes the replicateSets that match the given selector from the cluster.
-func deleteReplicaSets(cs *k8s.Client, namespace string, labelSelector map[string]string) error {
-	ctx := k8s.NamespaceContext(context.Background(), namespace)
-	api := cs.ExtensionsV1Beta1()
-	all, err := api.ListReplicaSets(ctx)
+func deleteReplicaSets(cs k8s.Client, namespace string, labelSelector map[string]string) error {
+	all, err := cs.ListReplicaSets(namespace, &k8s.ListOptions{LabelSelector: k8s.LabelSelector{MatchLabels: labelSelector}})
 	if err != nil {
 		return maskAny(err)
 	}
 	for _, rs := range all.Items {
-		if !hasLabels(rs.GetMetadata(), labelSelector) {
+		if !hasLabels(rs.ObjectMeta, labelSelector) {
 			continue
 		}
-		if err := api.DeleteReplicaSet(ctx, rs.GetMetadata().GetName()); err != nil {
+		if err := cs.DeleteReplicaSet(namespace, rs.ObjectMeta.Name); err != nil {
 			return maskAny(err)
 		}
 	}

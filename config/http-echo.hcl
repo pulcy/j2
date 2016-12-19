@@ -8,5 +8,11 @@ job "http_echo" {
 			domain = "hello.pulcy.com"
 			port = 5678
 		}
+		secret "secret/dummy1" {
+			environment = "DUMMY1"
+		}
+		secret "secret/dummy2" {
+			environment = "DUMMY2"
+		}
 	}
 }

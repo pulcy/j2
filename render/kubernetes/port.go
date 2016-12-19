@@ -1,28 +1,27 @@
 package kubernetes
 
 import (
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
+	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
 )
 
-func createContainerPort(port jobs.PortMapping) (*v1.ContainerPort, error) {
+func createContainerPort(port jobs.PortMapping) (k8s.ContainerPort, error) {
 	p, err := port.Parse()
 	if err != nil {
-		return nil, maskAny(err)
+		return k8s.ContainerPort{}, maskAny(err)
 	}
-	cp := &v1.ContainerPort{
-		ContainerPort: k8s.Int32P(int32(p.ContainerPort)),
-		Protocol:      k8s.StringP("TCP"),
+	cp := k8s.ContainerPort{
+		ContainerPort: p.ContainerPort,
+		Protocol:      "TCP",
 	}
 	if p.HasHostPort() {
-		cp.HostPort = k8s.Int32P(int32(p.HostPort))
+		cp.HostPort = p.HostPort
 	}
 	if p.HasHostIP() {
-		cp.HostIP = k8s.StringP(p.HostIP)
+		cp.HostIP = p.HostIP
 	}
 	if p.IsUDP() {
-		cp.Protocol = k8s.StringP("UDP")
+		cp.Protocol = "UDP"
 	}
 	return cp, nil
 }

@@ -15,34 +15,31 @@
 package kubernetes
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
-	"github.com/ericchiang/k8s/apis/extensions/v1beta1"
+	k8s "github.com/YakLabs/k8s-client"
 )
 
 // Deployment is a wrapper for a kubernetes v1beta1.Deployment that implements
 // scheduler.UnitData.
 type Deployment struct {
-	v1beta1.Deployment
+	k8s.Deployment
 }
 
 // Name returns a name of the resource
 func (ds *Deployment) Name() string {
-	return ds.Deployment.GetMetadata().GetName()
+	return ds.Deployment.ObjectMeta.Name
 }
 
 // Namespace returns the namespace the resource should be added to.
 func (ds *Deployment) Namespace() string {
-	return ds.Deployment.GetMetadata().GetNamespace()
+	return ds.Deployment.ObjectMeta.Namespace
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.
-func (ds *Deployment) ObjectMeta() *v1.ObjectMeta {
-	return ds.Deployment.GetMetadata()
+func (ds *Deployment) ObjectMeta() *k8s.ObjectMeta {
+	return &ds.Deployment.ObjectMeta
 }
 
 // Content returns a JSON representation of the resource.
@@ -53,19 +50,17 @@ func (ds *Deployment) Content() string {
 }
 
 // Destroy deletes the deployment from the cluster.
-func (ds *Deployment) Destroy(cs *k8s.Client, events chan string) error {
-	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
-	api := cs.ExtensionsV1Beta1()
+func (ds *Deployment) Destroy(cs k8s.Client, events chan string) error {
 	// Fetch current deployment
-	current, err := api.GetDeployment(ctx, ds.Name())
+	current, err := cs.GetDeployment(ds.Namespace(), ds.Name())
 	if err != nil {
 		return maskAny(err)
 	}
-	labelSelector := createLabelSelector(current.GetMetadata())
+	labelSelector := createLabelSelector(current.ObjectMeta)
 
 	// Delete deployment itself
 	events <- "deleting deployment"
-	if err := api.DeleteDeployment(ctx, ds.Name()); err != nil {
+	if err := cs.DeleteDeployment(ds.Namespace(), ds.Name()); err != nil {
 		return maskAny(err)
 	}
 
@@ -84,15 +79,13 @@ func (ds *Deployment) Destroy(cs *k8s.Client, events chan string) error {
 }
 
 // Start creates/updates the deployment
-func (ds *Deployment) Start(cs *k8s.Client, events chan string) error {
-	ctx := k8s.NamespaceContext(context.Background(), ds.Namespace())
-	api := cs.ExtensionsV1Beta1()
-	current, err := api.GetDeployment(ctx, ds.Name())
+func (ds *Deployment) Start(cs k8s.Client, events chan string) error {
+	current, err := cs.GetDeployment(ds.Namespace(), ds.Name())
 	if err == nil {
 		// Update
 		events <- "updating"
-		updateMetadataFromCurrent(ds.Deployment.GetMetadata(), current.GetMetadata())
-		if _, err := api.UpdateDeployment(ctx, &ds.Deployment); err != nil {
+		updateMetadataFromCurrent(ds.ObjectMeta(), current.ObjectMeta)
+		if _, err := cs.UpdateDeployment(ds.Namespace(), &ds.Deployment); err != nil {
 			m, _ := json.Marshal(err)
 			fmt.Printf("Error=%s\n", string(m))
 			return maskAny(err)
@@ -100,7 +93,7 @@ func (ds *Deployment) Start(cs *k8s.Client, events chan string) error {
 	} else {
 		// Create
 		events <- "creating"
-		if _, err := api.CreateDeployment(ctx, &ds.Deployment); err != nil {
+		if _, err := cs.CreateDeployment(ds.Namespace(), &ds.Deployment); err != nil {
 			return maskAny(err)
 		}
 	}

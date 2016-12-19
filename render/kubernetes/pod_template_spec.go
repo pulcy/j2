@@ -3,23 +3,14 @@ package kubernetes
 import (
 	"encoding/json"
 
-	"github.com/ericchiang/k8s"
-	"github.com/ericchiang/k8s/api/v1"
+	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
 )
 
-const (
-	AffinityAnnotationKey = "scheduler.alpha.kubernetes.io/affinity"
-)
-
 // createPodTemplateSpec creates a podTemplateSpec for all tasks in a given pod.
-func createPodTemplateSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*v1.PodTemplateSpec, error) {
-	tspec := &v1.PodTemplateSpec{
-		Metadata: &v1.ObjectMeta{
-			Name: k8s.StringP(pod.name),
-		},
-	}
-	setPodLabels(tspec.GetMetadata(), tg, pod)
+func createPodTemplateSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodTemplateSpec, error) {
+	tspec := k8s.NewPodTemplateSpec(ctx.Namespace, pod.name)
+	setPodLabels(&tspec.ObjectMeta, tg, pod)
 
 	spec, annotations, err := createPodSpec(tg, pod, ctx)
 	if err != nil {
@@ -27,7 +18,7 @@ func createPodTemplateSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*
 	}
 	tspec.Spec = spec
 	for k, v := range annotations {
-		setAnnotation(tspec.GetMetadata(), k, v)
+		setAnnotation(&tspec.ObjectMeta, k, v)
 	}
 
 	// Affinity
@@ -44,7 +35,7 @@ func createPodTemplateSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		setAnnotation(tspec.GetMetadata(), AffinityAnnotationKey, string(raw))
+		setAnnotation(&tspec.ObjectMeta, k8s.AffinityAnnotationKey, string(raw))
 	}
 
 	return tspec, nil

@@ -15,21 +15,18 @@
 package kubernetes
 
 import (
-	"context"
-
 	pkg "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
 )
 
 // listIngresses returns all ingresses in the namespace
-func (s *k8sScheduler) listIngresses(ctx context.Context) ([]scheduler.Unit, error) {
+func (s *k8sScheduler) listIngresses() ([]scheduler.Unit, error) {
 	var units []scheduler.Unit
-	api := s.client.ExtensionsV1Beta1()
-	if list, err := api.ListIngresses(ctx); err != nil {
+	if list, err := s.client.ListIngresses(s.defaultNamespace, nil); err != nil {
 		return nil, maskAny(err)
 	} else {
 		for _, d := range list.Items {
-			units = append(units, &pkg.Ingress{Ingress: *d})
+			units = append(units, &pkg.Ingress{Ingress: d})
 		}
 	}
 	return units, nil

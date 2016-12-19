@@ -37,8 +37,9 @@ func newGenerator() render.Renderer {
 }
 
 type generatorContext struct {
-	Cluster   cluster.Cluster
-	Namespace string
+	Cluster          cluster.Cluster
+	Namespace        string
+	ImageVaultMonkey string
 }
 
 func (g *k8sRenderer) GenerateUnits(job jobs.Job, ctx render.RenderContext, config render.RenderConfig, instanceCount int) ([]render.UnitData, error) {
@@ -54,8 +55,9 @@ func (g *k8sRenderer) GenerateUnits(job jobs.Job, ctx render.RenderContext, conf
 			continue
 		}
 		genCtx := generatorContext{
-			Cluster:   config.Cluster,
-			Namespace: strings.Replace(job.Name.String(), "_", "-", -1),
+			Cluster:          config.Cluster,
+			Namespace:        strings.Replace(job.Name.String(), "_", "-", -1),
+			ImageVaultMonkey: ctx.ImageVaultMonkey(),
 		}
 		pods, err := groupTaskIntoPods(tg)
 		if err != nil {
@@ -74,6 +76,13 @@ func (g *k8sRenderer) GenerateUnits(job jobs.Job, ctx render.RenderContext, conf
 			} else {
 				for _, res := range daemonSets {
 					units = append(units, &k8s.DaemonSet{DaemonSet: res})
+				}
+			}
+			if secrets, err := createSecrets(tg, p, genCtx); err != nil {
+				return nil, maskAny(err)
+			} else {
+				for _, res := range secrets {
+					units = append(units, &k8s.Secret{Secret: res})
 				}
 			}
 			if services, err := createServices(tg, p, genCtx); err != nil {
