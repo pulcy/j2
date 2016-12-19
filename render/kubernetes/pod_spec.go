@@ -36,7 +36,7 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodS
 		if t.Network.IsHost() {
 			spec.HostNetwork = true
 		}
-		initContainers, containers, err := createTaskContainers(t, pod, ctx)
+		initContainers, containers, extraVols, err := createTaskContainers(t, pod, ctx)
 		if err != nil {
 			return nil, nil, maskAny(err)
 		}
@@ -47,6 +47,7 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodS
 			}
 			annotations[PodInitContainersAnnotationKey] = string(raw)
 		}
+		spec.Volumes = append(spec.Volumes, extraVols...)
 		spec.Containers = append(spec.Containers, containers...)
 	}
 

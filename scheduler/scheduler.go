@@ -29,6 +29,12 @@ const (
 )
 
 type Scheduler interface {
+	// ValidateCluster checks if the cluster is suitable to run the configured job.
+	ValidateCluster() error
+
+	// ConfigureCluster configures the cluster for use by J2.
+	ConfigureCluster(config ClusterConfig) error
+
 	// List returns the names of all units on the cluster
 	List() ([]Unit, error)
 
@@ -46,6 +52,17 @@ type Scheduler interface {
 
 	UpdateStopDelay(time.Duration) time.Duration
 	UpdateDestroyDelay(time.Duration) time.Duration
+}
+
+type ClusterConfig interface {
+	ClusterID() string
+	VaultConfig
+}
+
+type VaultConfig interface {
+	VaultAddress() string
+	VaultCACert() string
+	VaultCAPath() string
 }
 
 type UnitState struct {

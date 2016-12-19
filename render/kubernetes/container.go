@@ -5,6 +5,7 @@ import (
 
 	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
+	pkg "github.com/pulcy/j2/pkg/kubernetes"
 )
 
 const (
@@ -17,10 +18,10 @@ const (
 )
 
 // createTaskContainers returns the init-containers and containers needed for the given task.
-func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Container, []k8s.Container, error) {
+func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Container, []k8s.Container, []k8s.Volume, error) {
 	if t.Type.IsProxy() {
 		// Proxy does not yield any containers
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	c := &k8s.Container{
 		Name:            resourceName(t.FullName(), ""),
@@ -33,7 +34,7 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 	for _, p := range t.Ports {
 		cp, err := createContainerPort(p)
 		if err != nil {
-			return nil, nil, maskAny(err)
+			return nil, nil, nil, maskAny(err)
 		}
 		c.Ports = append(c.Ports, cp)
 	}
@@ -48,6 +49,7 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 
 	// Secrets that will be passed as environment variables
 	var initContainers []k8s.Container
+	var vols []k8s.Volume
 	var envSecrets []jobs.Secret
 	for _, s := range t.Secrets {
 		ok, key := s.TargetEnviroment()
@@ -68,17 +70,18 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 		})
 	}
 	if len(envSecrets) > 0 {
-		c, err := createSecretExtractionContainer(envSecrets, t, pod, ctx)
+		c, secVols, err := createSecretExtractionContainer(envSecrets, t, pod, ctx)
 		if err != nil {
-			return nil, nil, maskAny(err)
+			return nil, nil, nil, maskAny(err)
 		}
 		initContainers = append(initContainers, *c)
+		vols = append(vols, secVols...)
 	}
 
 	// J2 specific Environment variables
 	c.Env = append(c.Env,
-		createEnvVarFromField(envVarPodIP, "status.podIP"),
-		createEnvVarFromField(envVarNodeName, "spec.nodeName"),
+		createEnvVarFromField(pkg.EnvVarPodIP, "status.podIP"),
+		createEnvVarFromField(pkg.EnvVarNodeName, "spec.nodeName"),
 	)
 
 	// Mount volumes
@@ -90,7 +93,7 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 			if mountTasks.IndexByName(name) < 0 {
 				otherIndex := pod.tasks.IndexByName(name)
 				if otherIndex < 0 {
-					return nil, nil, maskAny(fmt.Errorf("Task '%s' not found in VolumesFrom of '%s'", name, current.Name))
+					return nil, nil, nil, maskAny(fmt.Errorf("Task '%s' not found in VolumesFrom of '%s'", name, current.Name))
 				}
 				mountTasks = append(mountTasks, pod.tasks[otherIndex])
 			}
@@ -114,5 +117,5 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 	} else if t.Type.IsOneshot() {
 		initContainers = append(initContainers, *c)
 	}
-	return initContainers, containers, nil
+	return initContainers, containers, vols, nil
 }

@@ -15,6 +15,7 @@
 package fleetscheduler
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -53,6 +54,16 @@ type fleetUnit string
 
 func (u fleetUnit) Name() string {
 	return string(u)
+}
+
+// ValidateCluster checks if the cluster is suitable to run the configured job.
+func (s *fleetScheduler) ValidateCluster() error {
+	return nil
+}
+
+// ConfigureCluster configures the cluster for use by J2.
+func (s *fleetScheduler) ConfigureCluster(config scheduler.ClusterConfig) error {
+	return maskAny(fmt.Errorf("Fleet cluster cannot be configured like this. Use Quark & Gluon."))
 }
 
 // List returns the names of all units on the cluster

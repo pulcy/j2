@@ -17,24 +17,6 @@ const (
 	kindVolume     = "-vol"
 )
 
-const (
-	// environment variable names
-	envVarPodIP    = "J2_POD_IP"
-	envVarNodeName = "J2_NODE_NAME"
-
-	// Secret related
-	envVarClusterID    = "J2_CLUSTER_ID"
-	envVarVaultAddress = "VAULT_ADDR"
-	envVarVaultCACert  = "VAULT_CACERT"
-	envVarVaultCAPath  = "VAULT_CACERT"
-)
-
-const (
-	// Well known secret names
-	secretClusterInfo = "J2-cluster-info"
-	secretVaultInfo   = "J2-vault-info"
-)
-
 // resourceName returns the name of kubernetes resource for the task/group with given fullname.
 func resourceName(fullName string, kind string) string {
 	return k8s.ResourceName(fullName + kind)

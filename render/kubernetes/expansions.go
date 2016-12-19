@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/pulcy/j2/jobs"
+	pkg "github.com/pulcy/j2/pkg/kubernetes"
 )
 
 // TODO update for kubernetes
@@ -39,12 +40,12 @@ func (g *k8sRenderer) ExpandEtcdPort() string { return "${ETCD_PORT}" }
 
 // Expand  "${hostname}":
 func (g *k8sRenderer) ExpandHostname() string {
-	return fmt.Sprintf("${%s}", envVarNodeName)
+	return fmt.Sprintf("${%s}", pkg.EnvVarNodeName)
 }
 
 // Expand  "${machine_id}":
 func (g *k8sRenderer) ExpandMachineID() string {
-	return fmt.Sprintf("${%s}", envVarNodeName) /* as close as we're going to get*/
+	return fmt.Sprintf("${%s}", pkg.EnvVarNodeName) /* as close as we're going to get*/
 }
 
 // Expand  "${instance}":

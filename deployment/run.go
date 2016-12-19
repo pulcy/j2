@@ -41,6 +41,11 @@ func (d *Deployment) Run() error {
 	ui := newStateUI(d.verbose)
 	defer ui.Close()
 
+	// Check that cluster is valid
+	if err := s.ValidateCluster(); err != nil {
+		return maskAny(err)
+	}
+
 	// Find out which current units belong to the configured job
 	remainingLoadedJobUnitNames := selectUnitNames(allUnits, d.createUnitNamePredicate(s))
 
