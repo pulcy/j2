@@ -103,7 +103,7 @@ job "base" {
 
 	task "lb" {
 		global = true
-		image = "pulcy/robin:20161220114130"
+		image = "pulcy/robin:20161220154508"
 		network = "host"
 		ports = ["0.0.0.0:80:80", "81", "82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "8055", "8056"]
 		secret "secret/base/lb/stats-password" {
