@@ -87,6 +87,11 @@ func (s *k8sScheduler) ValidateCluster() error {
 
 // ConfigureCluster configures the cluster for use by J2.
 func (s *k8sScheduler) ConfigureCluster(config scheduler.ClusterConfig) error {
+	// Ensure namespace exists
+	if err := s.ensureNamespace(s.defaultNamespace); err != nil {
+		return maskAny(err)
+	}
+
 	updateSecret := func(secretName string, values map[string]string) error {
 		create := false
 		secret, err := s.client.GetSecret(s.defaultNamespace, secretName)
@@ -232,6 +237,19 @@ func (s *k8sScheduler) Destroy(events chan scheduler.Event, reason scheduler.Rea
 	return nil
 }
 
+// ensureNamespace checks that the given namespace exists.
+// If that is not the case, it is created.
+func (s *k8sScheduler) ensureNamespace(namespace string) error {
+	// Ensure namespace exists
+	nsAPI := s.client
+	if _, err := nsAPI.GetNamespace(namespace); err != nil {
+		if _, err := nsAPI.CreateNamespace(k8s.NewNamespace(namespace)); err != nil {
+			return maskAny(err)
+		}
+	}
+	return nil
+}
+
 func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDataList) error {
 	for i := 0; i < units.Len(); i++ {
 		unit := units.Get(i)
@@ -241,11 +259,8 @@ func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDa
 		}
 
 		// Ensure namespace exists
-		nsAPI := s.client
-		if _, err := nsAPI.GetNamespace(ku.Namespace()); err != nil {
-			if _, err := nsAPI.CreateNamespace(k8s.NewNamespace(ku.Namespace())); err != nil {
-				return maskAny(err)
-			}
+		if err := s.ensureNamespace(ku.Namespace()); err != nil {
+			return maskAny(err)
 		}
 
 		// Create/update resource
