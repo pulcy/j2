@@ -11,6 +11,10 @@ func createVolumeName(t *jobs.Task, volumeIndex int) string {
 	return resourceName(t.FullName(), fmt.Sprintf("%s%d", kindVolume, volumeIndex))
 }
 
+func createVolumeForSecretsName(t *jobs.Task) string {
+	return resourceName(t.FullName(), fmt.Sprintf("%s-sec", kindVolume))
+}
+
 type volumeTaskPair struct {
 	Volume      jobs.Volume
 	VolumeIndex int

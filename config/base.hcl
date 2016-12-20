@@ -1,6 +1,8 @@
 job "base" {
 	id="f9fa3175-c53e-4817-b4d7-dc38d6703fe8"
 
+{{if (eq .Cluster.Orchestrator "fleet")}}
+
 	task "registrator" {
 		global = true
 		image = "pulcy/registrator:0.7.2"
@@ -75,4 +77,73 @@ job "base" {
 			]
 		}
 	}
+
+{{else if (eq .Cluster.Orchestrator "kubernetes")}}
+
+	// Do not use ETCD under Kubernetes, but use our own instances.
+	// This is recommended and much better for security.
+	{{range $index, $name := split "etcd0,etcd1,etcd2" ","}}
+	task {{$name}} {
+		image = "quay.io/coreos/etcd:latest"
+		ports = [2379, 2380]
+		args = [
+			"/usr/local/bin/etcd",
+			"--name={{$name}}-{{$name}}-srv",
+			"--initial-advertise-peer-urls=http://{{$name}}-{{$name}}-srv:2380",
+			"--listen-peer-urls=http://0.0.0.0:2380",
+			"--listen-client-urls=http://0.0.0.0:2379",
+			"--advertise-client-urls=http://{{$name}}-{{$name}}-srv:2379",
+			"--initial-cluster=etcd0-etcd0-srv=http://etcd0-etcd0-srv:2380,etcd1-etcd1-srv=http://etcd1-etcd1-srv:2380,etcd2-etcd2-srv=http://etcd2-etcd2-srv:2380",
+			"--initial-cluster-state=new",
+		]
+		private-frontend { port=2379 }
+		private-frontend { port=2380 }
+	}
+	{{end}}
+
+	task "lb" {
+		global = true
+		image = "pulcy/robin:20161220114130"
+		network = "host"
+		ports = ["0.0.0.0:80:80", "81", "82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "8055", "8056"]
+		secret "secret/base/lb/stats-password" {
+			environment = "STATS_PASSWORD"
+		}
+		secret "secret/base/lb/stats-user" {
+			environment = "STATS_USER"
+		}
+		secret "secret/base/lb/acme-email" {
+			environment = "ACME_EMAIL"
+		}
+		secret "secret/base/lb/acme-private-key" {
+			file = "/acme/private-key"
+		}
+		secret "secret/base/lb/acme-registration" {
+			file = "/acme/registration"
+		}
+		metrics {
+			port = 8055
+			path = "/metrics"
+		}
+		http-check-path = "/v1/ping"
+		http-check-method = "HEAD"
+		private-frontend {
+			port = 8056
+		}
+		args = ["run",
+			"--backend=kubernetes",
+			"--etcd-endpoint", "${etcd_endpoints}",
+			"--private-key-path", "/acme/private-key",
+			"--registration-path", "/acme/registration",
+			"--stats-port", "7088",
+			"--force-ssl={{opt "force-ssl"}}",
+			"--private-host", "0.0.0.0",
+			"--private-ssl-cert", "private.pem",
+			"--metrics-host", "0.0.0.0",
+			"--metrics-port", "8055"
+		]
+	}
+
+{{end}}
+
 }

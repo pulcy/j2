@@ -47,35 +47,45 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 		})
 	}
 
-	// Secrets that will be passed as environment variables
+	// Secrets that will be passed as environment variables or as file
 	var initContainers []k8s.Container
 	var vols []k8s.Volume
 	var envSecrets []jobs.Secret
+	var fileSecrets []jobs.Secret
 	for _, s := range t.Secrets {
-		ok, key := s.TargetEnviroment()
-		if !ok {
-			continue
-		}
-		envSecrets = append(envSecrets, s)
-		c.Env = append(c.Env, k8s.EnvVar{
-			Name: key,
-			ValueFrom: &k8s.EnvVarSource{
-				SecretKeyRef: &k8s.SecretKeySelector{
-					LocalObjectReference: k8s.LocalObjectReference{
-						Name: taskSecretName(t),
+		if ok, key := s.TargetEnviroment(); ok {
+			envSecrets = append(envSecrets, s)
+			c.Env = append(c.Env, k8s.EnvVar{
+				Name: key,
+				ValueFrom: &k8s.EnvVarSource{
+					SecretKeyRef: &k8s.SecretKeySelector{
+						LocalObjectReference: k8s.LocalObjectReference{
+							Name: taskSecretName(t),
+						},
+						Key: key,
 					},
-					Key: key,
 				},
-			},
-		})
+			})
+		} else if ok, _ := s.TargetFile(); ok {
+			fileSecrets = append(fileSecrets, s)
+		}
 	}
 	if len(envSecrets) > 0 {
-		c, secVols, err := createSecretExtractionContainer(envSecrets, t, pod, ctx)
+		c, secVols, err := createSecretEnvVarExtractionContainer(envSecrets, t, pod, ctx)
 		if err != nil {
 			return nil, nil, nil, maskAny(err)
 		}
 		initContainers = append(initContainers, *c)
 		vols = append(vols, secVols...)
+	}
+	if len(fileSecrets) > 0 {
+		cs, secVols, secVolMounts, err := createSecretFileExtractionContainers(fileSecrets, t, pod, ctx)
+		if err != nil {
+			return nil, nil, nil, maskAny(err)
+		}
+		initContainers = append(initContainers, cs...)
+		vols = append(vols, secVols...)
+		c.VolumeMounts = append(c.VolumeMounts, secVolMounts...)
 	}
 
 	// J2 specific Environment variables

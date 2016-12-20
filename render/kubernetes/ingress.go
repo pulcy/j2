@@ -8,11 +8,15 @@ import (
 
 // createIngresses creates allingressesservices needed for the given task group.
 func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Ingress, error) {
-	d := k8s.NewIngress(ctx.Namespace, resourceName(pod.name, kindIngress))
-	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
-
-	port2Backend := map[int]*k8s.IngressBackend{}
+	var ingresses []k8s.Ingress
 	for _, t := range pod.tasks {
+		if len(t.PublicFrontEnds) == 0 {
+			continue
+		}
+		d := k8s.NewIngress(ctx.Namespace, taskIngressName(t))
+		setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+
+		port2Backend := map[int]*k8s.IngressBackend{}
 		for _, frontend := range t.PublicFrontEnds {
 			pathPrefix := frontend.PathPrefix
 			if pathPrefix == "" {
@@ -21,7 +25,7 @@ func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.I
 			port := frontend.Port
 			backend, ok := port2Backend[port]
 			if !ok {
-				backend = createIngressBackend(pod, port)
+				backend = createIngressBackend(t, port)
 				port2Backend[port] = backend
 			}
 			rule := k8s.IngressRule{
@@ -38,14 +42,16 @@ func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.I
 			// TODO users, rewrite, mode, ...
 			d.Spec.Rules = append(d.Spec.Rules, rule)
 		}
+
+		ingresses = append(ingresses, *d)
 	}
 
-	return []k8s.Ingress{*d}, nil
+	return ingresses, nil
 }
 
-func createIngressBackend(pod pod, port int) *k8s.IngressBackend {
+func createIngressBackend(t *jobs.Task, port int) *k8s.IngressBackend {
 	return &k8s.IngressBackend{
-		ServiceName: resourceName(pod.name, kindService),
+		ServiceName: taskServiceName(t),
 		ServicePort: intstr.FromInt(port),
 	}
 }

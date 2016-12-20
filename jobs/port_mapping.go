@@ -63,6 +63,16 @@ func (p ParsedPortMapping) IsUDP() bool {
 	return p.Protocol == protocolUDP
 }
 
+func (p ParsedPortMapping) ProtocolString() string {
+	if p.IsTCP() {
+		return "TCP"
+	}
+	if p.IsUDP() {
+		return "UDP"
+	}
+	return p.Protocol
+}
+
 func (p ParsedPortMapping) String() string {
 	containerPort := strconv.Itoa(p.ContainerPort)
 	if p.Protocol == protocolUDP {

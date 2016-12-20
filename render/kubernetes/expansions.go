@@ -16,9 +16,22 @@ package kubernetes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pulcy/j2/jobs"
 	pkg "github.com/pulcy/j2/pkg/kubernetes"
+)
+
+const (
+	etcdPort = "2379"
+)
+
+var (
+	etcdHosts = []string{
+		"etcd0-etcd0-srv",
+		"etcd1-etcd1-srv",
+		"etcd2-etcd2-srv",
+	}
 )
 
 // TODO update for kubernetes
@@ -30,13 +43,21 @@ func (g *k8sRenderer) ExpandPrivateIPv4() string { return "${COREOS_PRIVATE_IPV4
 func (g *k8sRenderer) ExpandPublicIPv4() string { return "${COREOS_PUBLIC_IPV4}" }
 
 // Expand  "${etcd_endpoints}":
-func (g *k8sRenderer) ExpandEtcdEndpoints() string { return "${ETCD_ENDPOINTS}" }
+func (g *k8sRenderer) ExpandEtcdEndpoints() string {
+	eps := make([]string, 0, len(etcdHosts))
+	for _, h := range etcdHosts {
+		eps = append(eps, fmt.Sprintf("http://%s:%s", h, etcdPort))
+	}
+	return strings.Join(eps, ",")
+}
 
 // Expand  "${etcd_host}":
-func (g *k8sRenderer) ExpandEtcdHost() string { return "${ETCD_HOST}" }
+func (g *k8sRenderer) ExpandEtcdHost() string {
+	return etcdHosts[0]
+}
 
 // Expand  "${etcd_port}":
-func (g *k8sRenderer) ExpandEtcdPort() string { return "${ETCD_PORT}" }
+func (g *k8sRenderer) ExpandEtcdPort() string { return etcdPort }
 
 // Expand  "${hostname}":
 func (g *k8sRenderer) ExpandHostname() string {
