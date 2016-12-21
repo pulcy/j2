@@ -2,7 +2,7 @@ job "http_echo" {
 	id = "f9fa3175-c53e-4817-b4d7-dc38d6703fe8"
 
 	task "echo" {
-		count = 1
+		count = 2
 		image = "pulcy/http-echo"
 		args = ["-text", "Hello J2 World"]
 		ports = [5678]

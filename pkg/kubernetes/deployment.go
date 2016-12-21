@@ -18,8 +18,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	k8s "github.com/YakLabs/k8s-client"
+)
+
+const (
+	deploymentStartTimeout = time.Minute
 )
 
 // Deployment is a wrapper for a kubernetes v1beta1.Deployment that implements
@@ -120,10 +125,12 @@ func (ds *Deployment) Destroy(cs k8s.Client, events chan string) error {
 
 // Start creates/updates the deployment
 func (ds *Deployment) Start(cs k8s.Client, events chan string) error {
+	var lastGeneration int64
 	current, err := cs.GetDeployment(ds.Namespace(), ds.Name())
 	if err == nil {
 		// Update
 		events <- "updating"
+		lastGeneration = current.Status.ObservedGeneration
 		updateMetadataFromCurrent(ds.ObjectMeta(), current.ObjectMeta)
 		if _, err := cs.UpdateDeployment(ds.Namespace(), &ds.Deployment); err != nil {
 			m, _ := json.Marshal(err)
@@ -137,5 +144,47 @@ func (ds *Deployment) Start(cs k8s.Client, events chan string) error {
 			return maskAny(err)
 		}
 	}
+	if err := ds.waitUntilStarted(cs, events, lastGeneration, deploymentStartTimeout); err != nil {
+		return maskAny(err)
+	}
 	return nil
+}
+
+func (ds *Deployment) waitUntilStarted(cs k8s.Client, events chan string, lastGeneration int64, timeout time.Duration) error {
+	state := 0
+	start := time.Now()
+	events <- "waiting for deployment controller"
+	for {
+		current, err := cs.GetDeployment(ds.Namespace(), ds.Name())
+		if err != nil {
+			return maskAny(err)
+		}
+		status := current.Status
+		if status != nil {
+			switch state {
+			case 0:
+				// Wait for deployment to update
+				if status.ObservedGeneration != lastGeneration {
+					events <- "generation updated"
+					state = 1
+				}
+			case 1:
+				if status.UpdatedReplicas == ds.Spec.Replicas {
+					events <- "all pods updated"
+					state = 2
+					continue
+				}
+			case 2:
+				if status.AvailableReplicas == ds.Spec.Replicas {
+					events <- "all pods available"
+					return nil
+				}
+				events <- fmt.Sprintf("%d pods available, %d unavailable", status.AvailableReplicas, status.UnavailableReplicas)
+			}
+		}
+		if time.Since(start) > timeout {
+			return maskAny(fmt.Errorf("Timeout expired"))
+		}
+		time.Sleep(time.Second * 2)
+	}
 }
