@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	k8s "github.com/YakLabs/k8s-client"
+	"github.com/YakLabs/k8s-client/intstr"
 	"github.com/pulcy/j2/jobs"
 )
 
@@ -14,6 +15,13 @@ func createDeployments(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s
 
 	d := k8s.NewDeployment(ctx.Namespace, resourceName(pod.name, kindDeployment))
 	d.Spec.Replicas = int(tg.Count)
+	d.Spec.Strategy = &k8s.DeploymentStrategy{
+		Type: k8s.RollingUpdateDeploymentStrategyType,
+		RollingUpdate: &k8s.RollingUpdateDeployment{
+			MaxUnavailable: intstr.FromInt(1),
+			MaxSurge:       intstr.FromInt(int(tg.Count)),
+		},
+	}
 	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
 
 	template, err := createPodTemplateSpec(tg, pod, ctx)

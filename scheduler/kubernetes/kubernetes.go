@@ -35,6 +35,8 @@ type Unit interface {
 	scheduler.UnitData
 	ObjectMeta() *k8s.ObjectMeta
 	Namespace() string
+	GetCurrent(cs k8s.Client) (interface{}, error)
+	IsEqual(interface{}) ([]string, bool, error)
 	Start(cs k8s.Client, events chan string) error
 	Destroy(cs k8s.Client, events chan string) error
 }
@@ -198,6 +200,24 @@ func (s *k8sScheduler) Cat(unit scheduler.Unit) (string, error) {
 		return "", maskAny(fmt.Errorf("Expected unit '%s' to implement Kubernetes.Unit", unit.Name()))
 	}
 	return ku.Content(), nil
+}
+
+// HasChanged returns true when the given unit is different on the system
+func (s *k8sScheduler) HasChanged(unit scheduler.UnitData) ([]string, bool, error) {
+	//fmt.Fprintf(os.Stderr, "HasChanged(%s)\n", unit.Name())
+	ku, ok := unit.(Unit)
+	if !ok {
+		return nil, false, maskAny(fmt.Errorf("Expected unit '%s' to be of type Unit", unit.Name()))
+	}
+	current, err := ku.GetCurrent(s.client)
+	if err != nil {
+		return nil, false, maskAny(err)
+	}
+	diffs, eq, err := ku.IsEqual(current)
+	if err != nil {
+		return nil, false, maskAny(err)
+	}
+	return diffs, !eq, nil
 }
 
 func (s *k8sScheduler) Stop(events chan scheduler.Event, reason scheduler.Reason, units ...scheduler.Unit) (scheduler.StopStats, error) {

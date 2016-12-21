@@ -16,6 +16,7 @@ package fleetscheduler
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -96,6 +97,44 @@ func (s *fleetScheduler) GetState(unit scheduler.Unit) (scheduler.UnitState, err
 
 func (s *fleetScheduler) Cat(unit scheduler.Unit) (string, error) {
 	return s.tunnel.Cat(unit.Name())
+}
+
+// HasChanged returns true when the given unit is different on the system
+func (s *fleetScheduler) HasChanged(unit scheduler.UnitData) ([]string, bool, error) {
+	current, err := s.tunnel.Cat(unit.Name())
+	if err != nil {
+		return nil, false, maskAny(err)
+	}
+	diffs, eq := compareUnitContent(current, unit.Content())
+	return diffs, !eq, nil
+}
+
+func compareUnitContent(a, b string) ([]string, bool) {
+	linesA := normalizeUnitContent(a)
+	linesB := normalizeUnitContent(b)
+
+	if len(linesA) != len(linesB) {
+		return nil, false
+	}
+	for i, la := range linesA {
+		lb := linesB[i]
+		if la != lb {
+			return nil, false
+		}
+	}
+	return nil, true
+}
+
+func normalizeUnitContent(content string) []string {
+	lines := strings.Split(content, "\n")
+	result := []string{}
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			result = append(result, line)
+		}
+	}
+	return result
 }
 
 func (s *fleetScheduler) Stop(events chan scheduler.Event, reason scheduler.Reason, units ...scheduler.Unit) (scheduler.StopStats, error) {

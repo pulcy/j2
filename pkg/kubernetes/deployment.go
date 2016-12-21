@@ -17,6 +17,7 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	k8s "github.com/YakLabs/k8s-client"
 )
@@ -35,6 +36,45 @@ func (ds *Deployment) Name() string {
 // Namespace returns the namespace the resource should be added to.
 func (ds *Deployment) Namespace() string {
 	return ds.Deployment.ObjectMeta.Namespace
+}
+
+// GetCurrent loads the current version of the object on the cluster
+func (ds *Deployment) GetCurrent(cs k8s.Client) (interface{}, error) {
+	x, err := cs.GetDeployment(ds.Namespace(), ds.Name())
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return &Deployment{*x}, nil
+}
+
+// IsEqual returns true of all values configured in myself are the same in the other object.
+func (ds *Deployment) IsEqual(other interface{}) ([]string, bool, error) {
+	ods, ok := other.(*Deployment)
+	if !ok {
+		return nil, false, maskAny(fmt.Errorf("Expected other to by *Deployment"))
+	}
+	if diffs, eq := isSameObjectMeta(ds.Deployment.ObjectMeta, ods.Deployment.ObjectMeta); !eq {
+		return diffs, false, nil
+	}
+	diffs, eq := isSameDeploymentSpec(ds.Spec, ods.Spec)
+	return diffs, eq, nil
+}
+
+func isSameDeploymentSpec(self, other *k8s.DeploymentSpec) ([]string, bool) {
+	if diffs, eq := isSamePodTemplateSpec(&self.Template, &other.Template); !eq {
+		return diffs, eq
+	}
+	diffs, eq := diff(self, other, func(path string) bool {
+		switch path {
+		case ".Selector":
+			return true
+		}
+		if strings.HasPrefix(path, ".Template") {
+			return true
+		}
+		return false
+	})
+	return diffs, eq
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.

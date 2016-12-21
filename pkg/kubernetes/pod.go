@@ -14,9 +14,7 @@
 
 package kubernetes
 
-import (
-	k8s "github.com/YakLabs/k8s-client"
-)
+import k8s "github.com/YakLabs/k8s-client"
 
 // deletePods deletes the pods that match the given selector from the cluster.
 func deletePods(cs k8s.Client, namespace string, labelSelector map[string]string) error {
@@ -33,4 +31,29 @@ func deletePods(cs k8s.Client, namespace string, labelSelector map[string]string
 		}
 	}
 	return nil
+}
+
+func isSamePodTemplateSpec(self, other *k8s.PodTemplateSpec) ([]string, bool) {
+	if self == nil {
+		return nil, true
+	}
+	if other == nil {
+		return []string{"other=nil"}, false
+	}
+	if diffs, eq := isSameObjectMeta(self.ObjectMeta, other.ObjectMeta); !eq {
+		return diffs, false
+	}
+	diffs, eq := isSamePodSpec(self.Spec, other.Spec)
+	return diffs, eq
+}
+
+func isSamePodSpec(self, other *k8s.PodSpec) ([]string, bool) {
+	diffs, eq := diff(self, other, func(path string) bool {
+		switch path {
+		case ".TerminationGracePeriodSeconds":
+			return true
+		}
+		return false
+	})
+	return diffs, eq
 }

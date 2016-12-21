@@ -14,13 +14,16 @@ const (
 )
 
 const (
-	PodInitContainersAnnotationKey = "pod.alpha.kubernetes.io/init-containers"
+	podInitContainersAnnotationKeyAlpha = "pod.alpha.kubernetes.io/init-containers"
+	podInitContainersAnnotationKeyBeta  = "pod.beta.kubernetes.io/init-containers"
 )
 
 // createPodSpec creates a pod-spec for all tasks in a given pod.
 func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodSpec, map[string]string, error) {
 	spec := &k8s.PodSpec{
-		RestartPolicy: RestartPolicyAlways,
+		DNSPolicy:       "ClusterFirst",
+		RestartPolicy:   RestartPolicyAlways,
+		SecurityContext: &k8s.PodSecurityContext{},
 	}
 
 	// Volumes
@@ -45,7 +48,8 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodS
 			if err != nil {
 				return nil, nil, maskAny(err)
 			}
-			annotations[PodInitContainersAnnotationKey] = string(raw)
+			annotations[podInitContainersAnnotationKeyAlpha] = string(raw)
+			annotations[podInitContainersAnnotationKeyBeta] = string(raw)
 		}
 		spec.Volumes = append(spec.Volumes, extraVols...)
 		spec.Containers = append(spec.Containers, containers...)

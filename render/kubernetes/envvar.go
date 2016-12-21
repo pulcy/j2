@@ -10,7 +10,8 @@ func createEnvVarFromField(key, fieldPath string) k8s.EnvVar {
 		Name: key,
 		ValueFrom: &k8s.EnvVarSource{
 			FieldRef: &k8s.ObjectFieldSelector{
-				FieldPath: fieldPath,
+				APIVersion: "v1",
+				FieldPath:  fieldPath,
 			},
 		},
 	}

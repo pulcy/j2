@@ -96,10 +96,10 @@ func (d *Deployment) Run() error {
 		if anyModifications && !d.force {
 			curScale := sg.scalingGroup
 			changes := []string{"# Unit | Action"}
-			changes = append(changes, formatChanges("# ", unitsToNames(obsoleteUnitNames), "Remove (is obsolete) !!!")...)
-			changes = append(changes, formatChanges("# ", unitsToNames(modifiedUnitNames), "Update")...)
-			changes = append(changes, formatChanges("# ", unitsToNames(failedUnitNames), "Failed state")...)
-			changes = append(changes, formatChanges("# ", unitsToNames(newUnitNames), "Create")...)
+			changes = append(changes, formatChanges("# ", unitsToNames(obsoleteUnitNames), "Remove (is obsolete) !!!", ui)...)
+			changes = append(changes, formatChanges("# ", unitsToNames(modifiedUnitNames), "Update", ui)...)
+			changes = append(changes, formatChanges("# ", unitsToNames(failedUnitNames), "Failed state", ui)...)
+			changes = append(changes, formatChanges("# ", unitsToNames(newUnitNames), "Create", ui)...)
 			sort.Strings(changes[1:])
 			formattedChanges := strings.Replace(columnize.SimpleFormat(changes), "#", " ", -1)
 			ui.HeaderSink <- fmt.Sprintf("Step %d: Update scaling group %d of %d on '%s'.\n%s\n", step, curScale, maxScale, d.cluster.Stack, formattedChanges)
@@ -139,7 +139,7 @@ func (d *Deployment) Run() error {
 	// Destroy remaining units
 	if len(remainingLoadedJobUnitNames) > 0 {
 		changes := []string{"# Unit | Action"}
-		changes = append(changes, formatChanges("# ", unitsToNames(remainingLoadedJobUnitNames), "Remove (is obsolete) !!!")...)
+		changes = append(changes, formatChanges("# ", unitsToNames(remainingLoadedJobUnitNames), "Remove (is obsolete) !!!", ui)...)
 		sort.Strings(changes[1:])
 		formattedChanges := strings.Replace(columnize.SimpleFormat(changes), "#", " ", -1)
 		ui.HeaderSink <- fmt.Sprintf("Step %d: Cleanup of obsolete units on '%s'.\n%s\n", step, d.cluster.Stack, formattedChanges)
@@ -190,52 +190,28 @@ func (d *Deployment) isModifiedPredicate(sg scalingGroupUnits, f scheduler.Sched
 			return true
 		}
 		ui.MessageSink <- fmt.Sprintf("Checking %s for modifications", unit.Name())
-		cat, err := f.Cat(unit)
-		if err != nil {
-			ui.Verbosef("Failed to cat '%s': %#v\n", unit.Name(), err)
-			return true // Assume it is modified
-		}
 		newUnit, err := sg.get(unit)
 		if err != nil {
 			ui.Verbosef("Failed to read new '%s' unit: %#v\n", unit.Name(), err)
 			return true // Assume it is modified
 		}
-		if !compareUnitContent(unit.Name(), cat, newUnit.Content(), ui) {
+		diffs, changed, err := f.HasChanged(newUnit)
+		if err != nil {
+			ui.Verbosef("Failed to check '%s' for changes: %#v\n", unit.Name(), err)
+			return true // Assume it is modified
+		}
+		if changed {
+			postfix := ""
+			if len(diffs) > 3 {
+				diffs = diffs[:3]
+				postfix = "..."
+			}
+			ui.SetStateExtra(unit.Name(), strings.Join(diffs, ",")+postfix)
 			return true
 		}
 		ui.Verbosef("Unit '%s' has not changed\n", unit.Name())
 		return false
 	}
-}
-
-func compareUnitContent(unitName, a, b string, ui *stateUI) bool {
-	linesA := normalizeUnitContent(a)
-	linesB := normalizeUnitContent(b)
-
-	if len(linesA) != len(linesB) {
-		ui.Verbosef("Length differs in %s\n", unitName)
-		return false
-	}
-	for i, la := range linesA {
-		lb := linesB[i]
-		if la != lb {
-			ui.Verbosef("Line %d in %s differs\n>>>> %s\n<<<< %s\n", i, unitName, la, lb)
-			return false
-		}
-	}
-	return true
-}
-
-func normalizeUnitContent(content string) []string {
-	lines := strings.Split(content, "\n")
-	result := []string{}
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			result = append(result, line)
-		}
-	}
-	return result
 }
 
 func launchUnits(f scheduler.Scheduler, units scheduler.UnitDataList, ui *stateUI) error {
@@ -249,10 +225,14 @@ func launchUnits(f scheduler.Scheduler, units scheduler.UnitDataList, ui *stateU
 	return nil
 }
 
-func formatChanges(prefix string, unitNames []string, action string) []string {
+func formatChanges(prefix string, unitNames []string, action string, ui *stateUI) []string {
 	result := []string{}
 	for _, x := range unitNames {
-		result = append(result, fmt.Sprintf("%s%s | %s", prefix, x, action))
+		extra := ui.GetStateExtra(x)
+		if extra != "" {
+			extra = "(" + extra + ")"
+		}
+		result = append(result, fmt.Sprintf("%s%s | %s %s", prefix, x, action, extra))
 	}
 	sort.Strings(result)
 	return result

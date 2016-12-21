@@ -49,12 +49,9 @@ func createSecretEnvVarExtractionContainer(secrets []jobs.Secret, t *jobs.Task, 
 		arg := fmt.Sprintf("%s=%v", s.Environment, s.VaultPath())
 		args = append(args, arg)
 	}
-	c := &k8s.Container{
-		Name:            resourceName(t.FullName(), "-vm"),
-		Image:           ctx.ImageVaultMonkey,
-		ImagePullPolicy: k8s.PullIfNotPresent,
-		Args:            args,
-	}
+	c := newContainer(resourceName(t.FullName(), "-vm"), ctx.ImageVaultMonkey)
+	c.ImagePullPolicy = k8s.PullIfNotPresent
+	c.Args = args
 
 	// Volumes
 	vaultInfoVol := k8s.Volume{
@@ -68,6 +65,7 @@ func createSecretEnvVarExtractionContainer(secrets []jobs.Secret, t *jobs.Task, 
 						Path: filepath.Base(caCertPath),
 					},
 				},
+				DefaultMode: 0644,
 			},
 		},
 	}
@@ -146,6 +144,7 @@ func createSecretFileExtractionContainers(secrets []jobs.Secret, t *jobs.Task, p
 						Path: filepath.Base(caCertPath),
 					},
 				},
+				DefaultMode: 0644,
 			},
 		},
 	}
@@ -164,12 +163,9 @@ func createSecretFileExtractionContainers(secrets []jobs.Secret, t *jobs.Task, p
 			"--target", path,
 			s.VaultPath(),
 		}
-		c := &k8s.Container{
-			Name:            resourceName(t.FullName(), fmt.Sprintf("-vmf%d", i)),
-			Image:           ctx.ImageVaultMonkey,
-			ImagePullPolicy: k8s.PullIfNotPresent,
-			Args:            args,
-		}
+		c := newContainer(resourceName(t.FullName(), fmt.Sprintf("-vmf%d", i)), ctx.ImageVaultMonkey)
+		c.ImagePullPolicy = k8s.PullIfNotPresent
+		c.Args = args
 
 		// Volume mounts
 		c.VolumeMounts = append(c.VolumeMounts,

@@ -39,7 +39,10 @@ type Scheduler interface {
 	List() ([]Unit, error)
 
 	GetState(Unit) (UnitState, error)
-	Cat(Unit) (string, error)
+	//	Cat(Unit) (string, error)
+
+	// HasChanged returns true when the given unit is different on the system (or does not exist on the system)
+	HasChanged(UnitData) ([]string, bool, error)
 
 	Stop(events chan Event, reason Reason, units ...Unit) (StopStats, error)
 	Destroy(events chan Event, reason Reason, units ...Unit) error

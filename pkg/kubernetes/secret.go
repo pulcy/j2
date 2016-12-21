@@ -14,7 +14,11 @@
 
 package kubernetes
 
-import k8s "github.com/YakLabs/k8s-client"
+import (
+	"fmt"
+
+	k8s "github.com/YakLabs/k8s-client"
+)
 
 // Secret is a wrapper for a kubernetes v1.Secret that implements
 // scheduler.UnitData.
@@ -30,6 +34,32 @@ func (ds *Secret) Name() string {
 // Namespace returns the namespace the resource should be added to.
 func (ds *Secret) Namespace() string {
 	return ds.Secret.ObjectMeta.Namespace
+}
+
+// GetCurrent loads the current version of the object on the cluster
+func (ds *Secret) GetCurrent(cs k8s.Client) (interface{}, error) {
+	x, err := cs.GetSecret(ds.Namespace(), ds.Name())
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return &Secret{*x}, nil
+}
+
+// IsEqual returns true of all values configured in myself are the same in the other object.
+func (ds *Secret) IsEqual(other interface{}) ([]string, bool, error) {
+	ods, ok := other.(*Secret)
+	if !ok {
+		return nil, false, maskAny(fmt.Errorf("Expected other to by *Secret"))
+	}
+	if diffs, eq := isSameObjectMeta(ds.Secret.ObjectMeta, ods.Secret.ObjectMeta); !eq {
+		return diffs, false, nil
+	}
+	if ds.Type != "" && ds.Type != ods.Type {
+		return []string{"modified .Type"}, false, nil
+	}
+	// Note that we do not compare data, since we do not put any data into it.
+	// This is done by Vault-monkey.
+	return nil, true, nil
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.

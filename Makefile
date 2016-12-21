@@ -70,8 +70,9 @@ update-vendor:
 		github.com/pulcy/robin-api \
 		github.com/ryanuber/columnize \
 		github.com/smartystreets/goconvey \
+		github.com/YakLabs/k8s-client  \
 		golang.org/x/sync/errgroup \
-		github.com/YakLabs/k8s-client 
+		gopkg.in/d4l3k/messagediff.v1
 
 $(GOEXTPOINTS): $(GOBUILDDIR) 
 	docker run \

@@ -6,6 +6,7 @@ import (
 
 	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
+	pkg "github.com/pulcy/j2/pkg/kubernetes"
 )
 
 // createServices creates all services needed for the given task group.
@@ -14,7 +15,7 @@ func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Se
 	for _, t := range pod.tasks {
 		// Normal service for the task
 		if len(t.Ports) > 0 {
-			d := k8s.NewService(ctx.Namespace, taskServiceName(t))
+			d := newService(ctx.Namespace, taskServiceName(t))
 			setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
 
 			d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
@@ -25,9 +26,10 @@ func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Se
 				}
 				protocol := pp.ProtocolString()
 				servicePort := k8s.ServicePort{
-					Name:     strings.ToLower(fmt.Sprintf("%d-%s", pp.ContainerPort, protocol)),
-					Port:     int32(pp.ContainerPort),
-					Protocol: k8s.Protocol(protocol),
+					Name:       strings.ToLower(fmt.Sprintf("%d-%s", pp.ContainerPort, protocol)),
+					Port:       int32(pp.ContainerPort),
+					Protocol:   k8s.Protocol(protocol),
+					TargetPort: pkg.FromInt(int32(pp.ContainerPort)),
 				}
 				d.Spec.Ports = append(d.Spec.Ports, servicePort)
 			}
@@ -47,4 +49,11 @@ func getHostMappedPorts(mappings []jobs.PortMapping) []jobs.PortMapping {
 		}
 	}
 	return result
+}
+
+func newService(namespace, name string) *k8s.Service {
+	s := k8s.NewService(namespace, name)
+	s.Spec.Type = k8s.ServiceTypeClusterIP
+	s.Spec.SessionAffinity = "None"
+	return s
 }

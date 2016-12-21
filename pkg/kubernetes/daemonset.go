@@ -15,6 +15,8 @@
 package kubernetes
 
 import (
+	"fmt"
+
 	k8s "github.com/YakLabs/k8s-client"
 )
 
@@ -32,6 +34,37 @@ func (ds *DaemonSet) Name() string {
 // Namespace returns the namespace the resource should be added to.
 func (ds *DaemonSet) Namespace() string {
 	return ds.DaemonSet.ObjectMeta.Namespace
+}
+
+// GetCurrent loads the current version of the object on the cluster
+func (ds *DaemonSet) GetCurrent(cs k8s.Client) (interface{}, error) {
+	x, err := cs.GetDaemonSet(ds.Namespace(), ds.Name())
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return &DaemonSet{*x}, nil
+}
+
+// IsEqual returns true of all values configured in myself are the same in the other object.
+func (ds *DaemonSet) IsEqual(other interface{}) ([]string, bool, error) {
+	ods, ok := other.(*DaemonSet)
+	if !ok {
+		return nil, false, maskAny(fmt.Errorf("Expected other to by *DaemonSet"))
+	}
+	if diffs, eq := isSameObjectMeta(ds.DaemonSet.ObjectMeta, ods.DaemonSet.ObjectMeta); !eq {
+		return diffs, false, nil
+	}
+	diffs, eq := isSameDaemonSetSpec(ds.Spec, ods.Spec)
+	return diffs, eq, nil
+}
+
+func isSameDaemonSetSpec(self, other *k8s.DaemonSetSpec) ([]string, bool) {
+	diffs, eq := diff(self.Selector, other.Selector, func(path string) bool { return false })
+	if !eq {
+		return diffs, false
+	}
+	diffs, eq = isSamePodTemplateSpec(&self.Template, &other.Template)
+	return diffs, eq
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.

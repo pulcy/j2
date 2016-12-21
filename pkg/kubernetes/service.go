@@ -14,7 +14,11 @@
 
 package kubernetes
 
-import k8s "github.com/YakLabs/k8s-client"
+import (
+	"fmt"
+
+	k8s "github.com/YakLabs/k8s-client"
+)
 
 // Service is a wrapper for a kubernetes v1.Service that implements
 // scheduler.UnitData.
@@ -30,6 +34,39 @@ func (ds *Service) Name() string {
 // Namespace returns the namespace the resource should be added to.
 func (ds *Service) Namespace() string {
 	return ds.Service.ObjectMeta.Namespace
+}
+
+// GetCurrent loads the current version of the object on the cluster
+func (ds *Service) GetCurrent(cs k8s.Client) (interface{}, error) {
+	x, err := cs.GetService(ds.Namespace(), ds.Name())
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return &Service{*x}, nil
+}
+
+// IsEqual returns true of all values configured in myself are the same in the other object.
+func (ds *Service) IsEqual(other interface{}) ([]string, bool, error) {
+	ods, ok := other.(*Service)
+	if !ok {
+		return nil, false, maskAny(fmt.Errorf("Expected other to by *Service"))
+	}
+	if diffs, eq := isSameObjectMeta(ds.Service.ObjectMeta, ods.Service.ObjectMeta); !eq {
+		return diffs, false, nil
+	}
+	diffs, eq := isSameServiceSpec(ds.Spec, ods.Spec)
+	return diffs, eq, nil
+}
+
+func isSameServiceSpec(self, other *k8s.ServiceSpec) ([]string, bool) {
+	diffs, eq := diff(self, other, func(path string) bool {
+		switch path {
+		case ".ClusterIP":
+			return true
+		}
+		return false
+	})
+	return diffs, eq
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.

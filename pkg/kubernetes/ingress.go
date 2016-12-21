@@ -14,7 +14,11 @@
 
 package kubernetes
 
-import k8s "github.com/YakLabs/k8s-client"
+import (
+	"fmt"
+
+	k8s "github.com/YakLabs/k8s-client"
+)
 
 // Ingress is a wrapper for a kubernetes v1beta1.Ingress that implements
 // scheduler.UnitData.
@@ -30,6 +34,33 @@ func (ds *Ingress) Name() string {
 // Namespace returns the namespace the resource should be added to.
 func (ds *Ingress) Namespace() string {
 	return ds.Ingress.ObjectMeta.Namespace
+}
+
+// GetCurrent loads the current version of the object on the cluster
+func (ds *Ingress) GetCurrent(cs k8s.Client) (interface{}, error) {
+	x, err := cs.GetIngress(ds.Namespace(), ds.Name())
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return &Ingress{*x}, nil
+}
+
+// IsEqual returns true of all values configured in myself are the same in the other object.
+func (ds *Ingress) IsEqual(other interface{}) ([]string, bool, error) {
+	ods, ok := other.(*Ingress)
+	if !ok {
+		return nil, false, maskAny(fmt.Errorf("Expected other to by *Ingress"))
+	}
+	if diffs, eq := isSameObjectMeta(ds.Ingress.ObjectMeta, ods.Ingress.ObjectMeta); !eq {
+		return diffs, false, nil
+	}
+	diffs, eq := isSameIngressSpec(ds.Spec, ods.Spec)
+	return diffs, eq, nil
+}
+
+func isSameIngressSpec(self, other *k8s.IngressSpec) ([]string, bool) {
+	diffs, eq := diff(self, other, func(path string) bool { return false })
+	return diffs, eq
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.

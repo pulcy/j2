@@ -23,12 +23,8 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 		// Proxy does not yield any containers
 		return nil, nil, nil, nil
 	}
-	c := &k8s.Container{
-		Name:            resourceName(t.FullName(), ""),
-		Image:           t.Image.String(),
-		ImagePullPolicy: k8s.PullAlways,
-		Args:            t.Args,
-	}
+	c := newContainer(resourceName(t.FullName(), ""), t.Image.String())
+	c.Args = t.Args
 
 	// Exposed ports
 	for _, p := range t.Ports {
@@ -128,4 +124,14 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 		initContainers = append(initContainers, *c)
 	}
 	return initContainers, containers, vols, nil
+}
+
+func newContainer(name, image string) *k8s.Container {
+	return &k8s.Container{
+		Name:                   name,
+		Image:                  image,
+		ImagePullPolicy:        k8s.PullAlways,
+		TerminationMessagePath: "/dev/termination-log",
+		Resources:              &k8s.ResourceRequirements{},
+	}
 }
