@@ -62,6 +62,11 @@ func (ds *Secret) IsEqual(other interface{}) ([]string, bool, error) {
 	return nil, true, nil
 }
 
+// IsValidState returns true if the current state of the resource on the cluster is OK.
+func (ds *Secret) IsValidState(cs k8s.Client) (bool, string, error) {
+	return true, "", nil
+}
+
 // ObjectMeta returns the ObjectMeta of the resource.
 func (ds *Secret) ObjectMeta() *k8s.ObjectMeta {
 	return &ds.Secret.ObjectMeta

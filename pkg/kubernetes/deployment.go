@@ -82,6 +82,20 @@ func isSameDeploymentSpec(self, other *k8s.DeploymentSpec) ([]string, bool) {
 	return diffs, eq
 }
 
+// IsValidState returns true if the current state of the resource on the cluster is OK.
+func (ds *Deployment) IsValidState(cs k8s.Client) (bool, string, error) {
+	current, err := cs.GetDeployment(ds.Namespace(), ds.Name())
+	if err != nil {
+		return false, "", maskAny(err)
+	}
+	ok := false
+	status := current.Status
+	if status != nil {
+		ok = status.AvailableReplicas == ds.Spec.Replicas
+	}
+	return ok, "", nil
+}
+
 // ObjectMeta returns the ObjectMeta of the resource.
 func (ds *Deployment) ObjectMeta() *k8s.ObjectMeta {
 	return &ds.Deployment.ObjectMeta

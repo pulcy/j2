@@ -63,6 +63,11 @@ func isSameIngressSpec(self, other *k8s.IngressSpec) ([]string, bool) {
 	return diffs, eq
 }
 
+// IsValidState returns true if the current state of the resource on the cluster is OK.
+func (ds *Ingress) IsValidState(cs k8s.Client) (bool, string, error) {
+	return true, "", nil
+}
+
 // ObjectMeta returns the ObjectMeta of the resource.
 func (ds *Ingress) ObjectMeta() *k8s.ObjectMeta {
 	return &ds.Ingress.ObjectMeta

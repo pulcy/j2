@@ -3,7 +3,7 @@ job "http_echo" {
 
 	task "echo" {
 		count = 2
-		image = "pulcy/http-echo"
+		image = "pulcy/http-echo:notfound"
 		args = ["-text", "Hello J2 World"]
 		ports = [5678]
 		frontend {

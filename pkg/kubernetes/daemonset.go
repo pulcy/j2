@@ -67,6 +67,11 @@ func isSameDaemonSetSpec(self, other *k8s.DaemonSetSpec) ([]string, bool) {
 	return diffs, eq
 }
 
+// IsValidState returns true if the current state of the resource on the cluster is OK.
+func (ds *DaemonSet) IsValidState(cs k8s.Client) (bool, string, error) {
+	return true, "", nil
+}
+
 // ObjectMeta returns the ObjectMeta of the resource.
 func (ds *DaemonSet) ObjectMeta() *k8s.ObjectMeta {
 	return &ds.DaemonSet.ObjectMeta

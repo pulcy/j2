@@ -69,6 +69,11 @@ func isSameServiceSpec(self, other *k8s.ServiceSpec) ([]string, bool) {
 	return diffs, eq
 }
 
+// IsValidState returns true if the current state of the resource on the cluster is OK.
+func (ds *Service) IsValidState(cs k8s.Client) (bool, string, error) {
+	return true, "", nil
+}
+
 // ObjectMeta returns the ObjectMeta of the resource.
 func (ds *Service) ObjectMeta() *k8s.ObjectMeta {
 	return &ds.Service.ObjectMeta

@@ -37,6 +37,7 @@ type Unit interface {
 	Namespace() string
 	GetCurrent(cs k8s.Client) (interface{}, error)
 	IsEqual(interface{}) ([]string, bool, error)
+	IsValidState(cs k8s.Client) (bool, string, error)
 	Start(cs k8s.Client, events chan string) error
 	Destroy(cs k8s.Client, events chan string) error
 }
@@ -187,9 +188,16 @@ func (s *k8sScheduler) List() ([]scheduler.Unit, error) {
 }
 
 func (s *k8sScheduler) GetState(unit scheduler.Unit) (scheduler.UnitState, error) {
-	// TODO Implement me
+	ku, ok := unit.(Unit)
+	if !ok {
+		return scheduler.UnitState{}, maskAny(fmt.Errorf("Expected unit '%s' to implement Kubernetes.Unit", unit.Name()))
+	}
+	ok, _, err := ku.IsValidState(s.client)
+	if err != nil {
+		return scheduler.UnitState{}, maskAny(err)
+	}
 	state := scheduler.UnitState{
-		Failed: false,
+		Failed: !ok,
 	}
 	return state, nil
 }
