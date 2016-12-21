@@ -192,12 +192,13 @@ func (s *k8sScheduler) GetState(unit scheduler.Unit) (scheduler.UnitState, error
 	if !ok {
 		return scheduler.UnitState{}, maskAny(fmt.Errorf("Expected unit '%s' to implement Kubernetes.Unit", unit.Name()))
 	}
-	ok, _, err := ku.IsValidState(s.client)
+	ok, msg, err := ku.IsValidState(s.client)
 	if err != nil {
 		return scheduler.UnitState{}, maskAny(err)
 	}
 	state := scheduler.UnitState{
-		Failed: !ok,
+		Failed:  !ok,
+		Message: msg,
 	}
 	return state, nil
 }

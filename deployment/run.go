@@ -176,6 +176,7 @@ func (d *Deployment) isFailedPredicate(sg scalingGroupUnits, f scheduler.Schedul
 			ui.Warningf("GetState(%s) failed: %#v", unit.Name(), err)
 		}
 		if unitState.Failed {
+			ui.SetStateExtra(unit.Name(), unitState.Message)
 			ui.Verbosef("Unit '%s' is in failed state\n", unit.Name())
 			return true
 		}

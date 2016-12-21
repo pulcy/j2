@@ -90,10 +90,12 @@ func (ds *Deployment) IsValidState(cs k8s.Client) (bool, string, error) {
 	}
 	ok := false
 	status := current.Status
+	msg := ""
 	if status != nil {
 		ok = status.AvailableReplicas == ds.Spec.Replicas
+		msg = fmt.Sprintf("%d pods available, %d unavailable", status.AvailableReplicas, status.UnavailableReplicas)
 	}
-	return ok, "", nil
+	return ok, msg, nil
 }
 
 // ObjectMeta returns the ObjectMeta of the resource.

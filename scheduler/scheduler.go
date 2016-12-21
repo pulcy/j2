@@ -69,7 +69,8 @@ type VaultConfig interface {
 }
 
 type UnitState struct {
-	Failed bool
+	Failed  bool
+	Message string
 }
 
 type StopStats struct {
