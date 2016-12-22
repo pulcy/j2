@@ -88,12 +88,12 @@ job "base" {
 		ports = [2379, 2380]
 		args = [
 			"/usr/local/bin/etcd",
-			"--name={{$name}}-{{$name}}-srv",
+			"--name={{$name}}",
 			"--initial-advertise-peer-urls=http://{{$name}}-{{$name}}-srv:2380",
 			"--listen-peer-urls=http://0.0.0.0:2380",
 			"--listen-client-urls=http://0.0.0.0:2379",
 			"--advertise-client-urls=http://{{$name}}-{{$name}}-srv:2379",
-			"--initial-cluster=etcd0-etcd0-srv=http://etcd0-etcd0-srv:2380,etcd1-etcd1-srv=http://etcd1-etcd1-srv:2380,etcd2-etcd2-srv=http://etcd2-etcd2-srv:2380",
+			"--initial-cluster=etcd0=http://etcd0-etcd0-srv:2380,etcd1=http://etcd1-etcd1-srv:2380,etcd2=http://etcd2-etcd2-srv:2380",
 			"--initial-cluster-state=new",
 		]
 		private-frontend { port=2379 }
@@ -101,11 +101,15 @@ job "base" {
 	}
 	{{end}}
 
+	// The load-balancer exposes port 30080, 30443 & 30088.
+	// This should be forwarded to their lower ports using the following rules:
+	// iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j DNAT --to-destination :30080
+	// iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j DNAT --to-destination :30443
+	// iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 7088 -j DNAT --to-destination :30088
 	task "lb" {
-		global = true
-		image = "pulcy/robin:20161220154508"
-		network = "host"
-		ports = ["0.0.0.0:80:80", "81", "82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "8055", "8056"]
+		count = 1
+		image = "pulcy/robin:20161222191946"
+		ports = ["0.0.0.0:30080:80", "81", "82", "0.0.0.0:30443:443", "0.0.0.0:30088:7088", "8055", "8056"]
 		secret "secret/base/lb/stats-password" {
 			environment = "STATS_PASSWORD"
 		}
@@ -132,6 +136,7 @@ job "base" {
 		}
 		args = ["run",
 			"--backend=kubernetes",
+			"--log-level=debug",
 			"--etcd-endpoint", "${etcd_endpoints}",
 			"--private-key-path", "/acme/private-key",
 			"--registration-path", "/acme/registration",

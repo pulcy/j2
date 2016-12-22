@@ -13,27 +13,60 @@ import (
 func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Service, error) {
 	var services []k8s.Service
 	for _, t := range pod.tasks {
+		if len(t.Ports) == 0 {
+			continue
+		}
 		// Normal service for the task
-		if len(t.Ports) > 0 {
-			d := newService(ctx.Namespace, taskServiceName(t))
-			setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+		d := newService(ctx.Namespace, taskServiceName(t))
+		setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+		d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
 
-			d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
-			for _, p := range t.Ports {
-				pp, err := p.Parse()
-				if err != nil {
-					return nil, maskAny(err)
-				}
-				protocol := pp.ProtocolString()
-				servicePort := k8s.ServicePort{
-					Name:       strings.ToLower(fmt.Sprintf("%d-%s", pp.ContainerPort, protocol)),
-					Port:       int32(pp.ContainerPort),
-					Protocol:   k8s.Protocol(protocol),
-					TargetPort: pkg.FromInt(int32(pp.ContainerPort)),
-				}
-				d.Spec.Ports = append(d.Spec.Ports, servicePort)
+		for _, p := range t.Ports {
+			pp, err := p.Parse()
+			if err != nil {
+				return nil, maskAny(err)
 			}
-			services = append(services, *d)
+			protocol := pp.ProtocolString()
+			servicePort := k8s.ServicePort{
+				Name:       strings.ToLower(fmt.Sprintf("%d-%s", pp.ContainerPort, protocol)),
+				Port:       int32(pp.ContainerPort),
+				Protocol:   k8s.Protocol(protocol),
+				TargetPort: pkg.FromInt(int32(pp.ContainerPort)),
+			}
+			d.Spec.Ports = append(d.Spec.Ports, servicePort)
+		}
+		services = append(services, *d)
+
+		// Host mapped ports (a service with all ports mapped to all hosts using a NodePort)
+		if !t.Network.IsHost() {
+			hmPorts := getHostMappedPorts(t.Ports)
+			if len(hmPorts) > 0 {
+				d := newService(ctx.Namespace, taskServiceName(t)+"-host")
+				setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+				d.Spec.Type = k8s.ServiceTypeNodePort
+				d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
+
+				for _, p := range hmPorts {
+					pp, err := p.Parse()
+					if err != nil {
+						return nil, maskAny(err)
+					}
+					protocol := pp.ProtocolString()
+					hostPort := pp.ContainerPort
+					if pp.HasHostPort() {
+						hostPort = pp.HostPort
+					}
+					servicePort := k8s.ServicePort{
+						Name:       strings.ToLower(fmt.Sprintf("%d-%s", pp.ContainerPort, protocol)),
+						Port:       int32(pp.ContainerPort),
+						Protocol:   k8s.Protocol(protocol),
+						TargetPort: pkg.FromInt(int32(pp.ContainerPort)),
+						NodePort:   int32(hostPort),
+					}
+					d.Spec.Ports = append(d.Spec.Ports, servicePort)
+				}
+				services = append(services, *d)
+			}
 		}
 	}
 

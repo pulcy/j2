@@ -28,9 +28,9 @@ const (
 
 var (
 	etcdHosts = []string{
-		"etcd0-etcd0-srv",
-		"etcd1-etcd1-srv",
-		"etcd2-etcd2-srv",
+		"etcd0-etcd0-srv.base",
+		"etcd1-etcd1-srv.base",
+		"etcd2-etcd2-srv.base",
 	}
 )
 
