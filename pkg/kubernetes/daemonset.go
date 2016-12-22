@@ -16,8 +16,13 @@ package kubernetes
 
 import (
 	"fmt"
+	"time"
 
 	k8s "github.com/YakLabs/k8s-client"
+)
+
+const (
+	daemonSetPodStartTimeout = time.Minute
 )
 
 // DaemonSet is a wrapper for a kubernetes v1beta1.DaemonSet that implements
@@ -94,9 +99,19 @@ func (ds *DaemonSet) Start(cs k8s.Client, events chan string) error {
 	current, err := cs.GetDaemonSet(ds.Namespace(), ds.Name())
 	if err == nil {
 		// Update
+		// First fetch all existing pods
+		labelSelector := createLabelSelector(*ds.ObjectMeta())
+		pods, err := cs.ListPods(ds.Namespace(), &k8s.ListOptions{LabelSelector: k8s.LabelSelector{MatchLabels: labelSelector}})
+		if err != nil {
+			return maskAny(err)
+		}
 		events <- "updating"
 		updateMetadataFromCurrent(ds.ObjectMeta(), current.ObjectMeta)
 		if _, err := cs.UpdateDaemonSet(ds.Namespace(), &ds.DaemonSet); err != nil {
+			return maskAny(err)
+		}
+		// Delete pods one at a time
+		if err := rotatePods(cs, events, pods.Items, labelSelector); err != nil {
 			return maskAny(err)
 		}
 	} else {
@@ -105,6 +120,50 @@ func (ds *DaemonSet) Start(cs k8s.Client, events chan string) error {
 		if _, err := cs.CreateDaemonSet(ds.Namespace(), &ds.DaemonSet); err != nil {
 			return maskAny(err)
 		}
+	}
+	return nil
+}
+
+// rotatePods deletes all given pods 1 at a time.
+// For each it that is deleted, it waits until the DaemonSet controller has created and started a new pod.
+func rotatePods(cs k8s.Client, events chan string, pods []k8s.Pod, labelSelector map[string]string) error {
+	for podIndex, pod := range pods {
+		events <- fmt.Sprintf("rotating %s on %s", pod.Name, pod.Status.HostIP)
+		if err := cs.DeletePod(pod.Namespace, pod.Name); err != nil {
+			return maskAny(err)
+		}
+		isNewPodRunning := false
+		start := time.Now()
+		for !isNewPodRunning {
+			list, err := cs.ListPods(pod.Namespace, &k8s.ListOptions{LabelSelector: k8s.LabelSelector{MatchLabels: labelSelector}})
+			if err != nil {
+				return maskAny(err)
+			}
+			for _, newPod := range list.Items {
+				if newPod.Status.HostIP != pod.Status.HostIP || newPod.Name == pod.Name {
+					continue
+				}
+				switch newPod.Status.Phase {
+				case k8s.PodPending:
+					events <- fmt.Sprintf("pod (%d/%d) %s on %s is pending", podIndex+1, len(pods), newPod.Name, newPod.Status.HostIP)
+				case k8s.PodRunning:
+					isNewPodRunning = true
+					events <- fmt.Sprintf("pod (%d/%d) %s on %s is running", podIndex+1, len(pods), newPod.Name, newPod.Status.HostIP)
+				case k8s.PodSucceeded:
+					isNewPodRunning = true
+					events <- fmt.Sprintf("pod (%d/%d) %s on %s has finished", podIndex+1, len(pods), newPod.Name, newPod.Status.HostIP)
+				case k8s.PodFailed:
+					return maskAny(fmt.Errorf("Pod %s failed: %s", newPod.Name, newPod.Status.Message))
+				default:
+				}
+			}
+			if time.Since(start) > daemonSetPodStartTimeout {
+				return maskAny(fmt.Errorf("Pod start timeout on %s", pod.Status.HostIP))
+			}
+			time.Sleep(time.Second)
+		}
+		// Wait a bit more
+		time.Sleep(time.Second * 5)
 	}
 	return nil
 }
