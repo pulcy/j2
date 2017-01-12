@@ -19,7 +19,7 @@ func (o *k8sOrchestrator) RenderProvider() (render.RenderProvider, error) {
 
 // Scheduler returns the scheduler, configured for the given cluster, for this orchestrator.
 func (o *k8sOrchestrator) Scheduler(j jobs.Job, cluster cluster.Cluster) (scheduler.Scheduler, error) {
-	return sk.NewScheduler(j, cluster.KubernetesOptions.KubeConfig)
+	return sk.NewScheduler(j, cluster.KubernetesOptions.KubeConfig, cluster.KubernetesOptions.Context)
 }
 
 func init() {

@@ -5,15 +5,23 @@ import (
 	"github.com/YakLabs/k8s-client/http"
 )
 
-func createClientFromConfig(kubeConfig string) (k8s.Client, error) {
+func createClientFromConfig(kubeConfig, contextName string) (k8s.Client, error) {
 	// Load configuration
 	config, err := loadKubeConfig(kubeConfig)
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	context, err := config.GetCurrentContext()
-	if err != nil {
-		return nil, maskAny(err)
+	var context *Context
+	if contextName == "" {
+		context, err = config.GetCurrentContext()
+		if err != nil {
+			return nil, maskAny(err)
+		}
+	} else {
+		context, err = config.GetContext(contextName)
+		if err != nil {
+			return nil, maskAny(err)
+		}
 	}
 	cluster, err := config.GetCluster(context.Cluster)
 	if err != nil {

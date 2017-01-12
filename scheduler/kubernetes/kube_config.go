@@ -56,16 +56,26 @@ type Config struct {
 	//Extensions map[string]runtime.Object `json:"extensions,omitempty"`
 }
 
+// GetCurrentContext returns the current context
 func (c *Config) GetCurrentContext() (*Context, error) {
 	if c.CurrentContext == "" {
 		return nil, maskAny(fmt.Errorf("No current-context specified"))
 	}
+	result, err := c.GetContext(c.CurrentContext)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return result, nil
+}
+
+// GetContext returns a context with given name
+func (c *Config) GetContext(name string) (*Context, error) {
 	for _, ctx := range c.Contexts {
-		if ctx.Name == c.CurrentContext {
+		if ctx.Name == name {
 			return ctx.Context, nil
 		}
 	}
-	return nil, maskAny(fmt.Errorf("Context '%s' not found", c.CurrentContext))
+	return nil, maskAny(fmt.Errorf("Context '%s' not found", name))
 }
 
 func (c *Config) GetCluster(name string) (*Cluster, error) {

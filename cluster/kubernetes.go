@@ -20,7 +20,8 @@ import (
 
 // KubernetesOptions contains options used to generate kubernetes resources for the jobs that run on this cluster.
 type KubernetesOptions struct {
-	KubeConfig                string
+	KubeConfig                string // Full path of the kube-config file
+	Context                   string // Name of the context (defined in KubeConfig) to use
 	GlobalInstanceConstraints []string
 }
 

@@ -43,9 +43,9 @@ type Unit interface {
 }
 
 // NewScheduler creates a new kubernetes implementation of scheduler.Scheduler.
-func NewScheduler(j jobs.Job, kubeConfig string) (scheduler.Scheduler, error) {
+func NewScheduler(j jobs.Job, kubeConfig, context string) (scheduler.Scheduler, error) {
 	// creates the client
-	client, err := createClientFromConfig(kubeConfig)
+	client, err := createClientFromConfig(kubeConfig, context)
 	if err != nil {
 		return nil, maskAny(err)
 	}
