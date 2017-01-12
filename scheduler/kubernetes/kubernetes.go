@@ -24,6 +24,7 @@ import (
 	"github.com/pulcy/j2/jobs"
 	pkg "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -240,28 +241,36 @@ func (s *k8sScheduler) Destroy(events chan scheduler.Event, reason scheduler.Rea
 	if reason != scheduler.ReasonObsolete {
 		return nil
 	}
+	g := errgroup.Group{}
 	for _, u := range units {
+		u := u // So we can use u in a inner func
 		ku, ok := u.(Unit)
 		if !ok {
 			return maskAny(fmt.Errorf("Expected unit '%s' to implement KubernetesUnit", u.Name()))
 		}
-		destroyEvents := make(chan string)
-		go func() {
-			for msg := range destroyEvents {
-				events <- scheduler.Event{
-					UnitName: u.Name(),
-					Message:  msg,
+		g.Go(func() error {
+			destroyEvents := make(chan string)
+			go func() {
+				for msg := range destroyEvents {
+					events <- scheduler.Event{
+						UnitName: u.Name(),
+						Message:  msg,
+					}
 				}
+			}()
+			if err := ku.Destroy(s.client, destroyEvents); err != nil {
+				return maskAny(err)
 			}
-		}()
-		if err := ku.Destroy(s.client, destroyEvents); err != nil {
-			return maskAny(err)
-		}
-		close(destroyEvents)
-		events <- scheduler.Event{
-			UnitName: u.Name(),
-			Message:  "destroyed",
-		}
+			close(destroyEvents)
+			events <- scheduler.Event{
+				UnitName: u.Name(),
+				Message:  "destroyed",
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return maskAny(err)
 	}
 	return nil
 }
@@ -280,6 +289,7 @@ func (s *k8sScheduler) ensureNamespace(namespace string) error {
 }
 
 func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDataList) error {
+	g := errgroup.Group{}
 	for i := 0; i < units.Len(); i++ {
 		unit := units.Get(i)
 		ku, ok := unit.(Unit)
@@ -287,29 +297,36 @@ func (s *k8sScheduler) Start(events chan scheduler.Event, units scheduler.UnitDa
 			return maskAny(fmt.Errorf("Expected unit '%s' to implement KubernetesResource", unit.Name()))
 		}
 
-		// Ensure namespace exists
-		if err := s.ensureNamespace(ku.Namespace()); err != nil {
-			return maskAny(err)
-		}
+		g.Go(func() error {
 
-		// Create/update resource
-		startEvents := make(chan string)
-		go func() {
-			for msg := range startEvents {
-				events <- scheduler.Event{
-					UnitName: unit.Name(),
-					Message:  msg,
-				}
+			// Ensure namespace exists
+			if err := s.ensureNamespace(ku.Namespace()); err != nil {
+				return maskAny(err)
 			}
-		}()
-		if err := ku.Start(s.client, startEvents); err != nil {
-			return maskAny(err)
-		}
-		close(startEvents)
-		events <- scheduler.Event{
-			UnitName: unit.Name(),
-			Message:  "started",
-		}
+
+			// Create/update resource
+			startEvents := make(chan string)
+			go func() {
+				for msg := range startEvents {
+					events <- scheduler.Event{
+						UnitName: unit.Name(),
+						Message:  msg,
+					}
+				}
+			}()
+			if err := ku.Start(s.client, startEvents); err != nil {
+				return maskAny(err)
+			}
+			close(startEvents)
+			events <- scheduler.Event{
+				UnitName: unit.Name(),
+				Message:  "started",
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return maskAny(err)
 	}
 	return nil
 }
