@@ -53,7 +53,7 @@ var (
 	}
 	log          *logging.Logger
 	dockerImages = docker.Images{
-		VaultMonkey: "pulcy/vault-monkey:0.4.0",
+		VaultMonkey: "pulcy/vault-monkey:20170112164504",
 		Wormhole:    "pulcy/wormhole:latest",
 		Alpine:      "alpine:3.4",
 		CephVolume:  "pulcy/ceph-volume:latest",
