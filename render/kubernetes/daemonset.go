@@ -11,11 +11,16 @@ func createDaemonSets(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.
 		// Non-global is mapped onto Deployments.
 		return nil, nil
 	}
+	if !pod.hasServiceTasks() {
+		// DaemonSet need at least 1 service task
+		return nil, nil
+	}
 
 	d := k8s.NewDaemonSet(ctx.Namespace, resourceName(pod.name, kindDaemonSet))
 	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
 
-	template, err := createPodTemplateSpec(tg, pod, ctx)
+	requireRestartPolicyAlways := true
+	template, err := createPodTemplateSpec(tg, pod, ctx, requireRestartPolicyAlways)
 	if err != nil {
 		return nil, maskAny(err)
 	}

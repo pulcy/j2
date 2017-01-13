@@ -49,7 +49,7 @@ func updateMetadataFromCurrent(meta *k8s.ObjectMeta, current k8s.ObjectMeta) {
 	//meta.DeletionGracePeriodSeconds = current.GetDeletionGracePeriodSeconds()
 }
 
-func isSameObjectMeta(self, other k8s.ObjectMeta) ([]string, bool) {
+func isSameObjectMeta(self, other k8s.ObjectMeta, ignoredLabels ...string) ([]string, bool) {
 	d, eq := diff(self, other, func(path string) bool {
 		if strings.HasPrefix(path, ".Annotations[") {
 			return true
@@ -57,6 +57,12 @@ func isSameObjectMeta(self, other k8s.ObjectMeta) ([]string, bool) {
 		switch path {
 		case ".Annotations", ".CreationTimestamp", ".Generation", ".ResourceVersion", ".SelfLink", ".UID":
 			return true
+		}
+		for _, l := range ignoredLabels {
+			lPath := fmt.Sprintf(`.Labels["%s"]`, l)
+			if lPath == path {
+				return true
+			}
 		}
 		return false
 	})

@@ -8,11 +8,11 @@ import (
 )
 
 // createPodTemplateSpec creates a podTemplateSpec for all tasks in a given pod.
-func createPodTemplateSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodTemplateSpec, error) {
+func createPodTemplateSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext, requireRestartPolicyAlways bool) (*k8s.PodTemplateSpec, error) {
 	tspec := k8s.NewPodTemplateSpec(ctx.Namespace, pod.name)
 	setPodLabels(&tspec.ObjectMeta, tg, pod)
 
-	spec, annotations, err := createPodSpec(tg, pod, ctx)
+	spec, annotations, err := createPodSpec(tg, pod, ctx, requireRestartPolicyAlways)
 	if err != nil {
 		return nil, maskAny(err)
 	}

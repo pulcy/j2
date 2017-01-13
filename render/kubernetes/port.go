@@ -5,7 +5,7 @@ import (
 	"github.com/pulcy/j2/jobs"
 )
 
-func createContainerPort(port jobs.PortMapping) (k8s.ContainerPort, error) {
+func createContainerPort(port jobs.PortMapping, hostNetwork bool) (k8s.ContainerPort, error) {
 	p, err := port.Parse()
 	if err != nil {
 		return k8s.ContainerPort{}, maskAny(err)
@@ -16,6 +16,8 @@ func createContainerPort(port jobs.PortMapping) (k8s.ContainerPort, error) {
 	}
 	if p.HasHostPort() {
 		cp.HostPort = p.HostPort
+	} else if hostNetwork {
+		cp.HostPort = p.ContainerPort
 	}
 	if p.HasHostIP() {
 		cp.HostIP = p.HostIP

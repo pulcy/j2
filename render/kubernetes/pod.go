@@ -147,3 +147,23 @@ func (p *pod) validate() error {
 	}
 	return nil
 }
+
+// hasServiceTasks returns true if there is at least 1 task of type Service in this pod.
+func (p *pod) hasServiceTasks() bool {
+	for _, t := range p.tasks {
+		if t.Type.IsService() {
+			return true
+		}
+	}
+	return false
+}
+
+// hasOneShotTasks returns true if there is at least 1 task of type OneShot in this pod.
+func (p *pod) hasOneShotTasks() bool {
+	for _, t := range p.tasks {
+		if t.Type.IsOneshot() {
+			return true
+		}
+	}
+	return false
+}

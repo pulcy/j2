@@ -169,6 +169,11 @@ func (s *k8sScheduler) List() ([]scheduler.Unit, error) {
 	} else {
 		units = append(units, list...)
 	}
+	if list, err := s.listJobs(); err != nil {
+		return nil, maskAny(err)
+	} else {
+		units = append(units, list...)
+	}
 	if list, err := s.listServices(); err != nil {
 		return nil, maskAny(err)
 	} else {

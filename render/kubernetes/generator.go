@@ -78,6 +78,13 @@ func (g *k8sRenderer) GenerateUnits(job jobs.Job, ctx render.RenderContext, conf
 					units = append(units, &k8s.DaemonSet{DaemonSet: res})
 				}
 			}
+			if jobs, err := createJobs(tg, p, genCtx); err != nil {
+				return nil, maskAny(err)
+			} else {
+				for _, res := range jobs {
+					units = append(units, &k8s.Job{Job: res})
+				}
+			}
 			if secrets, err := createSecrets(tg, p, genCtx); err != nil {
 				return nil, maskAny(err)
 			} else {

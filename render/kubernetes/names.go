@@ -11,6 +11,7 @@ const (
 	// resource kinds
 	kindDeployment = "-depl"
 	kindDaemonSet  = "-dset"
+	kindJob        = "-job"
 	kindIngress    = "-igr"
 	kindSecret     = "-sec"
 	kindService    = "-srv"

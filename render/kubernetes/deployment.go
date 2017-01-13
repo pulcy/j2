@@ -12,6 +12,10 @@ func createDeployments(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s
 		// Global is mapped onto DaemonSets.
 		return nil, nil
 	}
+	if !pod.hasServiceTasks() {
+		// Deployments need at least 1 service task
+		return nil, nil
+	}
 
 	d := k8s.NewDeployment(ctx.Namespace, resourceName(pod.name, kindDeployment))
 	d.Spec.Replicas = int(tg.Count)
@@ -24,7 +28,8 @@ func createDeployments(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s
 	}
 	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
 
-	template, err := createPodTemplateSpec(tg, pod, ctx)
+	requireRestartPolicyAlways := true
+	template, err := createPodTemplateSpec(tg, pod, ctx, requireRestartPolicyAlways)
 	if err != nil {
 		return nil, maskAny(err)
 	}

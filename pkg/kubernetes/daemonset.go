@@ -64,11 +64,11 @@ func (ds *DaemonSet) IsEqual(other interface{}) ([]string, bool, error) {
 }
 
 func isSameDaemonSetSpec(self, other *k8s.DaemonSetSpec) ([]string, bool) {
-	diffs, eq := diff(self.Selector, other.Selector, func(path string) bool { return false })
-	if !eq {
-		return diffs, false
-	}
-	diffs, eq = isSamePodTemplateSpec(&self.Template, &other.Template)
+	/*	diffs, eq := isSameLabelSelector(self.Selector, other.Selector)
+		if !eq {
+			return diffs, false
+		}*/
+	diffs, eq := isSamePodTemplateSpec(&self.Template, &other.Template)
 	return diffs, eq
 }
 

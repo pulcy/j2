@@ -19,10 +19,10 @@ const (
 )
 
 // createPodSpec creates a pod-spec for all tasks in a given pod.
-func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodSpec, map[string]string, error) {
+func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext, requireRestartPolicyAlways bool) (*k8s.PodSpec, map[string]string, error) {
 	spec := &k8s.PodSpec{
 		DNSPolicy:       "ClusterFirst",
-		RestartPolicy:   getRestartPolicy(pod),
+		RestartPolicy:   getRestartPolicy(pod, requireRestartPolicyAlways),
 		SecurityContext: &k8s.PodSecurityContext{},
 	}
 
@@ -39,7 +39,7 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodS
 		if t.Network.IsHost() {
 			spec.HostNetwork = true
 		}
-		initContainers, containers, extraVols, err := createTaskContainers(t, pod, ctx)
+		initContainers, containers, extraVols, err := createTaskContainers(t, pod, ctx, spec.HostNetwork)
 		if err != nil {
 			return nil, nil, maskAny(err)
 		}
@@ -69,7 +69,10 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodS
 }
 
 // getRestartPolicy calculates the restart policy of a pod based on the type of tasks.
-func getRestartPolicy(pod pod) k8s.RestartPolicy {
+func getRestartPolicy(pod pod, requireAlways bool) k8s.RestartPolicy {
+	if requireAlways {
+		return RestartPolicyAlways
+	}
 	oneShotTasks := 0
 	serviceTasks := 0
 	for _, t := range pod.tasks {

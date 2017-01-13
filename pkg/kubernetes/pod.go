@@ -33,14 +33,14 @@ func deletePods(cs k8s.Client, namespace string, labelSelector map[string]string
 	return nil
 }
 
-func isSamePodTemplateSpec(self, other *k8s.PodTemplateSpec) ([]string, bool) {
+func isSamePodTemplateSpec(self, other *k8s.PodTemplateSpec, ignoredLabels ...string) ([]string, bool) {
 	if self == nil {
 		return nil, true
 	}
 	if other == nil {
 		return []string{"other=nil"}, false
 	}
-	if diffs, eq := isSameObjectMeta(self.ObjectMeta, other.ObjectMeta); !eq {
+	if diffs, eq := isSameObjectMeta(self.ObjectMeta, other.ObjectMeta, ignoredLabels...); !eq {
 		return diffs, false
 	}
 	diffs, eq := isSamePodSpec(self.Spec, other.Spec)

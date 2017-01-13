@@ -18,7 +18,7 @@ const (
 )
 
 // createTaskContainers returns the init-containers and containers needed for the given task.
-func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Container, []k8s.Container, []k8s.Volume, error) {
+func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext, hostNetwork bool) ([]k8s.Container, []k8s.Container, []k8s.Volume, error) {
 	if t.Type.IsProxy() {
 		// Proxy does not yield any containers
 		return nil, nil, nil, nil
@@ -30,7 +30,7 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 
 	// Exposed ports
 	for _, p := range t.Ports {
-		cp, err := createContainerPort(p)
+		cp, err := createContainerPort(p, hostNetwork)
 		if err != nil {
 			return nil, nil, nil, maskAny(err)
 		}
