@@ -87,11 +87,7 @@ job "base" {
 		type = "oneshot"
 	}
 
-	// The load-balancer exposes port 30080, 30443 & 30088.
-	// This should be forwarded to their lower ports using the following rules:
-	// iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j DNAT --to-destination :30080
-	// iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j DNAT --to-destination :30443
-	// iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 7088 -j DNAT --to-destination :30088
+	// The load-balancer exposes port 80, 443 & 7088.
 	task "lb" {
 		global = true
 		network = "host"
@@ -100,7 +96,7 @@ job "base" {
 			value = "true"
 		}
 		count = 1
-		image = "pulcy/robin:20161222191946"
+		image = "pulcy/robin:20170113171304"
 		ports = ["0.0.0.0:80:80", "81", "82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "8055", "8056"]
 		secret "secret/base/lb/stats-password" {
 			environment = "STATS_PASSWORD"
@@ -129,7 +125,8 @@ job "base" {
 		args = ["run",
 			"--backend=kubernetes",
 			"--log-level=debug",
-			"--etcd-endpoint", "${etcd_endpoints}",
+			"--etcd-endpoint", "http://${private_ipv4}:32379",
+			"--etcd-no-sync=true",
 			"--private-key-path", "/acme/private-key",
 			"--registration-path", "/acme/registration",
 			"--stats-port", "7088",
@@ -148,7 +145,8 @@ job "base" {
 		image = "gcr.io/google_containers/kubernetes-dashboard-amd64:v1.5.1"
 		ports = ["0.0.0.0:30090:9090"]
 		http-check-path = "/"
-		private-frontend {
+		frontend {
+			domain = "kdb.{{opt "stack"}}.{{opt "domain"}}"
 			port = 9090
 		}
 	}

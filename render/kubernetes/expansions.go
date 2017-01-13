@@ -37,7 +37,7 @@ var (
 // TODO update for kubernetes
 
 // Expand  "${private_ipv4}":
-func (g *k8sRenderer) ExpandPrivateIPv4() string { return "${COREOS_PRIVATE_IPV4}" }
+func (g *k8sRenderer) ExpandPrivateIPv4() string { return "$(J2_NODE_NAME)" }
 
 // Expand  "${public_ipv4}":
 func (g *k8sRenderer) ExpandPublicIPv4() string { return "${COREOS_PUBLIC_IPV4}" }

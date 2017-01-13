@@ -22,7 +22,7 @@ const (
 func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodSpec, map[string]string, error) {
 	spec := &k8s.PodSpec{
 		DNSPolicy:       "ClusterFirst",
-		RestartPolicy:   RestartPolicyAlways,
+		RestartPolicy:   getRestartPolicy(pod),
 		SecurityContext: &k8s.PodSecurityContext{},
 	}
 
@@ -66,4 +66,21 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodS
 	}
 
 	return spec, annotations, nil
+}
+
+// getRestartPolicy calculates the restart policy of a pod based on the type of tasks.
+func getRestartPolicy(pod pod) k8s.RestartPolicy {
+	oneShotTasks := 0
+	serviceTasks := 0
+	for _, t := range pod.tasks {
+		if t.Type.IsOneshot() {
+			oneShotTasks++
+		} else if t.Type.IsService() {
+			serviceTasks++
+		}
+	}
+	if serviceTasks == 0 && oneShotTasks > 0 {
+		return RestartPolicyOnFailure
+	}
+	return RestartPolicyAlways
 }

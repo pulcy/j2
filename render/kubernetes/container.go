@@ -24,7 +24,9 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Co
 		return nil, nil, nil, nil
 	}
 	c := newContainer(resourceName(t.FullName(), ""), t.Image.String())
-	c.Args = t.Args
+	if len(t.Args) > 0 {
+		c.Args = t.Args
+	}
 
 	// Exposed ports
 	for _, p := range t.Ports {
