@@ -34,7 +34,7 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodS
 	spec.Volumes = volumes
 
 	// Containers
-	annotations := make(map[string]string)
+	var allInitContainers []k8s.Container
 	for _, t := range pod.tasks {
 		if t.Network.IsHost() {
 			spec.HostNetwork = true
@@ -43,16 +43,26 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext) (*k8s.PodS
 		if err != nil {
 			return nil, nil, maskAny(err)
 		}
-		if len(initContainers) > 0 {
-			raw, err := json.Marshal(initContainers)
+		allInitContainers = append(allInitContainers, initContainers...)
+		spec.Volumes = append(spec.Volumes, extraVols...)
+		spec.Containers = append(spec.Containers, containers...)
+	}
+
+	annotations := make(map[string]string)
+	if len(allInitContainers) > 0 {
+		if len(spec.Containers) == 0 {
+			// Take the last init container and use it as normal container
+			spec.Containers = allInitContainers[len(allInitContainers)-1:]
+			allInitContainers = allInitContainers[:len(allInitContainers)-1]
+		}
+		if len(allInitContainers) > 0 {
+			raw, err := json.Marshal(allInitContainers)
 			if err != nil {
 				return nil, nil, maskAny(err)
 			}
 			annotations[podInitContainersAnnotationKeyAlpha] = string(raw)
 			annotations[podInitContainersAnnotationKeyBeta] = string(raw)
 		}
-		spec.Volumes = append(spec.Volumes, extraVols...)
-		spec.Containers = append(spec.Containers, containers...)
 	}
 
 	return spec, annotations, nil
