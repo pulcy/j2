@@ -82,24 +82,10 @@ job "base" {
 
 	// Do not use ETCD under Kubernetes, but use our own instances.
 	// This is recommended and much better for security.
-	{{range $index, $name := split "etcd0,etcd1,etcd2" ","}}
-	task {{$name}} {
-		image = "quay.io/coreos/etcd:latest"
-		ports = [2379, 2380]
-		args = [
-			"/usr/local/bin/etcd",
-			"--name={{$name}}",
-			"--initial-advertise-peer-urls=http://{{$name}}-{{$name}}-srv:2380",
-			"--listen-peer-urls=http://0.0.0.0:2380",
-			"--listen-client-urls=http://0.0.0.0:2379",
-			"--advertise-client-urls=http://{{$name}}-{{$name}}-srv:2379",
-			"--initial-cluster=etcd0=http://etcd0-etcd0-srv:2380,etcd1=http://etcd1-etcd1-srv:2380,etcd2=http://etcd2-etcd2-srv:2380",
-			"--initial-cluster-state=new",
-		]
-		private-frontend { port=2379 }
-		private-frontend { port=2380 }
+	task "etcd_install" {
+		image = "pulcy/kube-etcd:20170113162545"
+		type = "oneshot"
 	}
-	{{end}}
 
 	// The load-balancer exposes port 30080, 30443 & 30088.
 	// This should be forwarded to their lower ports using the following rules:
@@ -107,9 +93,15 @@ job "base" {
 	// iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j DNAT --to-destination :30443
 	// iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 7088 -j DNAT --to-destination :30088
 	task "lb" {
+		global = true
+		network = "host"
+		constraint {
+			attribute = "meta.lb"
+			value = "true"
+		}
 		count = 1
 		image = "pulcy/robin:20161222191946"
-		ports = ["0.0.0.0:30080:80", "81", "82", "0.0.0.0:30443:443", "0.0.0.0:30088:7088", "8055", "8056"]
+		ports = ["0.0.0.0:80:80", "81", "82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "8055", "8056"]
 		secret "secret/base/lb/stats-password" {
 			environment = "STATS_PASSWORD"
 		}
@@ -147,6 +139,18 @@ job "base" {
 			"--metrics-host", "0.0.0.0",
 			"--metrics-port", "8055"
 		]
+	}
+
+
+	// The dashboard exposes a Kubernetes dashboard.
+	task "dashboard" {
+		count = 1
+		image = "gcr.io/google_containers/kubernetes-dashboard-amd64:v1.5.1"
+		ports = ["0.0.0.0:30090:9090"]
+		http-check-path = "/"
+		private-frontend {
+			port = 9090
+		}
 	}
 
 {{end}}
