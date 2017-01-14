@@ -96,7 +96,7 @@ job "base" {
 			value = "true"
 		}
 		count = 1
-		image = "pulcy/robin:0.26.0"
+		image = "pulcy/robin:20170114162038"
 		ports = ["0.0.0.0:80:80", "81", "82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "8055", "8056"]
 		secret "secret/base/lb/stats-password" {
 			environment = "STATS_PASSWORD"
@@ -148,6 +148,9 @@ job "base" {
 		frontend {
 			domain = "kdb.{{opt "stack"}}.{{opt "domain"}}"
 			port = 9090
+			user "admin" {
+				password = "foo"
+			}
 		}
 	}
 

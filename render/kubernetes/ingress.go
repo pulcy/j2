@@ -1,9 +1,17 @@
 package kubernetes
 
 import (
+	"encoding/json"
+
 	k8s "github.com/YakLabs/k8s-client"
 	"github.com/YakLabs/k8s-client/intstr"
 	"github.com/pulcy/j2/jobs"
+	"github.com/pulcy/j2/pkg/robin"
+	"github.com/pulcy/robin-api"
+)
+
+const (
+	RobinFrontendRecordsAnnotationKey = "pulcy.com.robin.frontend.records"
 )
 
 // createIngresses creates allingressesservices needed for the given task group.
@@ -39,8 +47,27 @@ func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.I
 					},
 				},
 			}
-			// TODO users, rewrite, mode, ...
+			// Special features like users, rewrite & mode are supported through a
+			// robin specific annotation. See below.
 			d.Spec.Rules = append(d.Spec.Rules, rule)
+
+		}
+		publicOnly := true
+		serviceName := taskServiceName(t)
+		records, err := robin.CreateFrontEndRecords(t, 1, publicOnly, serviceName)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		if len(records) > 0 {
+			var apiRecords []api.FrontendRecord
+			for _, r := range records {
+				apiRecords = append(apiRecords, r.Record)
+			}
+			raw, err := json.Marshal(apiRecords)
+			if err != nil {
+				return nil, maskAny(err)
+			}
+			d.ObjectMeta.Annotations[RobinFrontendRecordsAnnotationKey] = string(raw)
 		}
 
 		ingresses = append(ingresses, *d)

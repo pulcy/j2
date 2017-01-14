@@ -51,7 +51,7 @@ func updateMetadataFromCurrent(meta *k8s.ObjectMeta, current k8s.ObjectMeta) {
 
 func isSameObjectMeta(self, other k8s.ObjectMeta, ignoredLabels ...string) ([]string, bool) {
 	d, eq := diff(self, other, func(path string) bool {
-		if strings.HasPrefix(path, ".Annotations[") {
+		if strings.HasPrefix(path, ".Annotations[") && !strings.Contains(path, "pulcy") {
 			return true
 		}
 		switch path {
