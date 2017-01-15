@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	k8s "github.com/YakLabs/k8s-client"
@@ -13,7 +14,7 @@ import (
 func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Service, error) {
 	var services []k8s.Service
 	for _, t := range pod.tasks {
-		if len(t.Ports) == 0 {
+		if len(t.Ports) == 0 && len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
 			continue
 		}
 		// Normal service for the task
@@ -21,7 +22,8 @@ func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Se
 		setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
 		d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
 
-		for _, p := range t.Ports {
+		ports := collectPorts(t)
+		for _, p := range ports {
 			pp, err := p.Parse()
 			if err != nil {
 				return nil, maskAny(err)
@@ -71,6 +73,36 @@ func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Se
 	}
 
 	return services, nil
+}
+
+func collectPorts(t *jobs.Task) []jobs.PortMapping {
+	ports := t.Ports
+	portFound := func(containerPort int) bool {
+		for _, p := range ports {
+			pm, _ := p.Parse()
+			if pm.ContainerPort == containerPort {
+				return true
+			}
+		}
+		return false
+	}
+	for _, f := range t.PublicFrontEnds {
+		if f.Port != 0 {
+			if !portFound(f.Port) {
+				port := strconv.Itoa(f.Port)
+				ports = append(ports, jobs.PortMapping(port))
+			}
+		}
+	}
+	for _, f := range t.PrivateFrontEnds {
+		if f.Port != 0 {
+			if !portFound(f.Port) {
+				port := strconv.Itoa(f.Port)
+				ports = append(ports, jobs.PortMapping(port))
+			}
+		}
+	}
+	return ports
 }
 
 // getHostMappedPorts returns all port mappings from the given list that have their HostIP set to '0.0.0.0'.
