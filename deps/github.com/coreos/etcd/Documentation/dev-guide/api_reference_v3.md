@@ -1,6 +1,9 @@
 ### etcd API Reference
 
 
+This is a generated documentation. Please read the proto files for more.
+
+
 ##### service `Auth` (etcdserver/etcdserverpb/rpc.proto)
 
 | Method | Request Type | Response Type | Description |
@@ -9,13 +12,15 @@
 | AuthDisable | AuthDisableRequest | AuthDisableResponse | AuthDisable disables authentication. |
 | Authenticate | AuthenticateRequest | AuthenticateResponse | Authenticate processes an authenticate request. |
 | UserAdd | AuthUserAddRequest | AuthUserAddResponse | UserAdd adds a new user. |
-| UserGet | AuthUserGetRequest | AuthUserGetResponse | UserGet gets detailed user information or lists all users. |
+| UserGet | AuthUserGetRequest | AuthUserGetResponse | UserGet gets detailed user information. |
+| UserList | AuthUserListRequest | AuthUserListResponse | UserList gets a list of all users. |
 | UserDelete | AuthUserDeleteRequest | AuthUserDeleteResponse | UserDelete deletes a specified user. |
 | UserChangePassword | AuthUserChangePasswordRequest | AuthUserChangePasswordResponse | UserChangePassword changes the password of a specified user. |
 | UserGrantRole | AuthUserGrantRoleRequest | AuthUserGrantRoleResponse | UserGrant grants a role to a specified user. |
 | UserRevokeRole | AuthUserRevokeRoleRequest | AuthUserRevokeRoleResponse | UserRevokeRole revokes a role of specified user. |
 | RoleAdd | AuthRoleAddRequest | AuthRoleAddResponse | RoleAdd adds a new role. |
-| RoleGet | AuthRoleGetRequest | AuthRoleGetResponse | RoleGet gets detailed role information or lists all roles. |
+| RoleGet | AuthRoleGetRequest | AuthRoleGetResponse | RoleGet gets detailed role information. |
+| RoleList | AuthRoleListRequest | AuthRoleListResponse | RoleList gets lists of all roles. |
 | RoleDelete | AuthRoleDeleteRequest | AuthRoleDeleteResponse | RoleDelete deletes a specified role. |
 | RoleGrantPermission | AuthRoleGrantPermissionRequest | AuthRoleGrantPermissionResponse | RoleGrantPermission grants a permission of a specified key or range to a specified role. |
 | RoleRevokePermission | AuthRoleRevokePermissionRequest | AuthRoleRevokePermissionResponse | RoleRevokePermission revokes a key or range permission of a specified role. |
@@ -35,6 +40,8 @@
 
 ##### service `KV` (etcdserver/etcdserverpb/rpc.proto)
 
+for grpc-gateway
+
 | Method | Request Type | Response Type | Description |
 | ------ | ------------ | ------------- | ----------- |
 | Range | RangeRequest | RangeResponse | Range gets the keys in the range from the key-value store. |
@@ -52,6 +59,7 @@
 | LeaseGrant | LeaseGrantRequest | LeaseGrantResponse | LeaseGrant creates a lease which expires if the server does not receive a keepAlive within a given time to live period. All keys attached to the lease will be expired and deleted if the lease expires. Each expired key generates a delete event in the event history. |
 | LeaseRevoke | LeaseRevokeRequest | LeaseRevokeResponse | LeaseRevoke revokes a lease. All keys attached to the lease will expire and be deleted. |
 | LeaseKeepAlive | LeaseKeepAliveRequest | LeaseKeepAliveResponse | LeaseKeepAlive keeps the lease alive by streaming keep alive requests from the client to the server and streaming keep alive responses from the server to the client. |
+| LeaseTimeToLive | LeaseTimeToLiveRequest | LeaseTimeToLiveResponse | LeaseTimeToLive retrieves lease information. |
 
 
 
@@ -85,6 +93,8 @@
 
 
 ##### message `AlarmRequest` (etcdserver/etcdserverpb/rpc.proto)
+
+default, used to query if any alarm is active space quota is exhausted
 
 | Field | Description | Type |
 | ----- | ----------- | ---- |
@@ -197,6 +207,21 @@ Empty field.
 
 
 
+##### message `AuthRoleListRequest` (etcdserver/etcdserverpb/rpc.proto)
+
+Empty field.
+
+
+
+##### message `AuthRoleListResponse` (etcdserver/etcdserverpb/rpc.proto)
+
+| Field | Description | Type |
+| ----- | ----------- | ---- |
+| header |  | ResponseHeader |
+| roles |  | (slice of) string |
+
+
+
 ##### message `AuthRoleRevokePermissionRequest` (etcdserver/etcdserverpb/rpc.proto)
 
 | Field | Description | Type |
@@ -299,6 +324,21 @@ Empty field.
 
 
 
+##### message `AuthUserListRequest` (etcdserver/etcdserverpb/rpc.proto)
+
+Empty field.
+
+
+
+##### message `AuthUserListResponse` (etcdserver/etcdserverpb/rpc.proto)
+
+| Field | Description | Type |
+| ----- | ----------- | ---- |
+| header |  | ResponseHeader |
+| users |  | (slice of) string |
+
+
+
 ##### message `AuthUserRevokeRoleRequest` (etcdserver/etcdserverpb/rpc.proto)
 
 | Field | Description | Type |
@@ -387,7 +427,8 @@ Empty field.
 | Field | Description | Type |
 | ----- | ----------- | ---- |
 | key | key is the first key to delete in the range. | bytes |
-| range_end | range_end is the key following the last key to delete for the range [key, range_end). If range_end is not given, the range is defined to contain only the key argument. If range_end is '\0', the range is all keys greater than or equal to the key argument. | bytes |
+| range_end | range_end is the key following the last key to delete for the range [key, range_end). If range_end is not given, the range is defined to contain only the key argument. If range_end is one bit larger than the given key, then the range is all the all keys with the prefix (the given key). If range_end is '\0', the range is all keys greater than or equal to the key argument. | bytes |
+| prev_kv | If prev_kv is set, etcd gets the previous key-value pairs before deleting it. The previous key-value pairs will be returned in the delte response. | bool |
 
 
 
@@ -397,6 +438,7 @@ Empty field.
 | ----- | ----------- | ---- |
 | header |  | ResponseHeader |
 | deleted | deleted is the number of keys deleted by the delete range request. | int64 |
+| prev_kvs | if prev_kv is set in the request, the previous key-value pairs will be returned. | (slice of) mvccpb.KeyValue |
 
 
 
@@ -466,6 +508,27 @@ Empty field.
 | Field | Description | Type |
 | ----- | ----------- | ---- |
 | header |  | ResponseHeader |
+
+
+
+##### message `LeaseTimeToLiveRequest` (etcdserver/etcdserverpb/rpc.proto)
+
+| Field | Description | Type |
+| ----- | ----------- | ---- |
+| ID | ID is the lease ID for the lease. | int64 |
+| keys | keys is true to query all the keys attached to this lease. | bool |
+
+
+
+##### message `LeaseTimeToLiveResponse` (etcdserver/etcdserverpb/rpc.proto)
+
+| Field | Description | Type |
+| ----- | ----------- | ---- |
+| header |  | ResponseHeader |
+| ID | ID is the lease ID from the keep alive request. | int64 |
+| TTL | TTL is the remaining TTL in seconds for the lease; the lease will expire in under TTL+1 seconds. | int64 |
+| grantedTTL | GrantedTTL is the initial granted time in seconds upon lease creation/renewal. | int64 |
+| keys | Keys is the list of keys attached to this lease. | (slice of) bytes |
 
 
 
@@ -552,6 +615,7 @@ Empty field.
 | key | key is the key, in bytes, to put into the key-value store. | bytes |
 | value | value is the value, in bytes, to associate with the key in the key-value store. | bytes |
 | lease | lease is the lease ID to associate with the key in the key-value store. A lease value of 0 indicates no lease. | int64 |
+| prev_kv | If prev_kv is set, etcd gets the previous key-value pair before changing it. The previous key-value pair will be returned in the put response. | bool |
 
 
 
@@ -560,6 +624,7 @@ Empty field.
 | Field | Description | Type |
 | ----- | ----------- | ---- |
 | header |  | ResponseHeader |
+| prev_kv | if prev_kv is set in the request, the previous key-value pair will be returned. | mvccpb.KeyValue |
 
 
 
@@ -567,13 +632,19 @@ Empty field.
 
 | Field | Description | Type |
 | ----- | ----------- | ---- |
-| key | key is the first key for the range. If range_end is not given, the request only looks up key. | bytes |
+| key | default, no sorting lowest target value first highest target value first key is the first key for the range. If range_end is not given, the request only looks up key. | bytes |
 | range_end | range_end is the upper bound on the requested range [key, range_end). If range_end is '\0', the range is all keys >= key. If the range_end is one bit larger than the given key, then the range requests get the all keys with the prefix (the given key). If both key and range_end are '\0', then range requests returns all keys. | bytes |
 | limit | limit is a limit on the number of keys returned for the request. | int64 |
 | revision | revision is the point-in-time of the key-value store to use for the range. If revision is less or equal to zero, the range is over the newest key-value store. If the revision has been compacted, ErrCompacted is returned as a response. | int64 |
 | sort_order | sort_order is the order for returned sorted results. | SortOrder |
 | sort_target | sort_target is the key-value field to use for sorting. | SortTarget |
 | serializable | serializable sets the range request to use serializable member-local reads. Range requests are linearizable by default; linearizable requests have higher latency and lower throughput than serializable requests but reflect the current consensus of the cluster. For better performance, in exchange for possible stale reads, a serializable range request is served locally without needing to reach consensus with other nodes in the cluster. | bool |
+| keys_only | keys_only when set returns only the keys and not the values. | bool |
+| count_only | count_only when set returns only the count of the keys in the range. | bool |
+| min_mod_revision | min_mod_revision is the lower bound for returned key mod revisions; all keys with lesser mod revisions will be filtered away. | int64 |
+| max_mod_revision | max_mod_revision is the upper bound for returned key mod revisions; all keys with greater mod revisions will be filtered away. | int64 |
+| min_create_revision | min_create_revision is the lower bound for returned key create revisions; all keys with lesser create trevisions will be filtered away. | int64 |
+| max_create_revision | max_create_revision is the upper bound for returned key create revisions; all keys with greater create revisions will be filtered away. | int64 |
 
 
 
@@ -582,8 +653,9 @@ Empty field.
 | Field | Description | Type |
 | ----- | ----------- | ---- |
 | header |  | ResponseHeader |
-| kvs | kvs is the list of key-value pairs matched by the range request. | (slice of) mvccpb.KeyValue |
+| kvs | kvs is the list of key-value pairs matched by the range request. kvs is empty when count is requested. | (slice of) mvccpb.KeyValue |
 | more | more indicates if there are more keys to return in the requested range. | bool |
+| count | count is set to the number of keys within the range when requested. | int64 |
 
 
 
@@ -690,9 +762,11 @@ From google paxosdb paper: Our implementation hinges around a powerful primitive
 | Field | Description | Type |
 | ----- | ----------- | ---- |
 | key | key is the key to register for watching. | bytes |
-| range_end | range_end is the end of the range [key, range_end) to watch. If range_end is not given, only the key argument is watched. If range_end is equal to '\0', all keys greater than or equal to the key argument are watched. | bytes |
+| range_end | range_end is the end of the range [key, range_end) to watch. If range_end is not given, only the key argument is watched. If range_end is equal to '\0', all keys greater than or equal to the key argument are watched. If the range_end is one bit larger than the given key, then all keys with the prefix (the given key) will be watched. | bytes |
 | start_revision | start_revision is an optional revision to watch from (inclusive). No start_revision is "now". | int64 |
 | progress_notify | progress_notify is set so that the etcd server will periodically send a WatchResponse with no events to the new watcher if there are no recent events. It is useful when clients wish to recover a disconnected watcher starting from a recent known revision. The etcd server may decide how often it will send notifications based on current load. | bool |
+| filters | filter out put event. filter out delete event. filters filter the events at server side before it sends back to the watcher. | (slice of) FilterType |
+| prev_kv | If prev_kv is set, created watcher gets the previous KV before the event happens. If the previous KV is already compacted, nothing will be returned. | bool |
 
 
 
@@ -725,6 +799,7 @@ From google paxosdb paper: Our implementation hinges around a powerful primitive
 | ----- | ----------- | ---- |
 | type | type is the kind of event. If type is a PUT, it indicates new data has been stored to the key. If type is a DELETE, it indicates the key was deleted. | EventType |
 | kv | kv holds the KeyValue for the event. A PUT event contains current kv pair. A PUT event with kv.Version=1 indicates the creation of a key. A DELETE/EXPIRE event contains the deleted key with its modification revision set to the revision of deletion. | KeyValue |
+| prev_kv | prev_kv holds the key-value pair before the event happens. | KeyValue |
 
 
 
@@ -747,6 +822,22 @@ From google paxosdb paper: Our implementation hinges around a powerful primitive
 | ----- | ----------- | ---- |
 | ID |  | int64 |
 | TTL |  | int64 |
+
+
+
+##### message `LeaseInternalRequest` (lease/leasepb/lease.proto)
+
+| Field | Description | Type |
+| ----- | ----------- | ---- |
+| LeaseTimeToLiveRequest |  | etcdserverpb.LeaseTimeToLiveRequest |
+
+
+
+##### message `LeaseInternalResponse` (lease/leasepb/lease.proto)
+
+| Field | Description | Type |
+| ----- | ----------- | ---- |
+| LeaseTimeToLiveResponse |  | etcdserverpb.LeaseTimeToLiveResponse |
 
 
 

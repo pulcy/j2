@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,12 +71,19 @@ type UnitStatePublisher struct {
 // them to the Registry every 5s. Heartbeat objects are also published as they
 // are received on the channel.
 func (p *UnitStatePublisher) Run(beatchan <-chan *unit.UnitStateHeartbeat, stop <-chan struct{}) {
+	var period time.Duration
+	if p.ttl > 10*time.Second {
+		period = p.ttl * 4 / 5
+	} else {
+		period = p.ttl / 2
+	}
+
 	go func() {
 		for {
 			select {
 			case <-stop:
 				return
-			case <-p.clock.After(p.ttl / 2):
+			case <-p.clock.After(period):
 				p.cacheMutex.Lock()
 				for name, us := range p.cache {
 					go p.queueForPublish(name, us)
@@ -207,12 +214,9 @@ func newPublisher(reg registry.Registry, ttl time.Duration) publishFunc {
 			// Sanity check - don't want to publish incomplete UnitStates
 			// TODO(jonboulle): consider teasing apart a separate UnitState-like struct
 			// so we can rely on a UnitState always being fully hydrated?
-
-			// See https://github.com/coreos/fleet/issues/720
-			//if len(us.UnitHash) == 0 {
-			//	log.Errorf("Refusing to push UnitState(%s), no UnitHash: %#v", name, us)
-
-			if len(us.MachineID) == 0 {
+			if len(us.UnitHash) == 0 {
+				log.Errorf("Refusing to push UnitState(%s), no UnitHash: %#v", name, us)
+			} else if len(us.MachineID) == 0 {
 				log.Errorf("Refusing to push UnitState(%s), no MachineID: %#v", name, us)
 			} else {
 				log.Debugf("Pushing UnitState(%s) to Registry: %#v", name, us)

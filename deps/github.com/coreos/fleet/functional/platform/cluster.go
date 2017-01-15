@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,12 +31,13 @@ type Cluster interface {
 	DestroyMember(Member) error
 	ReplaceMember(Member) (Member, error)
 	Members() []Member
-	MemberCommand(Member, ...string) (string, error)
+	MemberCommand(Member, ...string) (string, string, error)
 	Destroy(t *testing.T) error
 
 	// client operations
 	Fleetctl(m Member, args ...string) (string, string, error)
 	FleetctlWithInput(m Member, input string, args ...string) (string, string, error)
+	FleetctlWithEnv(m Member, args ...string) (string, string, error)
 	WaitForNUnits(Member, int) (map[string][]util.UnitState, error)
 	WaitForNActiveUnits(Member, int) (map[string][]util.UnitState, error)
 	WaitForNUnitFiles(Member, int) (map[string][]util.UnitFileState, error)

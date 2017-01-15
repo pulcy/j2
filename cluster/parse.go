@@ -76,6 +76,7 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 		"default-options",
 		"docker",
 		"fleet",
+		"kubernetes",
 		"quark",
 	}
 	if err := hclutil.Decode(obj.Val, excludeList, nil, c); err != nil {
@@ -113,6 +114,19 @@ func (c *Cluster) parse(list *ast.ObjectList) error {
 				}
 			} else {
 				return maskAny(errgo.WithCausef(nil, ValidationError, "fleet of cluster '%s' is not an object", c.Stack))
+			}
+		}
+	}
+
+	// If we have kubernetes object, parse it
+	if o := listVal.Filter("kubernetes"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			if obj, ok := o.Val.(*ast.ObjectType); ok {
+				if err := c.KubernetesOptions.parse(obj, *c); err != nil {
+					return maskAny(err)
+				}
+			} else {
+				return maskAny(errgo.WithCausef(nil, ValidationError, "kubernetes of cluster '%s' is not an object", c.Stack))
 			}
 		}
 	}
@@ -192,6 +206,27 @@ func (options *FleetOptions) parse(obj *ast.ObjectType, c Cluster) error {
 		options.Requires = list
 	}
 
+	// Parse global-instance-constraints
+	if o := obj.List.Filter("global-instance-constraints"); len(o.Items) > 0 {
+		list, err := hclutil.ParseStringList(o, fmt.Sprintf("global-instance-constraints of cluster '%s'", c.Stack))
+		if err != nil {
+			return maskAny(err)
+		}
+		options.GlobalInstanceConstraints = list
+	}
+
+	return nil
+}
+
+// parse a KubernetesOptions
+func (options *KubernetesOptions) parse(obj *ast.ObjectType, c Cluster) error {
+	// Parse the object
+	excludeList := []string{
+		"global-instance-constraints",
+	}
+	if err := hclutil.Decode(obj, excludeList, nil, options); err != nil {
+		return maskAny(err)
+	}
 	// Parse global-instance-constraints
 	if o := obj.List.Filter("global-instance-constraints"); len(o.Items) > 0 {
 		list, err := hclutil.ParseStringList(o, fmt.Sprintf("global-instance-constraints of cluster '%s'", c.Stack))

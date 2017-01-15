@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,6 +48,11 @@ func runUnloadUnit(cCmd *cobra.Command, args []string) (exit int) {
 		return 1
 	}
 
+	if len(units) == 0 {
+		stderr("Units not found in registry")
+		return 0
+	}
+
 	wait := make([]string, 0)
 	for _, s := range units {
 		if !suToGlobal(s) {
@@ -66,12 +71,12 @@ func runUnloadUnit(cCmd *cobra.Command, args []string) (exit int) {
 		}
 	}
 
-	exit = tryWaitForUnitStates(wait, "unload", job.JobStateInactive, getBlockAttempts(cCmd), os.Stdout)
-	if exit == 0 {
-		stderr("Successfully unloaded units %v.", wait)
-	} else {
-		stderr("Failed to unload units %v. exit == %d.", wait, exit)
+	err = tryWaitForUnitStates(wait, "unload", job.JobStateInactive, getBlockAttempts(cCmd), os.Stdout)
+	if err != nil {
+		stderr("Failed to unload units %v. err: %v", wait, err)
+		return 1
 	}
 
-	return
+	stderr("Successfully unloaded units %v.", wait)
+	return 0
 }

@@ -55,16 +55,17 @@ type RenderContext interface {
 	ProjectName() string
 	ProjectVersion() string
 	ProjectBuild() string
+
+	ImageVaultMonkey() string // Docker image name of vault-monkey
+	ImageWormhole() string    // Docker image name of wormhole
+	ImageAlpine() string      // Docker image name of alpine linux
+	ImageCephVolume() string  // Docker image name of ceph-volume
 }
 
 // NewDeployment creates a new Deployment instances and generates all unit files for the given job.
-func NewDeployment(job jobs.Job, cluster cluster.Cluster, groupSelection TaskGroupSelection,
+func NewDeployment(orchestrator extpoints.Orchestrator, job jobs.Job, cluster cluster.Cluster, groupSelection TaskGroupSelection,
 	scalingGroupSelection ScalingGroupSelection, force, autoContinue, verbose bool, delays DeploymentDelays,
 	renderContext RenderContext) (*Deployment, error) {
-	orchestrator := extpoints.Orchestrators.Lookup(cluster.Orchestrator)
-	if orchestrator == nil {
-		return nil, maskAny(fmt.Errorf("Orchestrator '%s' not found", cluster.Orchestrator))
-	}
 	return &Deployment{
 		job:                   job,
 		cluster:               cluster,

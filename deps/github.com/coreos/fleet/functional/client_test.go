@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,8 +66,8 @@ func TestKnownHostsVerification(t *testing.T) {
 	}
 
 	// SSH'ing to the cluster member should now fail with a host key mismatch
-	if _, _, err := cluster.Fleetctl(m0, "--strict-host-key-checking=true", fmt.Sprintf("--known-hosts-file=%s", khFile), "ssh", m1.ID(), "uptime"); err == nil {
-		t.Errorf("Expected error while SSH'ing to fleet machine")
+	if stdout, stderr, err := cluster.Fleetctl(m0, "--strict-host-key-checking=true", fmt.Sprintf("--known-hosts-file=%s", khFile), "ssh", m1.ID(), "uptime"); err == nil {
+		t.Errorf("Expected error while SSH'ing to fleet machine\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 	}
 
 	// Overwrite the known-hosts file to simulate removing the old host key
@@ -80,4 +80,31 @@ func TestKnownHostsVerification(t *testing.T) {
 		t.Errorf("Unable to SSH into fleet machine: \nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 	}
 
+}
+
+// TestFleetctlWithEnv runs simply fleetctl list-machines, but by setting an
+// environment variable FLEETCTL_ENDPOINT, instead of the cmdline option
+// '--endpoint'.
+func TestFleetctlWithEnv(t *testing.T) {
+	cluster, err := platform.NewNspawnCluster("smoke")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cluster.Destroy(t)
+
+	m, err := cluster.CreateMember()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = cluster.WaitForNMachines(m, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, err := cluster.FleetctlWithEnv(m, "list-machines")
+	if err != nil {
+		t.Fatalf("Failed to run with env var FLEETCTL_ENDPOINT:\nstdout: %s\nstderr: %s\nerr: %v",
+			stdout, stderr, err)
+	}
 }

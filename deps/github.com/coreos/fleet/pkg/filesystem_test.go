@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import (
 func TestListDirectory(t *testing.T) {
 	dir, err := ioutil.TempDir("", "fleet-testing-")
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 
 	defer os.RemoveAll(dir)
@@ -33,7 +33,7 @@ func TestListDirectory(t *testing.T) {
 	for _, name := range []string{"ping", "pong", "foo", "bar", "baz"} {
 		err := ioutil.WriteFile(path.Join(dir, name), []byte{}, 0400)
 		if err != nil {
-			t.Fatal(err.Error())
+			t.Fatal(err)
 		}
 	}
 
@@ -43,7 +43,7 @@ func TestListDirectory(t *testing.T) {
 
 	got, err := ListDirectory(dir, filterFunc)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 
 	want := []string{"baz", "ping", "pong"}

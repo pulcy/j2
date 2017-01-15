@@ -16,6 +16,7 @@ package cluster
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/juju/errgo"
 
@@ -45,6 +46,9 @@ type Cluster struct {
 
 	// Fleet options
 	FleetOptions FleetOptions
+
+	// Kubernetes options
+	KubernetesOptions KubernetesOptions
 
 	// Default network
 	Network string `mapstructure:"network,omitempty"`
@@ -82,12 +86,21 @@ func (c Cluster) validate() error {
 	if err := c.DockerOptions.validate(); err != nil {
 		return maskAny(err)
 	}
+	if err := c.FleetOptions.validate(); err != nil {
+		return maskAny(err)
+	}
+	if err := c.KubernetesOptions.validate(); err != nil {
+		return maskAny(err)
+	}
 	return nil
 }
 
 func (c *Cluster) setDefaults() {
 	if c.Orchestrator == "" {
-		c.Orchestrator = "fleet"
+		c.Orchestrator = os.Getenv("PULCY_ORCHESTRATOR")
+		if c.Orchestrator == "" {
+			c.Orchestrator = "fleet"
+		}
 	}
 	if c.Tunnel == "" {
 		c.Tunnel = fmt.Sprintf("%s.%s", c.Stack, c.Domain)
@@ -96,4 +109,5 @@ func (c *Cluster) setDefaults() {
 		c.InstanceCount = defaultInstanceCount
 	}
 	c.FleetOptions.setDefaults()
+	c.KubernetesOptions.setDefaults()
 }

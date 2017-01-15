@@ -20,8 +20,11 @@ import (
 
 	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"github.com/coreos/etcd/mvcc/backend"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/context"
 )
+
+func init() { BcryptCost = bcrypt.MinCost }
 
 func TestUserAdd(t *testing.T) {
 	b, tPath := backend.NewDefaultTmpBackend()
@@ -43,9 +46,34 @@ func TestUserAdd(t *testing.T) {
 	if err != ErrUserAlreadyExist {
 		t.Fatalf("expected %v, got %v", ErrUserAlreadyExist, err)
 	}
+
+	ua = &pb.AuthUserAddRequest{Name: ""}
+	_, err = as.UserAdd(ua) // add a user with empty name
+	if err != ErrUserEmpty {
+		t.Fatal(err)
+	}
 }
 
-func TestAuthenticate(t *testing.T) {
+func enableAuthAndCreateRoot(as *authStore) error {
+	_, err := as.UserAdd(&pb.AuthUserAddRequest{Name: "root", Password: "root"})
+	if err != nil {
+		return err
+	}
+
+	_, err = as.RoleAdd(&pb.AuthRoleAddRequest{Name: "root"})
+	if err != nil {
+		return err
+	}
+
+	_, err = as.UserGrantRole(&pb.AuthUserGrantRoleRequest{User: "root", Role: "root"})
+	if err != nil {
+		return err
+	}
+
+	return as.AuthEnable()
+}
+
+func TestCheckPassword(t *testing.T) {
 	b, tPath := backend.NewDefaultTmpBackend()
 	defer func() {
 		b.Close()
@@ -53,16 +81,20 @@ func TestAuthenticate(t *testing.T) {
 	}()
 
 	as := NewAuthStore(b)
+	defer as.Close()
+	err := enableAuthAndCreateRoot(as)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ua := &pb.AuthUserAddRequest{Name: "foo", Password: "bar"}
-	_, err := as.UserAdd(ua)
+	_, err = as.UserAdd(ua)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// auth a non-existing user
-	ctx1 := context.WithValue(context.WithValue(context.TODO(), "index", uint64(1)), "simpleToken", "dummy")
-	_, err = as.Authenticate(ctx1, "foo-test", "bar")
+	_, err = as.CheckPassword("foo-test", "bar")
 	if err == nil {
 		t.Fatalf("expected %v, got %v", ErrAuthFailed, err)
 	}
@@ -71,15 +103,13 @@ func TestAuthenticate(t *testing.T) {
 	}
 
 	// auth an existing user with correct password
-	ctx2 := context.WithValue(context.WithValue(context.TODO(), "index", uint64(2)), "simpleToken", "dummy")
-	_, err = as.Authenticate(ctx2, "foo", "bar")
+	_, err = as.CheckPassword("foo", "bar")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// auth an existing user but with wrong password
-	ctx3 := context.WithValue(context.WithValue(context.TODO(), "index", uint64(3)), "simpleToken", "dummy")
-	_, err = as.Authenticate(ctx3, "foo", "")
+	_, err = as.CheckPassword("foo", "")
 	if err == nil {
 		t.Fatalf("expected %v, got %v", ErrAuthFailed, err)
 	}
@@ -96,9 +126,14 @@ func TestUserDelete(t *testing.T) {
 	}()
 
 	as := NewAuthStore(b)
+	defer as.Close()
+	err := enableAuthAndCreateRoot(as)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ua := &pb.AuthUserAddRequest{Name: "foo"}
-	_, err := as.UserAdd(ua)
+	_, err = as.UserAdd(ua)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,8 +163,13 @@ func TestUserChangePassword(t *testing.T) {
 	}()
 
 	as := NewAuthStore(b)
+	defer as.Close()
+	err := enableAuthAndCreateRoot(as)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := as.UserAdd(&pb.AuthUserAddRequest{Name: "foo"})
+	_, err = as.UserAdd(&pb.AuthUserAddRequest{Name: "foo"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,9 +209,14 @@ func TestRoleAdd(t *testing.T) {
 	}()
 
 	as := NewAuthStore(b)
+	defer as.Close()
+	err := enableAuthAndCreateRoot(as)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// adds a new role
-	_, err := as.RoleAdd(&pb.AuthRoleAddRequest{Name: "role-test"})
+	_, err = as.RoleAdd(&pb.AuthRoleAddRequest{Name: "role-test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,8 +230,13 @@ func TestUserGrant(t *testing.T) {
 	}()
 
 	as := NewAuthStore(b)
+	defer as.Close()
+	err := enableAuthAndCreateRoot(as)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := as.UserAdd(&pb.AuthUserAddRequest{Name: "foo"})
+	_, err = as.UserAdd(&pb.AuthUserAddRequest{Name: "foo"})
 	if err != nil {
 		t.Fatal(err)
 	}

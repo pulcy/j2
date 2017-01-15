@@ -17,6 +17,7 @@ package integration
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -191,7 +192,7 @@ func TestV3TxnTooManyOps(t *testing.T) {
 		}
 
 		_, err := kvc.Txn(context.Background(), txn)
-		if err != rpctypes.ErrGRPCTooManyOps {
+		if !eqErrGRPC(err, rpctypes.ErrGRPCTooManyOps) {
 			t.Errorf("#%d: err = %v, want %v", i, err, rpctypes.ErrGRPCTooManyOps)
 		}
 	}
@@ -257,7 +258,7 @@ func TestV3TxnDuplicateKeys(t *testing.T) {
 	for i, tt := range tests {
 		txn := &pb.TxnRequest{Success: tt.txnSuccess}
 		_, err := kvc.Txn(context.Background(), txn)
-		if err != tt.werr {
+		if !eqErrGRPC(err, tt.werr) {
 			t.Errorf("#%d: err = %v, want %v", i, err, tt.werr)
 		}
 	}
@@ -279,6 +280,18 @@ func TestV3TxnRevision(t *testing.T) {
 	txnget := &pb.RequestOp{Request: &pb.RequestOp_RequestRange{RequestRange: &pb.RangeRequest{Key: []byte("abc")}}}
 	txn := &pb.TxnRequest{Success: []*pb.RequestOp{txnget}}
 	tresp, err := kvc.Txn(context.TODO(), txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// did not update revision
+	if presp.Header.Revision != tresp.Header.Revision {
+		t.Fatalf("got rev %d, wanted rev %d", tresp.Header.Revision, presp.Header.Revision)
+	}
+
+	txndr := &pb.RequestOp{Request: &pb.RequestOp_RequestDeleteRange{RequestDeleteRange: &pb.DeleteRangeRequest{Key: []byte("def")}}}
+	txn = &pb.TxnRequest{Success: []*pb.RequestOp{txndr}}
+	tresp, err = kvc.Txn(context.TODO(), txn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,6 +392,7 @@ func TestV3DeleteRange(t *testing.T) {
 		keySet []string
 		begin  string
 		end    string
+		prevKV bool
 
 		wantSet [][]byte
 		deleted int64
@@ -386,38 +400,44 @@ func TestV3DeleteRange(t *testing.T) {
 		// delete middle
 		{
 			[]string{"foo", "foo/abc", "fop"},
-			"foo/", "fop",
+			"foo/", "fop", false,
 			[][]byte{[]byte("foo"), []byte("fop")}, 1,
 		},
 		// no delete
 		{
 			[]string{"foo", "foo/abc", "fop"},
-			"foo/", "foo/",
+			"foo/", "foo/", false,
 			[][]byte{[]byte("foo"), []byte("foo/abc"), []byte("fop")}, 0,
 		},
 		// delete first
 		{
 			[]string{"foo", "foo/abc", "fop"},
-			"fo", "fop",
+			"fo", "fop", false,
 			[][]byte{[]byte("fop")}, 2,
 		},
 		// delete tail
 		{
 			[]string{"foo", "foo/abc", "fop"},
-			"foo/", "fos",
+			"foo/", "fos", false,
 			[][]byte{[]byte("foo")}, 2,
 		},
 		// delete exact
 		{
 			[]string{"foo", "foo/abc", "fop"},
-			"foo/abc", "",
+			"foo/abc", "", false,
 			[][]byte{[]byte("foo"), []byte("fop")}, 1,
 		},
 		// delete none, [x,x)
 		{
 			[]string{"foo"},
-			"foo", "foo",
+			"foo", "foo", false,
 			[][]byte{[]byte("foo")}, 0,
+		},
+		// delete middle with preserveKVs set
+		{
+			[]string{"foo", "foo/abc", "fop"},
+			"foo/", "fop", true,
+			[][]byte{[]byte("foo"), []byte("fop")}, 1,
 		},
 	}
 
@@ -436,13 +456,20 @@ func TestV3DeleteRange(t *testing.T) {
 
 		dreq := &pb.DeleteRangeRequest{
 			Key:      []byte(tt.begin),
-			RangeEnd: []byte(tt.end)}
+			RangeEnd: []byte(tt.end),
+			PrevKv:   tt.prevKV,
+		}
 		dresp, err := kvc.DeleteRange(context.TODO(), dreq)
 		if err != nil {
 			t.Fatalf("couldn't delete range on test %d (%v)", i, err)
 		}
 		if tt.deleted != dresp.Deleted {
 			t.Errorf("expected %d on test %v, got %d", tt.deleted, i, dresp.Deleted)
+		}
+		if tt.prevKV {
+			if len(dresp.PrevKvs) != int(dresp.Deleted) {
+				t.Errorf("preserve %d keys, want %d", len(dresp.PrevKvs), dresp.Deleted)
+			}
 		}
 
 		rreq := &pb.RangeRequest{Key: []byte{0x0}, RangeEnd: []byte{0xff}}
@@ -462,14 +489,13 @@ func TestV3DeleteRange(t *testing.T) {
 		if !reflect.DeepEqual(tt.wantSet, keys) {
 			t.Errorf("expected %v on test %v, got %v", tt.wantSet, i, keys)
 		}
-
 		// can't defer because tcp ports will be in use
 		clus.Terminate(t)
 	}
 }
 
-// TestV3TxnInvaildRange tests txn
-func TestV3TxnInvaildRange(t *testing.T) {
+// TestV3TxnInvalidRange tests that invalid ranges are rejected in txns.
+func TestV3TxnInvalidRange(t *testing.T) {
 	defer testutil.AfterTest(t)
 	clus := NewClusterV3(t, &ClusterConfig{Size: 3})
 	defer clus.Terminate(t)
@@ -500,14 +526,14 @@ func TestV3TxnInvaildRange(t *testing.T) {
 		Request: &pb.RequestOp_RequestRange{
 			RequestRange: rreq}})
 
-	if _, err := kvc.Txn(context.TODO(), txn); err != rpctypes.ErrGRPCFutureRev {
+	if _, err := kvc.Txn(context.TODO(), txn); !eqErrGRPC(err, rpctypes.ErrGRPCFutureRev) {
 		t.Errorf("err = %v, want %v", err, rpctypes.ErrGRPCFutureRev)
 	}
 
 	// compacted rev
 	tv, _ := txn.Success[1].Request.(*pb.RequestOp_RequestRange)
 	tv.RequestRange.Revision = 1
-	if _, err := kvc.Txn(context.TODO(), txn); err != rpctypes.ErrGRPCCompacted {
+	if _, err := kvc.Txn(context.TODO(), txn); !eqErrGRPC(err, rpctypes.ErrGRPCCompacted) {
 		t.Errorf("err = %v, want %v", err, rpctypes.ErrGRPCCompacted)
 	}
 }
@@ -525,7 +551,7 @@ func TestV3TooLargeRequest(t *testing.T) {
 	preq := &pb.PutRequest{Key: []byte("foo"), Value: largeV}
 
 	_, err := kvc.Put(context.Background(), preq)
-	if err != rpctypes.ErrGRPCRequestTooLarge {
+	if !eqErrGRPC(err, rpctypes.ErrGRPCRequestTooLarge) {
 		t.Errorf("err = %v, want %v", err, rpctypes.ErrGRPCRequestTooLarge)
 	}
 }
@@ -558,15 +584,18 @@ func TestV3Hash(t *testing.T) {
 // TestV3StorageQuotaAPI tests the V3 server respects quotas at the API layer
 func TestV3StorageQuotaAPI(t *testing.T) {
 	defer testutil.AfterTest(t)
+	quotasize := int64(16 * os.Getpagesize())
 
 	clus := NewClusterV3(t, &ClusterConfig{Size: 3})
 
-	clus.Members[0].QuotaBackendBytes = 64 * 1024
+	// Set a quota on one node
+	clus.Members[0].QuotaBackendBytes = quotasize
 	clus.Members[0].Stop(t)
 	clus.Members[0].Restart(t)
 
 	defer clus.Terminate(t)
 	kvc := toGRPC(clus.Client(0)).KV
+	waitForRestart(t, kvc)
 
 	key := []byte("abc")
 
@@ -577,9 +606,9 @@ func TestV3StorageQuotaAPI(t *testing.T) {
 	}
 
 	// test big put
-	bigbuf := make([]byte, 64*1024)
+	bigbuf := make([]byte, quotasize)
 	_, err := kvc.Put(context.TODO(), &pb.PutRequest{Key: key, Value: bigbuf})
-	if err == nil || err != rpctypes.ErrGRPCNoSpace {
+	if !eqErrGRPC(err, rpctypes.ErrGRPCNoSpace) {
 		t.Fatalf("big put got %v, expected %v", err, rpctypes.ErrGRPCNoSpace)
 	}
 
@@ -595,7 +624,7 @@ func TestV3StorageQuotaAPI(t *testing.T) {
 	txnreq := &pb.TxnRequest{}
 	txnreq.Success = append(txnreq.Success, puttxn)
 	_, txnerr := kvc.Txn(context.TODO(), txnreq)
-	if txnerr == nil || err != rpctypes.ErrGRPCNoSpace {
+	if !eqErrGRPC(txnerr, rpctypes.ErrGRPCNoSpace) {
 		t.Fatalf("big txn got %v, expected %v", err, rpctypes.ErrGRPCNoSpace)
 	}
 }
@@ -603,17 +632,19 @@ func TestV3StorageQuotaAPI(t *testing.T) {
 // TestV3StorageQuotaApply tests the V3 server respects quotas during apply
 func TestV3StorageQuotaApply(t *testing.T) {
 	testutil.AfterTest(t)
+	quotasize := int64(16 * os.Getpagesize())
 
 	clus := NewClusterV3(t, &ClusterConfig{Size: 2})
 	defer clus.Terminate(t)
 	kvc0 := toGRPC(clus.Client(0)).KV
 	kvc1 := toGRPC(clus.Client(1)).KV
 
-	// force a node to have a different quota
-	clus.Members[0].QuotaBackendBytes = 64 * 1024
+	// Set a quota on one node
+	clus.Members[0].QuotaBackendBytes = quotasize
 	clus.Members[0].Stop(t)
 	clus.Members[0].Restart(t)
 	clus.waitLeader(t, clus.Members)
+	waitForRestart(t, kvc0)
 
 	key := []byte("abc")
 
@@ -625,7 +656,7 @@ func TestV3StorageQuotaApply(t *testing.T) {
 	}
 
 	// test big put
-	bigbuf := make([]byte, 64*1024)
+	bigbuf := make([]byte, quotasize)
 	_, err := kvc1.Put(context.TODO(), &pb.PutRequest{Key: key, Value: bigbuf})
 	if err != nil {
 		t.Fatal(err)
@@ -694,7 +725,7 @@ func TestV3AlarmDeactivate(t *testing.T) {
 	key := []byte("abc")
 	smallbuf := make([]byte, 512)
 	_, err := kvc.Put(context.TODO(), &pb.PutRequest{Key: key, Value: smallbuf})
-	if err == nil && err != rpctypes.ErrGRPCNoSpace {
+	if err == nil && !eqErrGRPC(err, rpctypes.ErrGRPCNoSpace) {
 		t.Fatalf("put got %v, expected %v", err, rpctypes.ErrGRPCNoSpace)
 	}
 
@@ -829,6 +860,12 @@ func TestV3RangeRequest(t *testing.T) {
 					SortOrder:  pb.RangeRequest_DESCEND,
 					SortTarget: pb.RangeRequest_CREATE,
 				},
+				{ // sort ASCEND by default
+					Key: []byte("a"), RangeEnd: []byte("z"),
+					Limit:      10,
+					SortOrder:  pb.RangeRequest_NONE,
+					SortTarget: pb.RangeRequest_CREATE,
+				},
 			},
 
 			[][]string{
@@ -837,8 +874,71 @@ func TestV3RangeRequest(t *testing.T) {
 				{"b"},
 				{"c"},
 				{},
+				{"b", "a", "c", "d"},
 			},
-			[]bool{true, true, true, true, false},
+			[]bool{true, true, true, true, false, false},
+		},
+		// min/max mod rev
+		{
+			[]string{"rev2", "rev3", "rev4", "rev5", "rev6"},
+			[]pb.RangeRequest{
+				{
+					Key: []byte{0}, RangeEnd: []byte{0},
+					MinModRevision: 3,
+				},
+				{
+					Key: []byte{0}, RangeEnd: []byte{0},
+					MaxModRevision: 3,
+				},
+				{
+					Key: []byte{0}, RangeEnd: []byte{0},
+					MinModRevision: 3,
+					MaxModRevision: 5,
+				},
+				{
+					Key: []byte{0}, RangeEnd: []byte{0},
+					MaxModRevision: 10,
+				},
+			},
+
+			[][]string{
+				{"rev3", "rev4", "rev5", "rev6"},
+				{"rev2", "rev3"},
+				{"rev3", "rev4", "rev5"},
+				{"rev2", "rev3", "rev4", "rev5", "rev6"},
+			},
+			[]bool{false, false, false, false},
+		},
+		// min/max create rev
+		{
+			[]string{"rev2", "rev3", "rev2", "rev2", "rev6", "rev3"},
+			[]pb.RangeRequest{
+				{
+					Key: []byte{0}, RangeEnd: []byte{0},
+					MinCreateRevision: 3,
+				},
+				{
+					Key: []byte{0}, RangeEnd: []byte{0},
+					MaxCreateRevision: 3,
+				},
+				{
+					Key: []byte{0}, RangeEnd: []byte{0},
+					MinCreateRevision: 3,
+					MaxCreateRevision: 5,
+				},
+				{
+					Key: []byte{0}, RangeEnd: []byte{0},
+					MaxCreateRevision: 10,
+				},
+			},
+
+			[][]string{
+				{"rev3", "rev6"},
+				{"rev2", "rev3"},
+				{"rev3"},
+				{"rev2", "rev3", "rev6"},
+			},
+			[]bool{false, false, false, false},
 		},
 	}
 
@@ -1046,5 +1146,20 @@ func TestGRPCStreamRequireLeader(t *testing.T) {
 	err = wStream.Send(wreq)
 	if err != nil {
 		t.Errorf("err = %v, want nil", err)
+	}
+}
+
+func eqErrGRPC(err1 error, err2 error) bool {
+	return !(err1 == nil && err2 != nil) || err1.Error() == err2.Error()
+}
+
+// waitForRestart tries a range request until the client's server responds.
+// This is mainly a stop-gap function until grpcproxy's KVClient adapter
+// (and by extension, clientv3) supports grpc.CallOption pass-through so
+// FailFast=false works with Put.
+func waitForRestart(t *testing.T, kvc pb.KVClient) {
+	req := &pb.RangeRequest{Key: []byte("_"), Serializable: true}
+	if _, err := kvc.Range(context.TODO(), req, grpc.FailFast(false)); err != nil {
+		t.Fatal(err)
 	}
 }

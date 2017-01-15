@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -105,9 +105,10 @@ func (nc *nspawnCluster) keyspace() string {
 	return fmt.Sprintf("/fleet_functional/%s", nc.name)
 }
 
-// This function adds --endpoint flag if --tunnel flag is not used
-// Usefull for "fleetctl fd-forward" tests
-func handleEndpointFlag(m Member, args *[]string) {
+// This function either adds --endpoint flag or set env variable
+// FLEETCTL_ENDPOINT, if --tunnel flag is not used.
+// Useful for "fleetctl fd-forward" tests
+func handleEndpointFlag(m Member, useEnv bool, args *[]string) {
 	result := true
 	for _, arg := range *args {
 		if strings.Contains(arg, "-- ") || strings.Contains(arg, "--tunnel") {
@@ -116,18 +117,27 @@ func handleEndpointFlag(m Member, args *[]string) {
 		}
 	}
 	if result {
-		*args = append([]string{"--endpoint=" + m.Endpoint()}, *args...)
+		if useEnv {
+			os.Setenv("FLEETCTL_ENDPOINT", m.Endpoint())
+		} else {
+			*args = append([]string{"--endpoint=" + m.Endpoint()}, *args...)
+		}
 	}
 }
 
 func (nc *nspawnCluster) Fleetctl(m Member, args ...string) (string, string, error) {
-	handleEndpointFlag(m, &args)
+	handleEndpointFlag(m, false, &args)
 	return util.RunFleetctl(args...)
 }
 
 func (nc *nspawnCluster) FleetctlWithInput(m Member, input string, args ...string) (string, string, error) {
-	handleEndpointFlag(m, &args)
+	handleEndpointFlag(m, false, &args)
 	return util.RunFleetctlWithInput(input, args...)
+}
+
+func (nc *nspawnCluster) FleetctlWithEnv(m Member, args ...string) (string, string, error) {
+	handleEndpointFlag(m, true, &args)
+	return util.RunFleetctl(args...)
 }
 
 // WaitForNUnits runs fleetctl list-units to verify the actual number of units
@@ -294,39 +304,39 @@ func (nc *nspawnCluster) prepCluster() (err error) {
 		return
 	}
 
-	stdout, _, err := run("brctl show")
+	stdout, stderr, err := run("brctl show")
 	if err != nil {
-		log.Printf("Failed enumerating bridges: %v", err)
+		log.Printf("Failed enumerating bridges: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 		return
 	}
 
 	if !strings.Contains(stdout, "fleet0") {
-		_, _, err = run("brctl addbr fleet0")
+		stdout, stderr, err = run("brctl addbr fleet0")
 		if err != nil {
-			log.Printf("Failed adding fleet0 bridge: %v", err)
+			log.Printf("Failed adding fleet0 bridge: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 			return
 		}
 	} else {
 		log.Printf("Bridge fleet0 already exists")
 	}
 
-	stdout, _, err = run("ip addr list fleet0")
+	stdout, stderr, err = run("ip addr list fleet0")
 	if err != nil {
-		log.Printf("Failed listing fleet0 addresses: %v", err)
+		log.Printf("Failed listing fleet0 addresses: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 		return
 	}
 
 	if !strings.Contains(stdout, "172.18.0.1/16") {
-		_, _, err = run("ip addr add 172.18.0.1/16 dev fleet0")
+		stdout, stderr, err = run("ip addr add 172.18.0.1/16 dev fleet0")
 		if err != nil {
-			log.Printf("Failed adding 172.18.0.1/16 to fleet0: %v", err)
+			log.Printf("Failed adding 172.18.0.1/16 to fleet0: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 			return
 		}
 	}
 
-	_, _, err = run("ip link set fleet0 up")
+	stdout, stderr, err = run("ip link set fleet0 up")
 	if err != nil {
-		log.Printf("Failed bringing up fleet0 bridge: %v", err)
+		log.Printf("Failed bringing up fleet0 bridge: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 		return
 	}
 
@@ -369,15 +379,16 @@ func (nc *nspawnCluster) Members() []Member {
 	return ms
 }
 
-func (nc *nspawnCluster) MemberCommand(m Member, args ...string) (string, error) {
+func (nc *nspawnCluster) MemberCommand(m Member, args ...string) (string, string, error) {
 	baseArgs := []string{"-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("core@%s", m.IP())}
 	args = append(baseArgs, args...)
 	log.Printf("ssh %s", strings.Join(args, " "))
-	var stdoutBytes bytes.Buffer
+	var stdoutBytes, stderrBytes bytes.Buffer
 	cmd := exec.Command("ssh", args...)
 	cmd.Stdout = &stdoutBytes
+	cmd.Stderr = &stderrBytes
 	err := cmd.Run()
-	return stdoutBytes.String(), err
+	return stdoutBytes.String(), stderrBytes.String(), err
 }
 
 func (nc *nspawnCluster) CreateMember() (m Member, err error) {
@@ -603,8 +614,8 @@ func (nc *nspawnCluster) ReplaceMember(m Member) (Member, error) {
 	label := fmt.Sprintf("%s%s", nc.name, m.ID())
 
 	cmd := fmt.Sprintf("machinectl poweroff %s", label)
-	if _, _, err := run(cmd); err != nil {
-		return nil, fmt.Errorf("poweroff failed: %v", err)
+	if stdout, stderr, err := run(cmd); err != nil {
+		return nil, fmt.Errorf("poweroff failed: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 	}
 
 	var mN Member
@@ -670,6 +681,7 @@ func (nc *nspawnCluster) systemdReload() error {
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 	conn.Reload()
 	return nil
 }
@@ -679,6 +691,7 @@ func (nc *nspawnCluster) systemd(unitName, exec string) error {
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 
 	props := []dbus.Property{
 		dbus.PropExecStart(strings.Split(exec, " "), false),
@@ -708,13 +721,13 @@ func (nc *nspawnCluster) systemd(unitName, exec string) error {
 func (nc *nspawnCluster) machinePID(name string) (int, error) {
 	for i := 0; i < 100; i++ {
 		mach := fmt.Sprintf("%s%s", nc.name, name)
-		stdout, _, err := run(fmt.Sprintf("machinectl show -p Leader %s", mach))
+		stdout, stderr, err := run(fmt.Sprintf("machinectl show -p Leader %s", mach))
 		if err != nil {
 			if i != -1 {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			return -1, fmt.Errorf("failed detecting machine %s status: %v", mach, err)
+			return -1, fmt.Errorf("failed detecting machine %s status: %v\nstdout: %s\nstderr: %s", mach, err, stdout, stderr)
 		}
 
 		out := strings.SplitN(strings.TrimSpace(stdout), "=", 2)

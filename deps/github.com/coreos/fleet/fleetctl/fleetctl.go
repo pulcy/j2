@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -31,6 +32,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	etcd "github.com/coreos/etcd/client"
 
@@ -62,7 +64,7 @@ recommended to upgrade fleetctl to prevent incompatibility issues.
 	clientDriverEtcd = "etcd"
 
 	defaultEndpoint  = "unix:///var/run/fleet.sock"
-	defaultSleepTime = 500 * time.Millisecond
+	defaultSleepTime = 2000 * time.Millisecond
 )
 
 var (
@@ -214,6 +216,8 @@ func checkVersion(cReg registry.ClusterRegistry) (string, bool) {
 }
 
 func main() {
+	getFlagsFromEnv(cliName, cmdFleet.PersistentFlags())
+
 	if globalFlags.Debug {
 		log.EnableDebug()
 	}
@@ -223,7 +227,7 @@ func main() {
 	log.EnableTimestamps()
 
 	if len(os.Args) == 1 {
-		cmdFleet.Help()
+		cmdFleet.HelpFunc()(cmdFleet, os.Args)
 		os.Exit(0)
 	}
 
@@ -280,12 +284,12 @@ func main() {
 // environment variables. Environment variables take the name of the flag but
 // are UPPERCASE, have the given prefix, and any dashes are replaced by
 // underscores - for example: some-flag => PREFIX_SOME_FLAG
-func getFlagsFromEnv(prefix string, fs *flag.FlagSet) {
+func getFlagsFromEnv(prefix string, fs *pflag.FlagSet) {
 	alreadySet := make(map[string]bool)
-	fs.Visit(func(f *flag.Flag) {
+	fs.Visit(func(f *pflag.Flag) {
 		alreadySet[f.Name] = true
 	})
-	fs.VisitAll(func(f *flag.Flag) {
+	fs.VisitAll(func(f *pflag.Flag) {
 		if !alreadySet[f.Name] {
 			key := strings.ToUpper(prefix + "_" + strings.Replace(f.Name, "-", "_", -1))
 			val := os.Getenv(key)
@@ -309,20 +313,7 @@ func getClientAPI(cCmd *cobra.Command) client.API {
 
 // getClient initializes a client of fleet based on CLI flags
 func getClient(cCmd *cobra.Command) (client.API, error) {
-	// The user explicitly set --experimental-api=false, so it trumps the
-	// --driver flag. This behavior exists for backwards-compatibilty.
-	experimentalAPI, _ := cmdFleet.PersistentFlags().GetBool("experimental-api")
-	endPoint, _ := cmdFleet.PersistentFlags().GetString("endpoint")
 	clientDriver, _ := cmdFleet.PersistentFlags().GetString("driver")
-	if !experimentalAPI {
-		// Additionally, if the user set --experimental-api=false and did
-		// not change the value of --endpoint, they likely want to use the
-		// old default value.
-		if endPoint == defaultEndpoint {
-			endPoint = "http://127.0.0.1:2379,http://127.0.0.1:4001"
-		}
-		return getRegistryClient(cCmd)
-	}
 
 	switch clientDriver {
 	case clientDriverAPI:
@@ -427,6 +418,22 @@ func getHTTPClient(cCmd *cobra.Command) (client.API, error) {
 	return client.NewHTTPClient(&hc, *ep)
 }
 
+func getEndpoint() string {
+	// The user explicitly set --experimental-api=false, so it trumps the
+	// --driver flag. This behavior exists for backwards-compatibilty.
+	experimentalAPI, _ := cmdFleet.PersistentFlags().GetBool("experimental-api")
+	endPoint, _ := cmdFleet.PersistentFlags().GetString("endpoint")
+	if !experimentalAPI {
+		// Additionally, if the user set --experimental-api=false and did
+		// not change the value of --endpoint, they likely want to use the
+		// old default value.
+		if endPoint == defaultEndpoint {
+			endPoint = "http://127.0.0.1:2379,http://127.0.0.1:4001"
+		}
+	}
+	return endPoint
+}
+
 func getRegistryClient(cCmd *cobra.Command) (client.API, error) {
 	var dial func(string, string) (net.Conn, error)
 	SSHUserName, _ := cmdFleet.PersistentFlags().GetString("ssh-username")
@@ -459,9 +466,8 @@ func getRegistryClient(cCmd *cobra.Command) (client.API, error) {
 		TLSClientConfig: tlsConfig,
 	}
 
-	endPoint, _ := cmdFleet.PersistentFlags().GetString("endpoint")
 	eCfg := etcd.Config{
-		Endpoints:               strings.Split(endPoint, ","),
+		Endpoints:               strings.Split(getEndpoint(), ","),
 		Transport:               trans,
 		HeaderTimeoutPerRequest: getRequestTimeoutFlag(cCmd),
 	}
@@ -823,18 +829,19 @@ func lazyCreateUnits(cCmd *cobra.Command, args []string) error {
 // Returns true if the contents of the file matches the unit one, false
 // otherwise; and any error encountered.
 func matchLocalFileAndUnit(file string, su *schema.Unit) (bool, error) {
-	result := false
 	a := schema.MapSchemaUnitOptionsToUnitFile(su.Options)
 
 	_, err := os.Stat(file)
-	if err == nil {
-		b, err := getUnitFromFile(file)
-		if err == nil {
-			result = unit.MatchUnitFiles(a, b)
-		}
+	if err != nil {
+		return false, err
 	}
 
-	return result, err
+	b, err := getUnitFromFile(file)
+	if err != nil {
+		return false, err
+	}
+
+	return unit.MatchUnitFiles(a, b), nil
 }
 
 // isLocalUnitDifferent compares a Unit on the file system with a one
@@ -956,23 +963,23 @@ func getBlockAttempts(cCmd *cobra.Command) int {
 // wait, it will assume that all units reached their desired state.
 // If maxAttempts is zero tryWaitForUnitStates will retry forever, and
 // if it is greater than zero, it will retry up to the indicated value.
-// It returns 0 on success or 1 on errors.
-func tryWaitForUnitStates(units []string, state string, js job.JobState, maxAttempts int, out io.Writer) (ret int) {
+// It returns nil on success or error on failure.
+func tryWaitForUnitStates(units []string, state string, js job.JobState, maxAttempts int, out io.Writer) error {
 	// We do not wait just assume we reached the desired state
 	if maxAttempts <= -1 {
 		for _, name := range units {
 			stdout("Triggered unit %s %s", name, state)
 		}
-		return
+		return nil
 	}
 
 	errchan := waitForUnitStates(units, js, maxAttempts, out)
 	for err := range errchan {
 		stderr("Error waiting for units: %v", err)
-		ret = 1
+		return err
 	}
 
-	return
+	return nil
 }
 
 // waitForUnitStates polls each of the indicated units until each of their
@@ -1001,63 +1008,154 @@ func waitForUnitStates(units []string, js job.JobState, maxAttempts int, out io.
 func checkUnitState(name string, js job.JobState, maxAttempts int, out io.Writer, wg *sync.WaitGroup, errchan chan error) {
 	defer wg.Done()
 
-	sleep := defaultSleepTime
-
 	if maxAttempts < 1 {
 		for {
 			if assertUnitState(name, js, out) {
 				return
 			}
-			time.Sleep(sleep)
 		}
 	} else {
 		for attempt := 0; attempt < maxAttempts; attempt++ {
 			if assertUnitState(name, js, out) {
 				return
 			}
-			time.Sleep(sleep)
 		}
 		errchan <- fmt.Errorf("timed out waiting for unit %s to report state %s", name, js)
 	}
 }
 
-func assertUnitState(name string, js job.JobState, out io.Writer) (ret bool) {
-	var state string
+func assertUnitState(name string, js job.JobState, out io.Writer) bool {
+	fetchUnitState := func() error {
+		var state string
 
-	u, err := cAPI.Unit(name)
+		u, err := cAPI.Unit(name)
+		if err != nil {
+			return fmt.Errorf("Error retrieving Unit(%s) from Registry: %v", name, err)
+		}
+		if u == nil {
+			return fmt.Errorf("Unit %s not found", name)
+		}
+
+		// If this is a global unit, CurrentState will never be set. Instead, wait for DesiredState.
+		if suToGlobal(*u) {
+			state = u.DesiredState
+		} else {
+			state = u.CurrentState
+		}
+
+		if job.JobState(state) != js {
+			return fmt.Errorf("Waiting for Unit(%s) state(%s) to be %s", name, job.JobState(state), js)
+		}
+
+		msg := fmt.Sprintf("Unit %s %s", name, u.CurrentState)
+
+		if u.MachineID != "" {
+			ms := cachedMachineState(u.MachineID)
+			if ms != nil {
+				msg = fmt.Sprintf("%s on %s", msg, machineFullLegend(*ms, false))
+			}
+		}
+
+		fmt.Fprintln(out, msg)
+		return nil
+	}
+	_, err := waitForState(fetchUnitState)
 	if err != nil {
-		log.Warningf("Error retrieving Unit(%s) from Registry: %v", name, err)
-		return
-	}
-	if u == nil {
-		log.Warningf("Unit %s not found", name)
-		return
+		return false
 	}
 
-	// If this is a global unit, CurrentState will never be set. Instead, wait for DesiredState.
-	if suToGlobal(*u) {
-		state = u.DesiredState
-	} else {
-		state = u.CurrentState
+	return true
+}
+
+// tryWaitForSystemdActiveState tries to wait for systemd units to reach an
+// active state, making use of cAPI. It takes one or more units as input, and
+// ensures that every unit in the []units must be in the active state.
+// If yes, return nil. Otherwise return error.
+func tryWaitForSystemdActiveState(units []string, maxAttempts int) (err error) {
+	if maxAttempts <= -1 {
+		for _, name := range units {
+			stdout("Triggered unit %s start", name)
+		}
+		return nil
 	}
 
-	if job.JobState(state) != js {
-		log.Debugf("Waiting for Unit(%s) state(%s) to be %s", name, job.JobState(state), js)
-		return
+	errchan := waitForSystemdActiveState(units, maxAttempts)
+	for err := range errchan {
+		stderr("Error waiting for units: %v", err)
+		return err
 	}
 
-	ret = true
-	msg := fmt.Sprintf("Unit %s %s", name, u.CurrentState)
+	return nil
+}
 
-	if u.MachineID != "" {
-		ms := cachedMachineState(u.MachineID)
-		if ms != nil {
-			msg = fmt.Sprintf("%s on %s", msg, machineFullLegend(*ms, false))
+// waitForSystemdActiveState tries to assert that the given unit becomes
+// active, making use of multiple goroutines that check unit states.
+func waitForSystemdActiveState(units []string, maxAttempts int) (errch chan error) {
+	errchan := make(chan error)
+	var wg sync.WaitGroup
+	for _, name := range units {
+		wg.Add(1)
+		go checkSystemdActiveState(name, maxAttempts, &wg, errchan)
+	}
+
+	go func() {
+		wg.Wait()
+		close(errchan)
+	}()
+
+	return errchan
+}
+
+func checkSystemdActiveState(name string, maxAttempts int, wg *sync.WaitGroup, errchan chan error) {
+	defer wg.Done()
+
+	// "isInf == true" means "blocking forever until it succeeded".
+	// In that case, maxAttempts is set to an arbitrary large integer number.
+	var isInf bool
+	if maxAttempts < 1 {
+		isInf = true
+		maxAttempts = math.MaxInt32
+	}
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		if err := assertSystemdActiveState(name); err == nil {
+			return
+		} else {
+			errchan <- err
+		}
+
+		if !isInf {
+			errchan <- fmt.Errorf("timed out waiting for unit %s to report active state", name)
 		}
 	}
+}
 
-	fmt.Fprintln(out, msg)
-	return
+// assertSystemdActiveState determines if a given systemd unit is actually
+// in the active state, making use of cAPI.
+// It repeatedly checks up to defaultSleepTimeout. If ActiveState of the given
+// unit is active and LoadState of the given unit is loaded.
+// If it cannot get the expected states within the period, return error.
+func assertSystemdActiveState(unitName string) error {
+	fetchSystemdActiveState := func() error {
+		us, err := cAPI.UnitState(unitName)
+		if err != nil {
+			return fmt.Errorf("Error getting unit state of %s: %v", unitName, err)
+		}
+
+		// Get systemd state and check the state is active & loaded.
+		if us.SystemdActiveState != "active" || us.SystemdLoadState != "loaded" {
+			return fmt.Errorf("Failed to find an active unit %s", unitName)
+		}
+		return nil
+	}
+
+	timeout, err := waitForState(fetchSystemdActiveState)
+	if err != nil {
+		return fmt.Errorf("Failed to find an active unit %s within %v, err: %v",
+			unitName, timeout, err)
+	}
+
+	return nil
 }
 
 func machineState(machID string) (*machine.MachineState, error) {
@@ -1124,4 +1222,59 @@ func runWrapper(cf func(cCmd *cobra.Command, args []string) (exit int)) func(cCm
 		cAPI = getClientAPI(cCmd)
 		cmdExitCode = cf(cCmd, args)
 	}
+}
+
+// waitForState is a generic helper for repeatedly checking the status.
+// It gets a generic function stateCheckFunc() to be checked, which returns
+// nil on success, error otherwise. In case of failure, waitForState
+// retries to run stateCheckFunc, once in 250 msec, up to defaultSleepTime.
+func waitForState(stateCheckFunc func() error) (time.Duration, error) {
+	timeout := defaultSleepTime
+	alarm := time.After(timeout)
+	ticker := time.Tick(250 * time.Millisecond)
+
+	for {
+		select {
+		case <-alarm:
+			return timeout, fmt.Errorf("Failed to fetch states within %v", timeout)
+		case <-ticker:
+			err := stateCheckFunc()
+			if err == nil {
+				return timeout, nil
+			}
+			log.Debugf("Retrying assertion of states. err: %v", err)
+		}
+	}
+}
+
+// cmdGlobalMachineState runs a specific fleetctl command on each target machine
+// where global units are started. To avoid unnecessary ssh connections being
+// alive, it filters out the list of machines as much as possible.
+func cmdGlobalMachineState(cCmd *cobra.Command, globalUnits []schema.Unit) (err error) {
+	cmd := cCmd.Name()
+	mapUNs := map[string]string{}
+	for _, unit := range globalUnits {
+		m := cachedMachineState(unit.MachineID)
+		if m == nil || m.ID == "" || m.PublicIP == "" {
+			continue
+		}
+		mapUNs[m.ID] = unit.Name
+	}
+
+	// create a list of unique unit names
+	resultIDs := map[string]string{}
+	for id, name := range mapUNs {
+		resultIDs[id] = name
+	}
+
+	for id, name := range resultIDs {
+		// run a correspondent systemctl command
+		if exitVal := runCommand(cCmd, id, "systemctl", cmd, name); exitVal != 0 {
+			err = fmt.Errorf("Error running systemctl %s. machine id=%v, unit name=%s",
+				cmd, id, name)
+			break
+		}
+	}
+
+	return err
 }

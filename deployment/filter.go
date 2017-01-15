@@ -14,34 +14,32 @@
 
 package deployment
 
-import (
-	"github.com/pulcy/j2/jobs"
-)
+import "github.com/pulcy/j2/scheduler"
 
 // createUnitNameFilter creates a predicate that return true if a given
 // unit name belongs to the configured job and task-group selection.
-func (d *Deployment) createUnitNamePredicate() func(string) bool {
+func (d *Deployment) createUnitNamePredicate(s scheduler.Scheduler) func(scheduler.Unit) bool {
 	if d.groupSelection.IncludeAll() {
 		// Select everything in the job
-		return func(unitName string) bool {
+		return func(unit scheduler.Unit) bool {
 			if !d.scalingGroupSelection.IncludeAll() {
-				if !jobs.IsUnitForScalingGroup(unitName, d.job.Name, uint(d.scalingGroupSelection)) {
+				if !s.IsUnitForScalingGroup(unit, uint(d.scalingGroupSelection)) {
 					return false
 				}
 			}
-			return jobs.IsUnitForJob(unitName, d.job.Name)
+			return s.IsUnitForJob(unit)
 		}
 	}
 
 	// Select everything in one of the groups
-	return func(unitName string) bool {
+	return func(unit scheduler.Unit) bool {
 		if !d.scalingGroupSelection.IncludeAll() {
-			if !jobs.IsUnitForScalingGroup(unitName, d.job.Name, uint(d.scalingGroupSelection)) {
+			if !s.IsUnitForScalingGroup(unit, uint(d.scalingGroupSelection)) {
 				return false
 			}
 		}
 		for _, g := range d.groupSelection {
-			if jobs.IsUnitForTaskGroup(unitName, d.job.Name, g) {
+			if s.IsUnitForTaskGroup(unit, g) {
 				return true
 			}
 		}
@@ -50,9 +48,9 @@ func (d *Deployment) createUnitNamePredicate() func(string) bool {
 }
 
 // selectUnitNames returns al unit files from the given list where the given predicate returns true.
-func selectUnitNames(unitNames []string, predicate func(string) bool) []string {
-	result := []string{}
-	for _, x := range unitNames {
+func selectUnitNames(units []scheduler.Unit, predicate func(scheduler.Unit) bool) []scheduler.Unit {
+	result := []scheduler.Unit{}
+	for _, x := range units {
 		if predicate(x) {
 			result = append(result, x)
 		}
@@ -62,10 +60,10 @@ func selectUnitNames(unitNames []string, predicate func(string) bool) []string {
 
 // containsPredicate creates a predicate that returns true if the given unitName is contained
 // in the given list.
-func containsPredicate(list []string) func(string) bool {
-	return func(unitName string) bool {
+func containsPredicate(list []scheduler.Unit) func(scheduler.Unit) bool {
+	return func(unit scheduler.Unit) bool {
 		for _, x := range list {
-			if x == unitName {
+			if x.Name() == unit.Name() {
 				return true
 			}
 		}
@@ -73,8 +71,8 @@ func containsPredicate(list []string) func(string) bool {
 	}
 }
 
-func notPredicate(predicate func(string) bool) func(string) bool {
-	return func(unitName string) bool {
-		return !predicate(unitName)
+func notPredicate(predicate func(scheduler.Unit) bool) func(scheduler.Unit) bool {
+	return func(unit scheduler.Unit) bool {
+		return !predicate(unit)
 	}
 }

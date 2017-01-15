@@ -14,14 +14,22 @@
 
 package render
 
+import "github.com/pulcy/j2/jobs"
+
 type Renderer interface {
-	GenerateUnits(ctx RenderContext, instanceCount int) ([]UnitData, error)
+	jobs.Renderer
+	GenerateUnits(job jobs.Job, ctx RenderContext, config RenderConfig, instanceCount int) ([]UnitData, error)
 }
 
 type RenderContext interface {
 	ProjectName() string
 	ProjectVersion() string
 	ProjectBuild() string
+
+	ImageVaultMonkey() string // Docker image name of vault-monkey
+	ImageWormhole() string    // Docker image name of wormhole
+	ImageAlpine() string      // Docker image name of alpine linux
+	ImageCephVolume() string  // Docker image name of ceph-volume
 }
 
 type UnitData interface {

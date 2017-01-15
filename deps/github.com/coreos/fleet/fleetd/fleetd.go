@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package fleetd
 
 import (
 	"encoding/json"
@@ -39,7 +39,7 @@ const (
 	FleetdDescription = "fleetd is the server component of fleet, a simple orchestration system for scheduling systemd units in a cluster."
 )
 
-func main() {
+func Main() {
 	userset := flag.NewFlagSet("fleet", flag.ExitOnError)
 	printVersion := userset.Bool("version", false, "Print the version and exit")
 	cfgPath := userset.String("config", "", fmt.Sprintf("Path to config file. Fleet will look for a config at %s by default.", DefaultConfigFile))
@@ -77,6 +77,8 @@ func main() {
 	cfgset := flag.NewFlagSet("fleet", flag.ExitOnError)
 	cfgset.Int("verbosity", 0, "Logging level")
 	cfgset.Var(&pkg.StringSlice{"http://127.0.0.1:2379", "http://127.0.0.1:4001"}, "etcd_servers", "List of etcd endpoints")
+	cfgset.String("etcd_username", "", "username for secure etcd communication")
+	cfgset.String("etcd_password", "", "password for secure etcd communication")
 	cfgset.String("etcd_keyfile", "", "SSL key file used to secure etcd communication")
 	cfgset.String("etcd_certfile", "", "SSL certification file used to secure etcd communication")
 	cfgset.String("etcd_cafile", "", "SSL Certificate Authority file used to secure etcd communication")
@@ -86,7 +88,10 @@ func main() {
 	cfgset.String("public_ip", "", "IP address that fleet machine should publish")
 	cfgset.String("metadata", "", "List of key-value metadata to assign to the fleet machine")
 	cfgset.String("agent_ttl", agent.DefaultTTL, "TTL in seconds of fleet machine state in etcd")
+	cfgset.String("units_directory", "/run/fleet/units/", "Path to the fleet units directory")
+	cfgset.Bool("systemd_user", false, "When true use systemd --user)")
 	cfgset.Int("token_limit", 100, "Maximum number of entries per page returned from API requests")
+	cfgset.Bool("enable_grpc", false, "When possible, uses grpc to communicate between engine and agent")
 	cfgset.Bool("disable_engine", false, "Disable the engine entirely, use with care")
 	cfgset.Bool("disable_watches", false, "Disable the use of etcd watches. Increases scheduling latency")
 	cfgset.Bool("verify_units", false, "DEPRECATED - This option is ignored")
@@ -95,13 +100,13 @@ func main() {
 	globalconf.Register("", cfgset)
 	cfg, err := getConfig(cfgset, *cfgPath)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatal(err)
 	}
 
 	log.Debugf("Creating Server")
 	srv, err := server.New(*cfg, nil)
 	if err != nil {
-		log.Fatalf("Failed creating Server: %v", err.Error())
+		log.Fatalf("Failed creating Server: %v", err)
 	}
 	srv.Run()
 
@@ -115,7 +120,7 @@ func main() {
 
 		cfg, err := getConfig(cfgset, *cfgPath)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Fatal(err)
 		}
 
 		log.Infof("Restarting server components")
@@ -130,7 +135,7 @@ func main() {
 		// The new server takes the original listeners.
 		srv, err = server.New(*cfg, oldListeners)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Fatal(err)
 		}
 
 		srv.Run()
@@ -213,6 +218,8 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 	cfg := config.Config{
 		Verbosity:               (*flagset.Lookup("verbosity")).Value.(flag.Getter).Get().(int),
 		EtcdServers:             (*flagset.Lookup("etcd_servers")).Value.(flag.Getter).Get().(pkg.StringSlice),
+		EtcdUsername:            (*flagset.Lookup("etcd_username")).Value.(flag.Getter).Get().(string),
+		EtcdPassword:            (*flagset.Lookup("etcd_password")).Value.(flag.Getter).Get().(string),
 		EtcdKeyPrefix:           (*flagset.Lookup("etcd_key_prefix")).Value.(flag.Getter).Get().(string),
 		EtcdKeyFile:             (*flagset.Lookup("etcd_keyfile")).Value.(flag.Getter).Get().(string),
 		EtcdCertFile:            (*flagset.Lookup("etcd_certfile")).Value.(flag.Getter).Get().(string),
@@ -224,7 +231,10 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		AgentTTL:                (*flagset.Lookup("agent_ttl")).Value.(flag.Getter).Get().(string),
 		DisableEngine:           (*flagset.Lookup("disable_engine")).Value.(flag.Getter).Get().(bool),
 		DisableWatches:          (*flagset.Lookup("disable_watches")).Value.(flag.Getter).Get().(bool),
+		EnableGRPC:              (*flagset.Lookup("enable_grpc")).Value.(flag.Getter).Get().(bool),
 		VerifyUnits:             (*flagset.Lookup("verify_units")).Value.(flag.Getter).Get().(bool),
+		UnitsDirectory:          (*flagset.Lookup("units_directory")).Value.(flag.Getter).Get().(string),
+		SystemdUser:             (*flagset.Lookup("systemd_user")).Value.(flag.Getter).Get().(bool),
 		TokenLimit:              (*flagset.Lookup("token_limit")).Value.(flag.Getter).Get().(int),
 		AuthorizedKeysFile:      (*flagset.Lookup("authorized_keys_file")).Value.(flag.Getter).Get().(string),
 	}

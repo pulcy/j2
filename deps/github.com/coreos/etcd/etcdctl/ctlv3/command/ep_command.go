@@ -25,11 +25,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	healthCheckKey string
+)
+
 // NewEndpointCommand returns the cobra command for "endpoint".
 func NewEndpointCommand() *cobra.Command {
 	ec := &cobra.Command{
-		Use:   "endpoint",
-		Short: "endpoint is used to check endpoints.",
+		Use:   "endpoint <subcommand>",
+		Short: "Endpoint related commands",
 	}
 
 	ec.AddCommand(newEpHealthCommand())
@@ -41,16 +45,19 @@ func NewEndpointCommand() *cobra.Command {
 func newEpHealthCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "health",
-		Short: "health checks the healthiness of endpoints specified in `--endpoints` flag",
+		Short: "Checks the healthiness of endpoints specified in `--endpoints` flag",
 		Run:   epHealthCommandFunc,
 	}
+
+	cmd.Flags().StringVar(&healthCheckKey, "health-check-key", "health", "The key used to perform the health check. Makes sure the user can access the key.")
+
 	return cmd
 }
 
 func newEpStatusCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
-		Short: "status prints out the status of endpoints specified in `--endpoints` flag",
+		Short: "Prints out the status of endpoints specified in `--endpoints` flag",
 		Long: `When --write-out is set to simple, this command prints out comma-separated status lists for each endpoint.
 The items in the lists are endpoint, ID, version, db size, is leader, raft term, raft index.
 `,
@@ -68,9 +75,10 @@ func epHealthCommandFunc(cmd *cobra.Command, args []string) {
 
 	sec := secureCfgFromCmd(cmd)
 	dt := dialTimeoutFromCmd(cmd)
+	auth := authCfgFromCmd(cmd)
 	cfgs := []*v3.Config{}
 	for _, ep := range endpoints {
-		cfg, err := newClientCfg([]string{ep}, dt, sec, nil)
+		cfg, err := newClientCfg([]string{ep}, dt, sec, auth)
 		if err != nil {
 			ExitWithError(ExitBadArgs, err)
 		}
@@ -93,7 +101,7 @@ func epHealthCommandFunc(cmd *cobra.Command, args []string) {
 			// get a random key. As long as we can get the response without an error, the
 			// endpoint is health.
 			ctx, cancel := commandCtx(cmd)
-			_, err = cli.Get(ctx, "health")
+			_, err = cli.Get(ctx, healthCheckKey)
 			cancel()
 			if err != nil {
 				fmt.Printf("%s is unhealthy: failed to commit proposal: %v\n", ep, err)

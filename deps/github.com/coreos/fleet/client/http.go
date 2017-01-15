@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -115,6 +115,14 @@ func (c *HTTPClient) UnitStates() ([]*schema.UnitState, error) {
 		}
 	}
 	return states, nil
+}
+
+func (c *HTTPClient) UnitState(name string) (*schema.UnitState, error) {
+	u, err := c.svc.UnitState.Get(name).Do()
+	if err != nil && !is404(err) {
+		return nil, err
+	}
+	return u, nil
 }
 
 func (c *HTTPClient) DestroyUnit(name string) error {

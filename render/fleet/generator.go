@@ -21,8 +21,6 @@ import (
 )
 
 type fleetRenderer struct {
-	job jobs.Job
-	render.RenderConfig
 }
 
 type RenderContext interface {
@@ -31,11 +29,8 @@ type RenderContext interface {
 	ProjectBuild() string
 }
 
-func NewGenerator(job jobs.Job, config render.RenderConfig) render.Renderer {
-	return &fleetRenderer{
-		job:          job,
-		RenderConfig: config,
-	}
+func newGenerator() render.Renderer {
+	return &fleetRenderer{}
 }
 
 type generatorContext struct {
@@ -44,22 +39,22 @@ type generatorContext struct {
 	Cluster       cluster.Cluster
 }
 
-func (g *fleetRenderer) GenerateUnits(ctx render.RenderContext, instanceCount int) ([]render.UnitData, error) {
+func (g *fleetRenderer) GenerateUnits(job jobs.Job, ctx render.RenderContext, config render.RenderConfig, instanceCount int) ([]render.UnitData, error) {
 	units := []render.UnitData{}
-	maxCount := g.job.MaxCount()
+	maxCount := job.MaxCount()
 	for scalingGroup := uint(1); scalingGroup <= maxCount; scalingGroup++ {
-		if g.CurrentScalingGroup != 0 && g.CurrentScalingGroup != scalingGroup {
+		if config.CurrentScalingGroup != 0 && config.CurrentScalingGroup != scalingGroup {
 			continue
 		}
-		for _, tg := range g.job.Groups {
-			if !g.include(tg.Name) {
+		for _, tg := range job.Groups {
+			if !include(config, tg.Name) {
 				// We do not want this task group now
 				continue
 			}
 			genCtx := generatorContext{
 				ScalingGroup:  scalingGroup,
 				InstanceCount: instanceCount,
-				Cluster:       g.Cluster,
+				Cluster:       config.Cluster,
 			}
 			unitChains, err := createTaskGroupUnits(tg, genCtx)
 			if err != nil {
@@ -78,12 +73,12 @@ func (g *fleetRenderer) GenerateUnits(ctx render.RenderContext, instanceCount in
 }
 
 // Should the group with given name be generated?
-func (g *fleetRenderer) include(groupName jobs.TaskGroupName) bool {
-	if len(g.Groups) == 0 {
+func include(config render.RenderConfig, groupName jobs.TaskGroupName) bool {
+	if len(config.Groups) == 0 {
 		// include all
 		return true
 	}
-	for _, n := range g.Groups {
+	for _, n := range config.Groups {
 		if n == groupName {
 			return true
 		}

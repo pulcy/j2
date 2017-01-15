@@ -120,7 +120,8 @@ type cURLReq struct {
 	username string
 	password string
 
-	isTLS bool
+	isTLS   bool
+	timeout int
 
 	endpoint string
 
@@ -151,16 +152,23 @@ func cURLPrefixArgs(clus *etcdProcessCluster, method string, req cURLReq) []stri
 	} else {
 		cmdArgs = append(cmdArgs, "-L", ep)
 	}
+	if req.timeout != 0 {
+		cmdArgs = append(cmdArgs, "-m", fmt.Sprintf("%d", req.timeout))
+	}
 
 	switch method {
-	case "PUT":
+	case "POST", "PUT":
 		dt := req.value
 		if !strings.HasPrefix(dt, "{") { // for non-JSON value
 			dt = "value=" + dt
 		}
-		cmdArgs = append(cmdArgs, "-XPUT", "-d", dt)
+		cmdArgs = append(cmdArgs, "-X", method, "-d", dt)
 	}
 	return cmdArgs
+}
+
+func cURLPost(clus *etcdProcessCluster, req cURLReq) error {
+	return spawnWithExpect(cURLPrefixArgs(clus, "POST", req), req.expected)
 }
 
 func cURLPut(clus *etcdProcessCluster, req cURLReq) error {

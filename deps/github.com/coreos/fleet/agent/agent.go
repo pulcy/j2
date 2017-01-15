@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -70,7 +70,13 @@ func (a *Agent) heartbeatJobs(ttl time.Duration, stop <-chan struct{}) {
 		}
 	}
 
-	interval := ttl / 2
+	var interval time.Duration
+	if ttl > 10*time.Second {
+		interval = ttl * 4 / 5
+	} else {
+		interval = ttl / 2
+	}
+
 	ticker := time.Tick(interval)
 	for {
 		select {
@@ -94,31 +100,45 @@ func (a *Agent) loadUnit(u *job.Unit) error {
 	return a.um.Load(u.Name, u.Unit)
 }
 
-func (a *Agent) unloadUnit(unitName string) {
+func (a *Agent) unloadUnit(unitName string) error {
 	a.registry.ClearUnitHeartbeat(unitName)
 	a.cache.dropTargetState(unitName)
 
-	a.um.TriggerStop(unitName)
+	errStop := a.um.TriggerStop(unitName)
+	if errStop != nil {
+		log.Warningf("TriggerStop on systemd unit %s returned: %v", unitName, errStop)
+	} else {
+		log.Infof("Stopped unit(%s)", unitName)
+	}
 
 	a.uGen.Unsubscribe(unitName)
 
-	a.um.Unload(unitName)
+	// unit should be unloaded and unit file should be removed, only if the unit
+	// could be successfully stopped. Otherwise the unit could get into a state
+	// where the unit cannot be stopped via fleet, because the unit file was
+	// already removed. See also https://github.com/coreos/fleet/issues/1216.
+	var errUnload error
+	if errStop == nil {
+		errUnload = a.um.Unload(unitName)
+	}
+
+	return errUnload
 }
 
-func (a *Agent) startUnit(unitName string) {
+func (a *Agent) startUnit(unitName string) error {
 	a.cache.setTargetState(unitName, job.JobStateLaunched)
 
 	machID := a.Machine.State().ID
 	a.registry.UnitHeartbeat(unitName, machID, a.ttl)
 
-	a.um.TriggerStart(unitName)
+	return a.um.TriggerStart(unitName)
 }
 
-func (a *Agent) stopUnit(unitName string) {
+func (a *Agent) stopUnit(unitName string) error {
 	a.cache.setTargetState(unitName, job.JobStateLoaded)
 	a.registry.ClearUnitHeartbeat(unitName)
 
-	a.um.TriggerStop(unitName)
+	return a.um.TriggerStop(unitName)
 }
 
 type unitState struct {

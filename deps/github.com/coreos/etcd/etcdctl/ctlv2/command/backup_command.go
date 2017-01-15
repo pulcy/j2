@@ -17,17 +17,17 @@ package command
 import (
 	"fmt"
 	"log"
-	"os"
 	"path"
 	"time"
 
-	"github.com/codegangsta/cli"
 	"github.com/coreos/etcd/etcdserver/etcdserverpb"
+	"github.com/coreos/etcd/pkg/fileutil"
 	"github.com/coreos/etcd/pkg/idutil"
 	"github.com/coreos/etcd/pkg/pbutil"
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
+	"github.com/urfave/cli"
 )
 
 func NewBackupCommand() cli.Command {
@@ -46,7 +46,7 @@ func NewBackupCommand() cli.Command {
 }
 
 // handleBackup handles a request that intends to do a backup.
-func handleBackup(c *cli.Context) {
+func handleBackup(c *cli.Context) error {
 	var srcWAL string
 	var destWAL string
 
@@ -65,7 +65,7 @@ func handleBackup(c *cli.Context) {
 		destWAL = path.Join(c.String("backup-dir"), "member", "wal")
 	}
 
-	if err := os.MkdirAll(destSnap, 0700); err != nil {
+	if err := fileutil.CreateDirAll(destSnap); err != nil {
 		log.Fatalf("failed creating backup snapshot dir %v: %v", destSnap, err)
 	}
 	ss := snap.New(srcSnap)
@@ -113,4 +113,6 @@ func handleBackup(c *cli.Context) {
 	if err := neww.SaveSnapshot(walsnap); err != nil {
 		log.Fatal(err)
 	}
+
+	return nil
 }

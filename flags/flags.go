@@ -22,19 +22,20 @@ import (
 
 type Flags struct {
 	// Global flags
-	Local          bool // Use local vagrant test cluster
-	JobPath        string
-	ClusterPath    string
-	TunnelOverride string
-	Groups         []string
-	ScalingGroup   uint
-	DryRun         bool
-	Force          bool
-	AutoContinue   bool
-	StopDelay      time.Duration
-	DestroyDelay   time.Duration
-	SliceDelay     time.Duration
-	Options        Options
+	Local                bool // Use local vagrant test cluster
+	JobPath              string
+	ClusterPath          string
+	OrchestratorOverride string
+	TunnelOverride       string
+	Groups               []string
+	ScalingGroup         uint
+	DryRun               bool
+	Force                bool
+	AutoContinue         bool
+	StopDelay            time.Duration
+	DestroyDelay         time.Duration
+	SliceDelay           time.Duration
+	Options              Options
 
 	vault.VaultConfig
 	vault.GithubLoginData

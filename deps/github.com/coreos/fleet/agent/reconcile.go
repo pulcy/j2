@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -127,7 +127,13 @@ func desiredAgentState(a *Agent, reg registry.Registry) (*AgentState, error) {
 		return nil, err
 	}
 
-	ms := a.Machine.State()
+	// fetch full machine state from registry instead of
+	// using the local version to allow for dynamic metadata
+	ms, err := reg.MachineState(a.Machine.State().ID)
+	if err != nil {
+		log.Errorf("Failed fetching machine state from Registry: %v", err)
+		return nil, err
+	}
 	as := AgentState{
 		MState: &ms,
 		Units:  make(map[string]*job.Unit),
@@ -142,16 +148,25 @@ func desiredAgentState(a *Agent, reg registry.Registry) (*AgentState, error) {
 	for _, u := range units {
 		u := u
 		md := u.RequiredTargetMetadata()
-		if u.IsGlobal() && !machine.HasMetadata(&ms, md) {
-			log.Debugf("Agent unable to run global unit %s: missing required metadata", u.Name)
-			continue
+
+		if u.IsGlobal() {
+			if !machine.HasMetadata(&ms, md) {
+				log.Debugf("Agent unable to run global unit %s: missing required metadata", u.Name)
+				continue
+			}
 		}
+
 		if !u.IsGlobal() {
 			sUnit, ok := sUnitMap[u.Name]
 			if !ok || sUnit.TargetMachineID == "" || sUnit.TargetMachineID != ms.ID {
 				continue
 			}
 		}
+
+		if cExists, _ := as.HasConflict(u.Name, u.Conflicts()); cExists {
+			continue
+		}
+
 		as.Units[u.Name] = &u
 	}
 

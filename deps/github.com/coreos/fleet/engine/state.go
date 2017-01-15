@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -93,9 +93,14 @@ func (cs *clusterState) agents() map[string]*agent.AgentState {
 	for _, gu := range cs.gUnits {
 		gu := gu
 		for _, a := range agents {
-			if machine.HasMetadata(a.MState, gu.RequiredTargetMetadata()) {
-				a.Units[gu.Name] = gu
+			if !machine.HasMetadata(a.MState, gu.RequiredTargetMetadata()) {
+				continue
 			}
+
+			if cExists, _ := a.HasConflict(gu.Name, gu.Conflicts()); cExists {
+				continue
+			}
+			a.Units[gu.Name] = gu
 		}
 	}
 

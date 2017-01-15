@@ -29,7 +29,7 @@ const (
 )
 
 const (
-	libraryVersion = "0.1"
+	libraryVersion = "2"
 	defaultBaseURL = "https://api.github.com/"
 	uploadBaseURL  = "https://uploads.github.com/"
 	userAgent      = "go-github/" + libraryVersion
@@ -39,9 +39,10 @@ const (
 	headerRateReset     = "X-RateLimit-Reset"
 	headerOTP           = "X-GitHub-OTP"
 
-	mediaTypeV3      = "application/vnd.github.v3+json"
-	defaultMediaType = "application/octet-stream"
-	mediaTypeV3SHA   = "application/vnd.github.v3.sha"
+	mediaTypeV3                = "application/vnd.github.v3+json"
+	defaultMediaType           = "application/octet-stream"
+	mediaTypeV3SHA             = "application/vnd.github.v3.sha"
+	mediaTypeOrgPermissionRepo = "application/vnd.github.v3.repository+json"
 
 	// Media Type values to access preview APIs
 
@@ -51,15 +52,8 @@ const (
 	// https://developer.github.com/changes/2014-12-09-new-attributes-for-stars-api/
 	mediaTypeStarringPreview = "application/vnd.github.v3.star+json"
 
-	// https://developer.github.com/changes/2015-06-24-api-enhancements-for-working-with-organization-permissions/
-	mediaTypeOrgPermissionPreview     = "application/vnd.github.ironman-preview+json"
-	mediaTypeOrgPermissionRepoPreview = "application/vnd.github.ironman-preview.repository+json"
-
 	// https://developer.github.com/changes/2015-11-11-protected-branches-api/
 	mediaTypeProtectedBranchesPreview = "application/vnd.github.loki-preview+json"
-
-	// https://developer.github.com/changes/2016-02-11-issue-locking-api/
-	mediaTypeIssueLockingPreview = "application/vnd.github.the-key-preview+json"
 
 	// https://help.github.com/enterprise/2.4/admin/guides/migrations/exporting-the-github-com-organization-s-repositories/
 	mediaTypeMigrationsPreview = "application/vnd.github.wyandotte-preview+json"
@@ -72,14 +66,37 @@ const (
 
 	// https://developer.github.com/changes/2016-05-12-reactions-api-preview/
 	mediaTypeReactionsPreview = "application/vnd.github.squirrel-girl-preview"
+
+	// https://developer.github.com/changes/2016-04-01-squash-api-preview/
+	// https://developer.github.com/changes/2016-09-26-pull-request-merge-api-update/
+	mediaTypeSquashPreview = "application/vnd.github.polaris-preview+json"
+
+	// https://developer.github.com/changes/2016-04-04-git-signing-api-preview/
+	mediaTypeGitSigningPreview = "application/vnd.github.cryptographer-preview+json"
+
+	// https://developer.github.com/changes/2016-05-23-timeline-preview-api/
+	mediaTypeTimelinePreview = "application/vnd.github.mockingbird-preview+json"
+
+	// https://developer.github.com/changes/2016-06-14-repository-invitations/
+	mediaTypeRepositoryInvitationsPreview = "application/vnd.github.swamp-thing-preview+json"
+
+	// https://developer.github.com/changes/2016-07-06-github-pages-preiew-api/
+	mediaTypePagesPreview = "application/vnd.github.mister-fantastic-preview+json"
+
+	// https://developer.github.com/v3/repos/traffic/
+	mediaTypeTrafficPreview = "application/vnd.github.spiderman-preview+json"
+
+	// https://developer.github.com/changes/2016-09-14-projects-api/
+	mediaTypeProjectsPreview = "application/vnd.github.inertia-preview+json"
+
+	// https://developer.github.com/changes/2016-09-14-Integrations-Early-Access/
+	mediaTypeIntegrationPreview = "application/vnd.github.machine-man-preview+json"
 )
 
 // A Client manages communication with the GitHub API.
 type Client struct {
-	// HTTP client used to communicate with the API.
-	client *http.Client
-	// clientMu protects the client during calls that modify the CheckRedirect func.
-	clientMu sync.Mutex
+	clientMu sync.Mutex   // clientMu protects the client during calls that modify the CheckRedirect func.
+	client   *http.Client // HTTP client used to communicate with the API.
 
 	// Base URL for API requests.  Defaults to the public GitHub API, but can be
 	// set to a domain endpoint to use with GitHub Enterprise.  BaseURL should
@@ -96,14 +113,19 @@ type Client struct {
 	rateLimits [categories]Rate // Rate limits for the client as determined by the most recent API calls.
 	mostRecent rateLimitCategory
 
+	common service // Reuse a single struct instead of allocating one for each service on the heap.
+
 	// Services used for talking to different parts of the GitHub API.
 	Activity       *ActivityService
+	Admin          *AdminService
 	Authorizations *AuthorizationsService
 	Gists          *GistsService
 	Git            *GitService
 	Gitignores     *GitignoresService
+	Integrations   *IntegrationsService
 	Issues         *IssuesService
 	Organizations  *OrganizationsService
+	Projects       *ProjectsService
 	PullRequests   *PullRequestsService
 	Repositories   *RepositoriesService
 	Search         *SearchService
@@ -111,6 +133,10 @@ type Client struct {
 	Licenses       *LicensesService
 	Migrations     *MigrationService
 	Reactions      *ReactionsService
+}
+
+type service struct {
+	client *Client
 }
 
 // ListOptions specifies the optional parameters to various List methods that
@@ -162,20 +188,24 @@ func NewClient(httpClient *http.Client) *Client {
 	uploadURL, _ := url.Parse(uploadBaseURL)
 
 	c := &Client{client: httpClient, BaseURL: baseURL, UserAgent: userAgent, UploadURL: uploadURL}
-	c.Activity = &ActivityService{client: c}
-	c.Authorizations = &AuthorizationsService{client: c}
-	c.Gists = &GistsService{client: c}
-	c.Git = &GitService{client: c}
-	c.Gitignores = &GitignoresService{client: c}
-	c.Issues = &IssuesService{client: c}
-	c.Organizations = &OrganizationsService{client: c}
-	c.PullRequests = &PullRequestsService{client: c}
-	c.Repositories = &RepositoriesService{client: c}
-	c.Search = &SearchService{client: c}
-	c.Users = &UsersService{client: c}
-	c.Licenses = &LicensesService{client: c}
-	c.Migrations = &MigrationService{client: c}
-	c.Reactions = &ReactionsService{client: c}
+	c.common.client = c
+	c.Activity = (*ActivityService)(&c.common)
+	c.Admin = (*AdminService)(&c.common)
+	c.Authorizations = (*AuthorizationsService)(&c.common)
+	c.Gists = (*GistsService)(&c.common)
+	c.Git = (*GitService)(&c.common)
+	c.Gitignores = (*GitignoresService)(&c.common)
+	c.Integrations = (*IntegrationsService)(&c.common)
+	c.Issues = (*IssuesService)(&c.common)
+	c.Licenses = (*LicensesService)(&c.common)
+	c.Migrations = (*MigrationService)(&c.common)
+	c.Organizations = (*OrganizationsService)(&c.common)
+	c.Projects = (*ProjectsService)(&c.common)
+	c.PullRequests = (*PullRequestsService)(&c.common)
+	c.Reactions = (*ReactionsService)(&c.common)
+	c.Repositories = (*RepositoriesService)(&c.common)
+	c.Search = (*SearchService)(&c.common)
+	c.Users = (*UsersService)(&c.common)
 	return c
 }
 
@@ -206,9 +236,12 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 		return nil, err
 	}
 
-	req.Header.Add("Accept", mediaTypeV3)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.Header.Set("Accept", mediaTypeV3)
 	if c.UserAgent != "" {
-		req.Header.Add("User-Agent", c.UserAgent)
+		req.Header.Set("User-Agent", c.UserAgent)
 	}
 	return req, nil
 }
@@ -229,12 +262,12 @@ func (c *Client) NewUploadRequest(urlStr string, reader io.Reader, size int64, m
 	}
 	req.ContentLength = size
 
-	if len(mediaType) == 0 {
+	if mediaType == "" {
 		mediaType = defaultMediaType
 	}
-	req.Header.Add("Content-Type", mediaType)
-	req.Header.Add("Accept", mediaTypeV3)
-	req.Header.Add("User-Agent", c.UserAgent)
+	req.Header.Set("Content-Type", mediaType)
+	req.Header.Set("Accept", mediaTypeV3)
+	req.Header.Set("User-Agent", c.UserAgent)
 	return req, nil
 }
 
@@ -394,7 +427,7 @@ func (c *Client) Do(req *http.Request, v interface{}) (*Response, error) {
 
 // checkRateLimitBeforeDo does not make any network calls, but uses existing knowledge from
 // current client state in order to quickly check if *RateLimitError can be immediately returned
-// from Client.Do, and if so, returns it so that Client.Do can skip making a network API call unneccessarily.
+// from Client.Do, and if so, returns it so that Client.Do can skip making a network API call unnecessarily.
 // Otherwise it returns nil, and Client.Do should proceed normally.
 func (c *Client) checkRateLimitBeforeDo(req *http.Request, rateLimitCategory rateLimitCategory) error {
 	c.rateMu.Lock()
@@ -435,6 +468,10 @@ type ErrorResponse struct {
 		Reason    string     `json:"reason,omitempty"`
 		CreatedAt *Timestamp `json:"created_at,omitempty"`
 	} `json:"block,omitempty"`
+	// Most errors will also include a documentation_url field pointing
+	// to some content that might help you resolve the error, see
+	// https://developer.github.com/v3/#client-errors
+	DocumentationURL string `json:"documentation_url,omitempty"`
 }
 
 func (r *ErrorResponse) Error() string {
@@ -464,6 +501,36 @@ func (r *RateLimitError) Error() string {
 		r.Response.StatusCode, r.Message, r.Rate.Reset.Time.Sub(time.Now()))
 }
 
+// AcceptedError occurs when GitHub returns 202 Accepted response with an
+// empty body, which means a job was scheduled on the GitHub side to process
+// the information needed and cache it.
+// Technically, 202 Accepted is not a real error, it's just used to
+// indicate that results are not ready yet, but should be available soon.
+// The request can be repeated after some time.
+type AcceptedError struct{}
+
+func (*AcceptedError) Error() string {
+	return "job scheduled on GitHub side; try again later"
+}
+
+// AbuseRateLimitError occurs when GitHub returns 403 Forbidden response with the
+// "documentation_url" field value equal to "https://developer.github.com/v3#abuse-rate-limits".
+type AbuseRateLimitError struct {
+	Response *http.Response // HTTP response that caused this error
+	Message  string         `json:"message"` // error message
+
+	// RetryAfter is provided with some abuse rate limit errors. If present,
+	// it is the amount of time that the client should wait before retrying.
+	// Otherwise, the client should try again later (after an unspecified amount of time).
+	RetryAfter *time.Duration
+}
+
+func (r *AbuseRateLimitError) Error() string {
+	return fmt.Sprintf("%v %v: %d %v",
+		r.Response.Request.Method, sanitizeURL(r.Response.Request.URL),
+		r.Response.StatusCode, r.Message)
+}
+
 // sanitizeURL redacts the client_secret parameter from the URL which may be
 // exposed to the user, specifically in the ErrorResponse error message.
 func sanitizeURL(uri *url.URL) *url.URL {
@@ -490,6 +557,9 @@ These are the possible validation error codes:
         the formatting of a field is invalid
     already_exists:
         another resource has the same valid as this field
+    custom:
+        some resources return this (e.g. github.User.CreateKey()), additional
+        information is set in the Message field of the Error
 
 GitHub API docs: http://developer.github.com/v3/#client-errors
 */
@@ -497,6 +567,7 @@ type Error struct {
 	Resource string `json:"resource"` // resource on which the error occurred
 	Field    string `json:"field"`    // field on which the error occurred
 	Code     string `json:"code"`     // validation error code
+	Message  string `json:"message"`  // Message describing the error. Errors with Code == "custom" will always have this set.
 }
 
 func (e *Error) Error() string {
@@ -505,14 +576,19 @@ func (e *Error) Error() string {
 }
 
 // CheckResponse checks the API response for errors, and returns them if
-// present.  A response is considered an error if it has a status code outside
-// the 200 range.  API error responses are expected to have either no response
+// present. A response is considered an error if it has a status code outside
+// the 200 range or equal to 202 Accepted.
+// API error responses are expected to have either no response
 // body, or a JSON response body that maps to ErrorResponse.  Any other
 // response body will be silently ignored.
 //
 // The error type will be *RateLimitError for rate limit exceeded errors,
+// *AcceptedError for 202 Accepted status codes,
 // and *TwoFactorAuthError for two-factor authentication errors.
 func CheckResponse(r *http.Response) error {
+	if r.StatusCode == http.StatusAccepted {
+		return &AcceptedError{}
+	}
 	if c := r.StatusCode; 200 <= c && c <= 299 {
 		return nil
 	}
@@ -530,6 +606,20 @@ func CheckResponse(r *http.Response) error {
 			Response: errorResponse.Response,
 			Message:  errorResponse.Message,
 		}
+	case r.StatusCode == http.StatusForbidden && errorResponse.DocumentationURL == "https://developer.github.com/v3#abuse-rate-limits":
+		abuseRateLimitError := &AbuseRateLimitError{
+			Response: errorResponse.Response,
+			Message:  errorResponse.Message,
+		}
+		if v := r.Header["Retry-After"]; len(v) > 0 {
+			// According to GitHub support, the "Retry-After" header value will be
+			// an integer which represents the number of seconds that one should
+			// wait before resuming making requests.
+			retryAfterSeconds, _ := strconv.ParseInt(v[0], 10, 64) // Error handling is noop.
+			retryAfter := time.Duration(retryAfterSeconds) * time.Second
+			abuseRateLimitError.RetryAfter = &retryAfter
+		}
+		return abuseRateLimitError
 	default:
 		return errorResponse
 	}
@@ -580,8 +670,8 @@ type RateLimits struct {
 	Core *Rate `json:"core"`
 
 	// The rate limit for search API requests.  Unauthenticated requests
-	// are limited to 5 requests per minutes.  Authenticated requests are
-	// limited to 20 per minute.
+	// are limited to 10 requests per minutes.  Authenticated requests are
+	// limited to 30 per minute.
 	//
 	// GitHub API docs: https://developer.github.com/v3/search/#rate-limit
 	Search *Rate `json:"search"`
@@ -610,6 +700,8 @@ func category(path string) rateLimitCategory {
 	}
 }
 
+// RateLimit returns the core rate limit for the current client.
+//
 // Deprecated: RateLimit is deprecated, use RateLimits instead.
 func (c *Client) RateLimit() (*Rate, *Response, error) {
 	limits, resp, err := c.RateLimits()
@@ -734,7 +826,7 @@ func (t *BasicAuthTransport) RoundTrip(req *http.Request) (*http.Response, error
 	req = cloneRequest(req) // per RoundTrip contract
 	req.SetBasicAuth(t.Username, t.Password)
 	if t.OTP != "" {
-		req.Header.Add(headerOTP, t.OTP)
+		req.Header.Set(headerOTP, t.OTP)
 	}
 	return t.transport().RoundTrip(req)
 }

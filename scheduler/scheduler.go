@@ -14,21 +14,63 @@
 
 package scheduler
 
+import (
+	"time"
+
+	"github.com/pulcy/j2/jobs"
+)
+
+type Reason int
+
+const (
+	ReasonUpdate   = Reason(1)
+	ReasonFailed   = Reason(2)
+	ReasonObsolete = Reason(3)
+)
+
 type Scheduler interface {
+	// ValidateCluster checks if the cluster is suitable to run the configured job.
+	ValidateCluster() error
+
+	// ConfigureCluster configures the cluster for use by J2.
+	ConfigureCluster(config ClusterConfig) error
+
 	// List returns the names of all units on the cluster
-	List() ([]string, error)
+	List() ([]Unit, error)
 
-	GetState(unitName string) (UnitState, error)
-	Cat(unitName string) (string, error)
+	GetState(Unit) (UnitState, error)
+	//	Cat(Unit) (string, error)
 
-	Stop(events chan Event, unitName ...string) (StopStats, error)
-	Destroy(events chan Event, unitName ...string) error
+	// HasChanged returns true when the given unit is different on the system (or does not exist on the system)
+	HasChanged(UnitData) ([]string, bool, error)
+
+	Stop(events chan Event, reason Reason, units ...Unit) (StopStats, error)
+	Destroy(events chan Event, reason Reason, units ...Unit) error
 
 	Start(events chan Event, units UnitDataList) error
+
+	IsUnitForScalingGroup(unit Unit, scalingGroup uint) bool
+	IsUnitForJob(unit Unit) bool
+	IsUnitForTaskGroup(unit Unit, g jobs.TaskGroupName) bool
+
+	UpdateStopDelay(time.Duration) time.Duration
+	UpdateDestroyDelay(time.Duration) time.Duration
+}
+
+type ClusterConfig interface {
+	ClusterID() string
+	VaultConfig
+}
+
+type VaultConfig interface {
+	VaultAddress() string
+	VaultCACert() string
+	VaultCAPath() string
 }
 
 type UnitState struct {
-	Failed bool
+	Failed  bool
+	Message string
 }
 
 type StopStats struct {
@@ -41,8 +83,12 @@ type Event struct {
 	Message  string
 }
 
-type UnitData interface {
+type Unit interface {
 	Name() string
+}
+
+type UnitData interface {
+	Unit
 	Content() string
 }
 

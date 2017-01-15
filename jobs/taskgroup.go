@@ -97,10 +97,10 @@ func (tg *TaskGroup) optimizeFor(cluster cluster.Cluster) {
 }
 
 // replaceVariables replaces all known variables in the values of the given group.
-func (tg *TaskGroup) replaceVariables() error {
-	ctx := NewVariableContext(tg.job, tg, nil)
+func (tg *TaskGroup) replaceVariables(renderer Renderer) error {
+	ctx := NewVariableContext(renderer, tg.job, tg, nil)
 	for _, x := range tg.Tasks {
-		if err := x.replaceVariables(); err != nil {
+		if err := x.replaceVariables(renderer); err != nil {
 			return maskAny(err)
 		}
 	}
@@ -159,6 +159,11 @@ func (tg *TaskGroup) TaskGroup(name TaskGroupName) (*TaskGroup, error) {
 		return nil, maskAny(err)
 	}
 	return result, nil
+}
+
+// Job returns the job that contains this group.
+func (tg *TaskGroup) Job() *Job {
+	return tg.job
 }
 
 // Is this group scalable?

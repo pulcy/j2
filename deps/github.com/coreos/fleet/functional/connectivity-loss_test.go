@@ -1,4 +1,4 @@
-// Copyright 2016 CoreOS, Inc.
+// Copyright 2016 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -93,9 +93,9 @@ func TestSingleNodeConnectivityLoss(t *testing.T) {
 	checkExpectedStates := func() (isExpected bool, expected, actual map[string]string) {
 		// First check unit files.
 		// These shouldn't change at all after intital submit -- but better safe than sorry...
-		stdout, _, err := cluster.Fleetctl(m0, "list-unit-files", "--no-legend", "--full", "--fields", "unit,dstate")
+		stdout, stderr, err := cluster.Fleetctl(m0, "list-unit-files", "--no-legend", "--full", "--fields", "unit,dstate")
 		if err != nil {
-			t.Errorf("Failed listing unit files: %v", err)
+			t.Errorf("Failed listing unit files:\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 		}
 		stdout = strings.TrimSpace(stdout)
 
@@ -113,9 +113,9 @@ func TestSingleNodeConnectivityLoss(t *testing.T) {
 		}
 
 		// Now check the actual unit states.
-		stdout, _, err = cluster.Fleetctl(m0, "list-units", "--no-legend", "--full", "--fields", "unit,active")
+		stdout, stderr, err = cluster.Fleetctl(m0, "list-units", "--no-legend", "--full", "--fields", "unit,active")
 		if err != nil {
-			t.Errorf("Failed listing units: %v", err)
+			t.Errorf("Failed listing units:\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 		}
 		stdout = strings.TrimSpace(stdout)
 
@@ -142,8 +142,9 @@ func TestSingleNodeConnectivityLoss(t *testing.T) {
 	// Cut connection to etcd.
 	//
 	// We use REJECT here, so fleet knows immediately that it's disconnected, rather than waiting for a timeout.
-	if _, err = cluster.MemberCommand(m0, "sudo", "iptables", "-I", "OUTPUT", "-p", "tcp", "-m", "multiport", "--dports=2379,4001", "-j", "REJECT"); err != nil {
-		t.Fatal(err)
+	stdout, stderr, err := cluster.MemberCommand(m0, "sudo", "iptables", "-I", "OUTPUT", "-p", "tcp", "-m", "multiport", "--dports=2379,4001", "-j", "REJECT")
+	if err != nil {
+		t.Fatalf("Failed to cut connection to etcd.\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 	}
 
 	// Wait long enough to be reasonably confident that no more state changes will happen.
@@ -159,9 +160,8 @@ func TestSingleNodeConnectivityLoss(t *testing.T) {
 	// as fleet is not available to give us this information...
 	// We have to go deeper, and try to obtain the information from systemd directly.
 	actualSystemdFiles := map[string]string{}
-	var stdout string
 	for name, _ := range expectedSystemdFiles {
-		stdout, _ := cluster.MemberCommand(m0, "systemctl", "is-enabled", name)
+		stdout, _, _ := cluster.MemberCommand(m0, "systemctl", "is-enabled", name)
 		// do not check for error, as systemctl is-enabled returns exit status 1 for linked-runtime.
 		stdout = strings.TrimSpace(stdout)
 		if stdout == "" {
@@ -174,9 +174,9 @@ func TestSingleNodeConnectivityLoss(t *testing.T) {
 		t.Fatalf("Units files not in expected state after losing connectivity.\nExpected: %v\nActual: %v", expectedSystemdFiles, actualSystemdFiles)
 	}
 
-	stdout, err = cluster.MemberCommand(m0, "systemctl", "list-units", "-t", "service", "--no-legend", "single@*.service", "global@*.service")
+	stdout, stderr, err = cluster.MemberCommand(m0, "systemctl", "list-units", "-t", "service", "--no-legend", "single@*.service", "global@*.service")
 	if err != nil {
-		t.Fatalf("Failed to retrieve systemd unit states: %v", err)
+		t.Fatalf("Failed to retrieve systemd unit states.\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 	}
 	stdout = strings.TrimSpace(stdout)
 	actualSystemdStates := map[string][]string{}
@@ -191,8 +191,8 @@ func TestSingleNodeConnectivityLoss(t *testing.T) {
 	}
 
 	// Restore etcd connection.
-	if _, err = cluster.MemberCommand(m0, "sudo", "iptables", "-D", "OUTPUT", "-p", "tcp", "-m", "multiport", "--dports=2379,4001", "-j", "REJECT"); err != nil {
-		t.Fatal(err)
+	if stdout, stderr, err = cluster.MemberCommand(m0, "sudo", "iptables", "-D", "OUTPUT", "-p", "tcp", "-m", "multiport", "--dports=2379,4001", "-j", "REJECT"); err != nil {
+		t.Fatalf("Failed to restore etcd connection.\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 	}
 
 	// Again, wait long enough to be reasonably confident that no more state changes will happen.
@@ -219,9 +219,9 @@ func TestSingleNodeConnectivityLoss(t *testing.T) {
 	}
 
 	// Additionally check the logs of all active units for possible temporary state flapping.
-	stdout, err = cluster.MemberCommand(m0, "journalctl", "_PID=1")
+	stdout, stderr, err = cluster.MemberCommand(m0, "journalctl", "_PID=1")
 	if err != nil {
-		t.Fatalf("Failed to retrieve journal: %v", err)
+		t.Fatalf("Failed to retrieve journal.\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 	}
 	if strings.Contains(stdout, "Stopping single@") || strings.Contains(stdout, "Stopping global@") {
 		t.Fatalf("Units were unexpectedly stopped at some point:\n%s", stdout)

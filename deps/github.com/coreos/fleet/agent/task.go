@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -104,11 +104,11 @@ func mapTaskToFunc(t task, a *Agent) (fn func() error, err error) {
 	case taskTypeLoadUnit:
 		fn = func() error { return a.loadUnit(t.unit) }
 	case taskTypeUnloadUnit:
-		fn = func() error { a.unloadUnit(t.unit.Name); return nil }
+		fn = func() error { return a.unloadUnit(t.unit.Name) }
 	case taskTypeStartUnit:
-		fn = func() error { a.startUnit(t.unit.Name); return nil }
+		fn = func() error { return a.startUnit(t.unit.Name) }
 	case taskTypeStopUnit:
-		fn = func() error { a.stopUnit(t.unit.Name); return nil }
+		fn = func() error { return a.stopUnit(t.unit.Name) }
 	case taskTypeReloadUnitFiles:
 		fn = func() error { return a.reloadUnitFiles() }
 	default:

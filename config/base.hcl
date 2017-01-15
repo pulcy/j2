@@ -1,6 +1,8 @@
 job "base" {
 	id="f9fa3175-c53e-4817-b4d7-dc38d6703fe8"
 
+{{if (eq .Cluster.Orchestrator "fleet")}}
+
 	task "registrator" {
 		global = true
 		image = "pulcy/registrator:0.7.2"
@@ -75,4 +77,83 @@ job "base" {
 			]
 		}
 	}
+
+{{else if (eq .Cluster.Orchestrator "kubernetes")}}
+
+	// Do not use ETCD under Kubernetes, but use our own instances.
+	// This is recommended and much better for security.
+	task "etcd_install" {
+		image = "pulcy/kube-etcd:20170113162545"
+		type = "oneshot"
+	}
+
+	// The load-balancer exposes port 80, 443 & 7088.
+	task "lb" {
+		global = true
+		network = "host"
+		constraint {
+			attribute = "meta.lb"
+			value = "true"
+		}
+		count = 1
+		image = "pulcy/robin:20170114162038"
+		ports = ["0.0.0.0:80:80", "81", "82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "8055", "8056"]
+		secret "secret/base/lb/stats-password" {
+			environment = "STATS_PASSWORD"
+		}
+		secret "secret/base/lb/stats-user" {
+			environment = "STATS_USER"
+		}
+		secret "secret/base/lb/acme-email" {
+			environment = "ACME_EMAIL"
+		}
+		secret "secret/base/lb/acme-private-key" {
+			file = "/acme/private-key"
+		}
+		secret "secret/base/lb/acme-registration" {
+			file = "/acme/registration"
+		}
+		metrics {
+			port = 8055
+			path = "/metrics"
+		}
+		http-check-path = "/v1/ping"
+		http-check-method = "HEAD"
+		private-frontend {
+			port = 8056
+		}
+		args = ["run",
+			"--backend=kubernetes",
+			"--log-level=info",
+			"--etcd-endpoint", "http://${private_ipv4}:32379",
+			"--etcd-no-sync=true",
+			"--private-key-path", "/acme/private-key",
+			"--registration-path", "/acme/registration",
+			"--stats-port", "7088",
+			"--force-ssl={{opt "force-ssl"}}",
+			"--private-host", "0.0.0.0",
+			"--private-ssl-cert", "private.pem",
+			"--metrics-host", "0.0.0.0",
+			"--metrics-port", "8055"
+		]
+	}
+
+
+	// The dashboard exposes a Kubernetes dashboard.
+	task "dashboard" {
+		count = 1
+		image = "gcr.io/google_containers/kubernetes-dashboard-amd64:v1.5.1"
+		ports = ["0.0.0.0:30090:9090"]
+		http-check-path = "/"
+		frontend {
+			domain = "kdb.{{opt "stack"}}.{{opt "domain"}}"
+			port = 9090
+			user "admin" {
+				password = "foo"
+			}
+		}
+	}
+
+{{end}}
+
 }

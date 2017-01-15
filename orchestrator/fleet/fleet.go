@@ -3,6 +3,7 @@ package fleet
 import (
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/extpoints"
+	"github.com/pulcy/j2/jobs"
 	"github.com/pulcy/j2/render"
 	rf "github.com/pulcy/j2/render/fleet"
 	"github.com/pulcy/j2/scheduler"
@@ -17,8 +18,8 @@ func (o *fleetOrchestrator) RenderProvider() (render.RenderProvider, error) {
 }
 
 // Scheduler returns the scheduler, configured for the given cluster, for this orchestrator.
-func (o *fleetOrchestrator) Scheduler(cluster cluster.Cluster) (scheduler.Scheduler, error) {
-	return sf.NewScheduler(cluster.Tunnel)
+func (o *fleetOrchestrator) Scheduler(j jobs.Job, cluster cluster.Cluster) (scheduler.Scheduler, error) {
+	return sf.NewScheduler(j, cluster.Tunnel)
 }
 
 func init() {

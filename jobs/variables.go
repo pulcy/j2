@@ -32,18 +32,20 @@ var (
 )
 
 type variableContext struct {
-	Job   *Job
-	Group *TaskGroup
-	Task  *Task
+	renderer Renderer
+	Job      *Job
+	Group    *TaskGroup
+	Task     *Task
 
 	errors []string
 }
 
-func NewVariableContext(job *Job, group *TaskGroup, task *Task) *variableContext {
+func NewVariableContext(renderer Renderer, job *Job, group *TaskGroup, task *Task) *variableContext {
 	return &variableContext{
-		Job:   job,
-		Group: group,
-		Task:  task,
+		renderer: renderer,
+		Job:      job,
+		Group:    group,
+		Task:     task,
 	}
 }
 
@@ -96,6 +98,7 @@ func (ctx *variableContext) assertTask(key string) bool {
 }
 
 func (ctx *variableContext) replaceString(input string) string {
+	r := ctx.renderer
 	return varRegexp.ReplaceAllStringFunc(input, func(arg string) string {
 		key := arg[2 : len(arg)-1]
 		switch strings.TrimSpace(key) {
@@ -137,31 +140,30 @@ func (ctx *variableContext) replaceString(input string) string {
 			}
 		case "instance":
 			if ctx.assertTask(key) {
-				// TODO this is renderer specific
-				return "%i" // Will be expanded by Fleet/Systemd
+				return r.ExpandInstance()
 			}
 		case "instance.full":
 			if ctx.assertJob(key) && ctx.assertGroup(key) && ctx.assertTask(key) {
-				return fmt.Sprintf("%s.%s.%s@%%i", ctx.Job.Name, ctx.Group.Name, ctx.Task.Name)
+				return fmt.Sprintf("%s.%s.%s@%s", ctx.Job.Name, ctx.Group.Name, ctx.Task.Name, r.ExpandInstance())
 			}
 		case "container":
 			if ctx.assertTask(key) {
-				return ctx.Task.containerNameExt("%i") // TODO this is renderer specific
+				return ctx.Task.containerNameExt(r.ExpandInstance())
 			}
 		case "private_ipv4":
-			return "${COREOS_PRIVATE_IPV4}"
+			return r.ExpandPrivateIPv4()
 		case "public_ipv4":
-			return "${COREOS_PUBLIC_IPV4}"
+			return r.ExpandPublicIPv4()
 		case "etcd_endpoints":
-			return "${ETCD_ENDPOINTS}"
+			return r.ExpandEtcdEndpoints()
 		case "etcd_host":
-			return "${ETCD_HOST}"
+			return r.ExpandEtcdHost()
 		case "etcd_port":
-			return "${ETCD_PORT}"
+			return r.ExpandEtcdPort()
 		case "hostname":
-			return "%H" // TODO this is renderer specific
+			return r.ExpandHostname()
 		case "machine_id":
-			return "%m" // TODO this is renderer specific
+			return r.ExpandMachineID()
 		default:
 			parts := strings.Split(key, " ")
 			assertNoArgs := func(noArgs int) bool {
@@ -179,13 +181,13 @@ func (ctx *variableContext) replaceString(input string) string {
 					if err != nil {
 						ctx.errors = append(ctx.errors, fmt.Sprintf("variable '%s' expects a port argument, got '%s'", parts[0], parts[2]))
 					} else {
-						if ctx.Task.Network.IsWeave() && !target.HasInstance() {
+						if r.SupportsDNSLinkTo(ctx.Task, target) {
 							targetTask, err := ctx.findTargetTask(key, parts[1])
 							if err != nil {
 								ctx.errors = append(ctx.errors, fmt.Sprintf("link_tcp: unknown target '%s' in '%s'", parts[1], ctx))
 							}
-							if targetTask.Type.IsService() && targetTask.Network.IsWeave() {
-								return fmt.Sprintf("tcp://%s:%d", targetTask.WeaveDomainName(), port)
+							if r.TaskAcceptsDNSLink(targetTask) {
+								return createURL("tcp", r.TaskDNSName(targetTask), port, -1, "")
 							}
 						}
 						ctx.Task.Links = ctx.Task.Links.Add(Link{
@@ -200,7 +202,7 @@ func (ctx *variableContext) replaceString(input string) string {
 			case "link_url":
 				if ctx.assertTask(key) && assertNoArgs(1) {
 					target := ctx.findTarget(key, parts[1])
-					if ctx.Task.Network.IsWeave() && !target.HasInstance() {
+					if r.SupportsDNSLinkTo(ctx.Task, target) {
 						targetName := ctx.findTarget(key, parts[1])
 						if !ctx.isSameJob(targetName) {
 							dependency, err := ctx.Job.Dependency(targetName)
@@ -208,13 +210,9 @@ func (ctx *variableContext) replaceString(input string) string {
 								ctx.errors = append(ctx.errors, fmt.Sprintf("link_url: unknown external target '%s' in '%s'", targetName, ctx))
 								return ""
 							}
-							if dependency.Network.IsWeave() {
+							if r.DependencyAcceptsDNSLink(dependency) {
 								targetPort := dependency.PrivateFrontEndPort(80)
-								if targetPort != 80 {
-									return fmt.Sprintf("http://%s:%d", dependency.Name.WeaveDomainName(), targetPort)
-								} else {
-									return fmt.Sprintf("http://%s", dependency.Name.WeaveDomainName())
-								}
+								return createURL("http", r.DependencyDNSName(dependency), targetPort, 80, "")
 							}
 						}
 						targetTask, err := ctx.findTask(targetName)
@@ -222,14 +220,10 @@ func (ctx *variableContext) replaceString(input string) string {
 							ctx.errors = append(ctx.errors, fmt.Sprintf("link_url: unknown target '%s' in '%s'", parts[1], ctx))
 							return ""
 						}
-						if targetTask.Type.IsService() && targetTask.Network.IsWeave() {
+						if r.TaskAcceptsDNSLink(targetTask) {
 							// We can use a direct weave DNS link
 							targetPort := targetTask.PrivateFrontEndPort(80)
-							if targetPort != 80 {
-								return fmt.Sprintf("http://%s:%d", targetTask.WeaveDomainName(), targetPort)
-							} else {
-								return fmt.Sprintf("http://%s", targetTask.WeaveDomainName())
-							}
+							return createURL("http", r.TaskDNSName(targetTask), targetPort, 80, "")
 						}
 						if targetTask.Type.IsProxy() {
 							proxyTask := targetTask
@@ -237,7 +231,7 @@ func (ctx *variableContext) replaceString(input string) string {
 							if len(proxyTask.PrivateFrontEnds) == 1 {
 								proxyPort := proxyTask.PrivateFrontEndPort(80)
 								if !proxyTarget.HasInstance() {
-									var targetIsWeave bool
+									var targetAcceptsDNS bool
 									var targetDomainName string
 									if ctx.isSameJob(proxyTarget) {
 										targetTask, err := ctx.findTask(proxyTarget)
@@ -245,26 +239,26 @@ func (ctx *variableContext) replaceString(input string) string {
 											ctx.errors = append(ctx.errors, fmt.Sprintf("link_url (proxy): unknown target '%s' of proxy '%s'", proxyTarget, proxyTask.Name))
 											return ""
 										}
-										targetIsWeave = targetTask.Network.IsWeave()
-										targetDomainName = targetTask.WeaveDomainName()
+										targetAcceptsDNS = r.TaskAcceptsDNSLink(targetTask)
+										targetDomainName = r.TaskDNSName(targetTask)
 									} else {
 										dependency, err := ctx.Job.Dependency(proxyTarget)
 										if err != nil {
 											ctx.errors = append(ctx.errors, fmt.Sprintf("link_url (proxy): unknown external target '%s' of proxy '%s'", proxyTarget, proxyTask.Name))
 											return ""
 										}
-										targetIsWeave = dependency.Network.IsWeave()
-										targetDomainName = dependency.Name.WeaveDomainName()
+										targetAcceptsDNS = r.DependencyAcceptsDNSLink(dependency)
+										targetDomainName = r.DependencyDNSName(dependency)
 									}
-									if targetIsWeave {
+									if targetAcceptsDNS {
 										r := proxyTask.Rewrite
 										if r == nil {
-											// We can use a direct weave DNS link
-											return fmt.Sprintf("http://%s:%d", targetDomainName, proxyPort)
+											// We can use a direct DNS link
+											return createURL("http", targetDomainName, proxyPort, 80, "")
 										} else if r.HasPathPrefixOnly() {
-											// We can use a direct weave DNS link with a path prefix
+											// We can use a direct DNS link with a path prefix
 											path := strings.TrimSuffix(strings.TrimPrefix(r.PathPrefix, "/"), "/")
-											return fmt.Sprintf("http://%s:%d/%s", targetDomainName, proxyPort, path)
+											return createURL("http", targetDomainName, proxyPort, 80, path)
 										}
 									}
 								}
@@ -346,4 +340,15 @@ func (ctx *variableContext) findTargetTask(key, name string) (*Task, error) {
 func (ctx *variableContext) isSameJob(name LinkName) bool {
 	jn, _ := name.Job()
 	return ctx.Job != nil && ctx.Job.Name == jn
+}
+
+func createURL(scheme, host string, port, defaultPort int, relPath string) string {
+	relPath = strings.TrimSuffix(relPath, "/")
+	if relPath != "" {
+		relPath = "/" + relPath
+	}
+	if port == defaultPort {
+		return fmt.Sprintf("%s://%s%s", scheme, host, relPath)
+	}
+	return fmt.Sprintf("%s://%s:%d%s", scheme, host, port, relPath)
 }

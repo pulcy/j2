@@ -25,6 +25,9 @@ func TestCtlV3PutClientTLS(t *testing.T)     { testCtl(t, putTest, withCfg(confi
 func TestCtlV3PutClientAutoTLS(t *testing.T) { testCtl(t, putTest, withCfg(configClientAutoTLS)) }
 func TestCtlV3PutPeerTLS(t *testing.T)       { testCtl(t, putTest, withCfg(configPeerTLS)) }
 func TestCtlV3PutTimeout(t *testing.T)       { testCtl(t, putTest, withDialTimeout(0)) }
+func TestCtlV3PutClientTLSFlagByEnv(t *testing.T) {
+	testCtl(t, putTest, withCfg(configClientTLS), withFlagByEnv())
+}
 
 func TestCtlV3Get(t *testing.T)              { testCtl(t, getTest) }
 func TestCtlV3GetNoTLS(t *testing.T)         { testCtl(t, getTest, withCfg(configNoTLS)) }
@@ -34,8 +37,9 @@ func TestCtlV3GetPeerTLS(t *testing.T)       { testCtl(t, getTest, withCfg(confi
 func TestCtlV3GetTimeout(t *testing.T)       { testCtl(t, getTest, withDialTimeout(0)) }
 func TestCtlV3GetQuorum(t *testing.T)        { testCtl(t, getTest, withQuorum()) }
 
-func TestCtlV3GetFormat(t *testing.T) { testCtl(t, getFormatTest) }
-func TestCtlV3GetRev(t *testing.T)    { testCtl(t, getRevTest) }
+func TestCtlV3GetFormat(t *testing.T)   { testCtl(t, getFormatTest) }
+func TestCtlV3GetRev(t *testing.T)      { testCtl(t, getRevTest) }
+func TestCtlV3GetKeysOnly(t *testing.T) { testCtl(t, getKeysOnlyTest) }
 
 func TestCtlV3Del(t *testing.T)          { testCtl(t, delTest) }
 func TestCtlV3DelNoTLS(t *testing.T)     { testCtl(t, delTest, withCfg(configNoTLS)) }
@@ -81,6 +85,7 @@ func getTest(cx ctlCtx) {
 		{[]string{"key", "--prefix", "--limit=2"}, kvs[:2]},
 		{[]string{"key", "--prefix", "--order=ASCEND", "--sort-by=MODIFY"}, kvs},
 		{[]string{"key", "--prefix", "--order=ASCEND", "--sort-by=VERSION"}, kvs},
+		{[]string{"key", "--prefix", "--sort-by=CREATE"}, kvs}, // ASCEND by default
 		{[]string{"key", "--prefix", "--order=DESCEND", "--sort-by=CREATE"}, revkvs},
 		{[]string{"key", "--prefix", "--order=DESCEND", "--sort-by=KEY"}, revkvs},
 	}
@@ -99,18 +104,23 @@ func getFormatTest(cx ctlCtx) {
 	}
 
 	tests := []struct {
-		format string
+		format    string
+		valueOnly bool
 
 		wstr string
 	}{
-		{"simple", "abc"},
-		{"json", `"kvs":[{"key":"YWJj"`},
-		{"protobuf", "\x17\b\x93\xe7\xf6\x93\xd4ņ\xe14\x10\xed"},
+		{"simple", false, "abc"},
+		{"simple", true, "123"},
+		{"json", false, `"kvs":[{"key":"YWJj"`},
+		{"protobuf", false, "\x17\b\x93\xe7\xf6\x93\xd4ņ\xe14\x10\xed"},
 	}
 
 	for i, tt := range tests {
 		cmdArgs := append(cx.PrefixArgs(), "get")
 		cmdArgs = append(cmdArgs, "--write-out="+tt.format)
+		if tt.valueOnly {
+			cmdArgs = append(cmdArgs, "--print-value-only")
+		}
 		cmdArgs = append(cmdArgs, "abc")
 		if err := spawnWithExpect(cmdArgs, tt.wstr); err != nil {
 			cx.t.Errorf("#%d: error (%v), wanted %v", i, err, tt.wstr)
@@ -145,6 +155,25 @@ func getRevTest(cx ctlCtx) {
 	}
 }
 
+func getKeysOnlyTest(cx ctlCtx) {
+	var (
+		kvs = []kv{{"key1", "val1"}}
+	)
+	for i := range kvs {
+		if err := ctlV3Put(cx, kvs[i].key, kvs[i].val, ""); err != nil {
+			cx.t.Fatalf("getKeysOnlyTest #%d: ctlV3Put error (%v)", i, err)
+		}
+	}
+
+	cmdArgs := append(cx.PrefixArgs(), "get")
+	cmdArgs = append(cmdArgs, []string{"--prefix", "--keys-only", "key"}...)
+
+	err := spawnWithExpects(cmdArgs, []string{"key1", ""}...)
+	if err != nil {
+		cx.t.Fatalf("getKeysOnlyTest : error (%v)", err)
+	}
+}
+
 func delTest(cx ctlCtx) {
 	tests := []struct {
 		puts []kv
@@ -152,6 +181,16 @@ func delTest(cx ctlCtx) {
 
 		deletedNum int
 	}{
+		{ // delete all keys
+			[]kv{{"foo1", "bar"}, {"foo2", "bar"}, {"foo3", "bar"}},
+			[]string{"", "--prefix"},
+			3,
+		},
+		{ // delete all keys
+			[]kv{{"foo1", "bar"}, {"foo2", "bar"}, {"foo3", "bar"}},
+			[]string{"", "--from-key"},
+			3,
+		},
 		{
 			[]kv{{"this", "value"}},
 			[]string{"that"},
@@ -165,6 +204,11 @@ func delTest(cx ctlCtx) {
 		{
 			[]kv{{"key1", "val1"}, {"key2", "val2"}, {"key3", "val3"}},
 			[]string{"key", "--prefix"},
+			3,
+		},
+		{
+			[]kv{{"zoo1", "bar"}, {"zoo2", "bar2"}, {"zoo3", "bar3"}},
+			[]string{"zoo1", "--from-key"},
 			3,
 		},
 	}

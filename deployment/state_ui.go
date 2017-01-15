@@ -44,6 +44,7 @@ type stateUI struct {
 	lastHeader   string
 	lastMessage  string
 	states       map[string]string
+	stateExtras  map[string]string
 	writer       *uilive.Writer
 	stopChan     chan bool
 	stopWait     sync.WaitGroup
@@ -58,6 +59,7 @@ func newStateUI(verbose bool) *stateUI {
 		EventSink:   make(chan scheduler.Event),
 		MessageSink: make(chan string),
 		states:      make(map[string]string),
+		stateExtras: make(map[string]string),
 		writer:      uilive.New(),
 		stopChan:    make(chan bool),
 		verbose:     verbose,
@@ -86,7 +88,23 @@ func (s *stateUI) Clear() {
 
 	s.lastHeader = ""
 	s.states = make(map[string]string)
+	s.stateExtras = make(map[string]string)
 	s.lastMessage = ""
+}
+
+func (s *stateUI) SetStateExtra(unitName, extra string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.stateExtras[unitName] = extra
+	s.redraw()
+}
+
+func (s *stateUI) GetStateExtra(unitName string) string {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.stateExtras[unitName]
 }
 
 func (s *stateUI) Confirm(question string) error {
@@ -179,7 +197,11 @@ func (s *stateUI) redraw() {
 	if len(s.states) > 0 {
 		lines := []string{"# Unit | State"}
 		for unitName, state := range s.states {
-			line := fmt.Sprintf("# %s | %s", unitName, state)
+			extra := s.stateExtras[unitName]
+			if extra != "" {
+				extra = "(" + extra + ")"
+			}
+			line := fmt.Sprintf("# %s | %s %s", unitName, state, extra)
 			lines = append(lines, line)
 		}
 		sort.Strings(lines)

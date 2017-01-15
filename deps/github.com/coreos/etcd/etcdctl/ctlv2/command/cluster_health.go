@@ -23,8 +23,8 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/codegangsta/cli"
 	"github.com/coreos/etcd/client"
+	"github.com/urfave/cli"
 	"golang.org/x/net/context"
 )
 
@@ -40,7 +40,7 @@ func NewClusterHealthCommand() cli.Command {
 	}
 }
 
-func handleClusterHealth(c *cli.Context) {
+func handleClusterHealth(c *cli.Context) error {
 	forever := c.Bool("forever")
 	if forever {
 		sigch := make(chan os.Signal, 1)
@@ -54,7 +54,7 @@ func handleClusterHealth(c *cli.Context) {
 
 	tr, err := getTransport(c)
 	if err != nil {
-		handleError(ExitServerError, err)
+		handleError(c, ExitServerError, err)
 	}
 
 	hc := http.Client{
@@ -66,7 +66,7 @@ func handleClusterHealth(c *cli.Context) {
 	ms, err := mi.List(context.TODO())
 	if err != nil {
 		fmt.Println("cluster may be unhealthy: failed to list members")
-		handleError(ExitServerError, err)
+		handleError(c, ExitServerError, err)
 	}
 
 	for {
@@ -125,9 +125,10 @@ func handleClusterHealth(c *cli.Context) {
 		if !forever {
 			if health {
 				os.Exit(ExitSuccess)
-			} else {
-				os.Exit(ExitClusterNotHealthy)
+				return nil
 			}
+			os.Exit(ExitClusterNotHealthy)
+			return nil
 		}
 
 		fmt.Printf("\nnext check after 10 second...\n\n")

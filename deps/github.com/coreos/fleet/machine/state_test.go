@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -89,6 +89,7 @@ var shortIDTests = []struct {
 			"595989bb-cbb7-49ce-8726-722d6e157b4e",
 			"5.6.7.8",
 			map[string]string{"foo": "bar"},
+			Capabilities{},
 			"",
 		},
 		s: "595989bb",
@@ -96,9 +97,10 @@ var shortIDTests = []struct {
 	},
 	{
 		m: MachineState{
-			ID:       "5959",
-			PublicIP: "5.6.7.8",
-			Metadata: map[string]string{"foo": "bar"},
+			ID:           "5959",
+			PublicIP:     "5.6.7.8",
+			Metadata:     map[string]string{"foo": "bar"},
+			Capabilities: Capabilities{"GRPC": true},
 		},
 		s: "5959",
 		l: "5959",

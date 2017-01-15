@@ -1,4 +1,4 @@
-# Configuration Flags
+# Configuration flags
 
 etcd is configurable through command-line flags and environment variables. Options set on the command line take precedence over those from the environment.
 
@@ -8,13 +8,13 @@ The [official etcd ports][iana-ports] are 2379 for client requests and 2380 for 
 
 To start etcd automatically using custom settings at startup in Linux, using a [systemd][systemd-intro] unit is highly recommended.
 
-## Member Flags
+## Member flags
 
 ### --name
 + Human-readable name for this member.
 + default: "default"
 + env variable: ETCD_NAME
-+ This value is referenced as this node's own entries listed in the `--initial-cluster` flag (e.g., `default=http://localhost:2380`). This needs to match the key used in the flag if you're using [static bootstrapping][build-cluster]. When using discovery, each member must have a unique name. `Hostname` or `machine-id` can be a good choice.
++ This value is referenced as this node's own entries listed in the `--initial-cluster` flag (e.g., `default=http://localhost:2380`). This needs to match the key used in the flag if using [static bootstrapping][build-cluster]. When using discovery, each member must have a unique name. `Hostname` or `machine-id` can be a good choice.
 
 ### --data-dir
 + Path to the data directory.
@@ -59,20 +59,20 @@ To start etcd automatically using custom settings at startup in Linux, using a [
 + Maximum number of snapshot files to retain (0 is unlimited)
 + default: 5
 + env variable: ETCD_MAX_SNAPSHOTS
-+ The default for users on Windows is unlimited, and manual purging down to 5 (or your preference for safety) is recommended.
++ The default for users on Windows is unlimited, and manual purging down to 5 (or some preference for safety) is recommended.
 
 ### --max-wals
 + Maximum number of wal files to retain (0 is unlimited)
 + default: 5
 + env variable: ETCD_MAX_WALS
-+ The default for users on Windows is unlimited, and manual purging down to 5 (or your preference for safety) is recommended.
++ The default for users on Windows is unlimited, and manual purging down to 5 (or some preference for safety) is recommended.
 
 ### --cors
 + Comma-separated white list of origins for CORS (cross-origin resource sharing).
 + default: none
 + env variable: ETCD_CORS
 
-## Clustering Flags
+## Clustering flags
 
 `--initial` prefix flags are used in bootstrapping ([static bootstrap][build-cluster], [discovery-service bootstrap][discovery] or [runtime reconfiguration][reconfig]) a new member, and ignored when restarting an existing member.
 
@@ -108,7 +108,7 @@ To start etcd automatically using custom settings at startup in Linux, using a [
 + default: "http://localhost:2379"
 + env variable: ETCD_ADVERTISE_CLIENT_URLS
 + example: "http://example.com:2379, http://10.0.0.1:2379"
-+ Be careful if you are advertising URLs such as http://localhost:2379 from a cluster member and are using the proxy feature of etcd. This will cause loops, because the proxy will be forwarding requests to itself until its resources (memory, file descriptors) are eventually depleted.
++ Be careful if advertising URLs such as http://localhost:2379 from a cluster member and are using the proxy feature of etcd. This will cause loops, because the proxy will be forwarding requests to itself until its resources (memory, file descriptors) are eventually depleted.
 
 ### --discovery
 + Discovery URL used to bootstrap the cluster.
@@ -121,7 +121,7 @@ To start etcd automatically using custom settings at startup in Linux, using a [
 + env variable: ETCD_DISCOVERY_SRV
 
 ### --discovery-fallback
-+ Expected behavior ("exit" or "proxy") when discovery services fails.
++ Expected behavior ("exit" or "proxy") when discovery services fails. "proxy" supports v2 API only.
 + default: "proxy"
 + env variable: ETCD_DISCOVERY_FALLBACK
 
@@ -135,9 +135,14 @@ To start etcd automatically using custom settings at startup in Linux, using a [
 + default: false
 + env variable: ETCD_STRICT_RECONFIG_CHECK
 
-## Proxy Flags
+### --auto-compaction-retention
++ Auto compaction retention for mvcc key value store in hour. 0 means disable auto compaction.
++ default: 0
++ env variable: ETCD_AUTO_COMPACTION_RETENTION
 
-`--proxy` prefix flags configures etcd to run in [proxy mode][proxy].
+## Proxy flags
+
+`--proxy` prefix flags configures etcd to run in [proxy mode][proxy]. "proxy" supports v2 API only.
 
 ### --proxy
 + Proxy mode setting ("off", "readonly" or "on").
@@ -166,11 +171,11 @@ To start etcd automatically using custom settings at startup in Linux, using a [
 
 ### --proxy-read-timeout
 + Time (in milliseconds) for a read to timeout or 0 to disable the timeout.
-+ Don't change this value if you use watches because they are using long polling requests.
++ Don't change this value if using watches because use long polling requests.
 + default: 0
 + env variable: ETCD_PROXY_READ_TIMEOUT
 
-## Security Flags
+## Security flags
 
 The security flags help to [build a secure etcd cluster][security].
 
@@ -234,7 +239,7 @@ The security flags help to [build a secure etcd cluster][security].
 + default: false
 + env variable: ETCD_PEER_AUTO_TLS
 
-## Logging Flags
+## Logging flags
 
 ### --debug
 + Drop the default log level to DEBUG for all subpackages.
@@ -247,7 +252,7 @@ The security flags help to [build a secure etcd cluster][security].
 + env variable: ETCD_LOG_PACKAGE_LEVELS
 
 
-## Unsafe Flags
+## Unsafe flags
 
 Please be CAUTIOUS when using unsafe flags because it will break the guarantees given by the consensus protocol.
 For example, it may panic if other members in the cluster are still alive.
@@ -258,7 +263,7 @@ Follow the instructions when using these flags.
 + default: false
 + env variable: ETCD_FORCE_NEW_CLUSTER
 
-## Miscellaneous Flags
+## Miscellaneous flags
 
 ### --version
 + Print the version and exit.
@@ -271,7 +276,7 @@ Follow the instructions when using these flags.
 ## Profiling flags
 
 ### --enable-pprof
-+ Enable runtime profiling data via HTTP server. Address is at client URL + "/debug/pprof"
++ Enable runtime profiling data via HTTP server. Address is at client URL + "/debug/pprof/"
 + default: false
 
 [build-cluster]: clustering.md#static

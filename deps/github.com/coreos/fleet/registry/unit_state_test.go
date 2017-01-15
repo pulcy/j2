@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -111,19 +111,18 @@ func TestSaveUnitState(t *testing.T) {
 		t.Fatalf("SaveUnitState of nil state should fail but acted unexpectedly!")
 	}
 
-	// Saving unit state with no hash should succeed for now, but should fail
-	// in the future. See https://github.com/coreos/fleet/issues/720.
-	//r.SaveUnitState(j, us, time.Second)
-	//if len(e.sets) != 1 || e.deletes == nil {
-	//	t.Logf("sets: %#v", e.sets)
-	//	t.Logf("deletes: %#v", e.deletes)
-	//	t.Fatalf("SaveUnitState on UnitState with no hash acted unexpectedly!")
-	//}
+	// Saving unit state with no hash should should fail.
+	r.SaveUnitState(j, us, time.Second)
+	if len(e.sets) != 0 || e.deletes != nil {
+		t.Logf("sets: %#v", e.sets)
+		t.Logf("deletes: %#v", e.deletes)
+		t.Fatalf("SaveUnitState on UnitState with no hash acted unexpectedly!")
+	}
 
 	us.UnitHash = "quickbrownfox"
 	r.SaveUnitState(j, us, time.Second)
 
-	json := `{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Version":""},"unitHash":"quickbrownfox"}`
+	json := `{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Capabilities":null,"Version":""},"unitHash":"quickbrownfox"}`
 	p1 := "/fleet/state/foo.service"
 	p2 := "/fleet/states/foo.service/mymachine"
 	want := []action{
@@ -195,8 +194,7 @@ func TestUnitStateToModel(t *testing.T) {
 			want: nil,
 		},
 		{
-			// Unit state with no hash and no machineID is OK
-			// See https://github.com/coreos/fleet/issues/720
+			// Unit state with no hash and no machineID is not OK
 			in: &unit.UnitState{
 				LoadState:   "foo",
 				ActiveState: "bar",
@@ -205,13 +203,7 @@ func TestUnitStateToModel(t *testing.T) {
 				UnitHash:    "",
 				UnitName:    "name",
 			},
-			want: &unitStateModel{
-				LoadState:    "foo",
-				ActiveState:  "bar",
-				SubState:     "baz",
-				MachineState: nil,
-				UnitHash:     "",
-			},
+			want: nil,
 		},
 		{
 			// Unit state with hash but no machineID is OK
@@ -312,7 +304,7 @@ func TestGetUnitState(t *testing.T) {
 	}{
 		{
 			// Unit state with no UnitHash should be OK
-			res: makeResponse(`{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Version":"","TotalResources":{"Cores":0,"Memory":0,"Disk":0},"FreeResources":{"Cores":0,"Memory":0,"Disk":0}}}`),
+			res: makeResponse(`{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Capabilities":null,"Version":"","TotalResources":{"Cores":0,"Memory":0,"Disk":0},"FreeResources":{"Cores":0,"Memory":0,"Disk":0}}}`),
 			err: nil,
 			wantUS: &unit.UnitState{
 				LoadState:   "abc",
@@ -325,7 +317,7 @@ func TestGetUnitState(t *testing.T) {
 		},
 		{
 			// Unit state with UnitHash should be OK
-			res: makeResponse(`{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Version":"","TotalResources":{"Cores":0,"Memory":0,"Disk":0},"FreeResources":{"Cores":0,"Memory":0,"Disk":0}},"unitHash":"quickbrownfox"}`),
+			res: makeResponse(`{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Capabilities":null,"Version":"","TotalResources":{"Cores":0,"Memory":0,"Disk":0},"FreeResources":{"Cores":0,"Memory":0,"Disk":0}},"unitHash":"quickbrownfox"}`),
 			err: nil,
 			wantUS: &unit.UnitState{
 				LoadState:   "abc",
@@ -503,6 +495,82 @@ func TestUnitStates(t *testing.T) {
 	}
 }
 
+func TestUnitState(t *testing.T) {
+	fus1 := unit.UnitState{
+		LoadState:   "abc",
+		ActiveState: "def",
+		SubState:    "ghi",
+		MachineID:   "mID1",
+		UnitHash:    "zzz",
+		UnitName:    "foo",
+	}
+	// Multiple new unit states reported for the same unit
+	foo := &etcd.Node{
+		Key: "/fleet/states/foo",
+		Nodes: []*etcd.Node{
+			&etcd.Node{
+				Key:   "/fleet/states/foo/mID1",
+				Value: usToJson(t, &fus1),
+			},
+		},
+	}
+	// Bogus new unit state which we won't expect to see in results
+	bar := &etcd.Node{
+		Key: "/fleet/states/bar",
+		Nodes: []*etcd.Node{
+			&etcd.Node{
+				Key:   "/fleet/states/bar/asdf",
+				Value: `total garbage`,
+			},
+		},
+	}
+	// Response from crawling the new "states" namespace
+	res2 := &etcd.Response{
+		Node: &etcd.Node{
+			Key:   "/fleet/states",
+			Nodes: []*etcd.Node{foo, bar},
+		},
+	}
+	e := &testEtcdKeysAPI{
+		res: []*etcd.Response{res2},
+	}
+	r := &EtcdRegistry{kAPI: e, keyPrefix: "/fleet/"}
+
+	got, err := r.UnitState(fus1.UnitName)
+	if err != nil {
+		t.Errorf("unexpected error calling UnitState(%s): %v", fus1.UnitName, err)
+	}
+
+	want := &fus1
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("UnitState() returned unexpected result")
+		t.Log("got:")
+		t.Logf("%#v", got)
+		t.Log("want:")
+		t.Logf("%#v", want)
+	}
+
+	// Ensure UnitState handles different error scenarios appropriately
+	for i, tt := range []struct {
+		errs []error
+		fail bool
+	}{
+		{[]error{etcd.Error{Code: etcd.ErrorCodeKeyNotFound}}, false},
+		{[]error{etcd.Error{Code: etcd.ErrorCodeKeyNotFound}}, false},
+		{[]error{nil}, false}, // No errors, no responses should succeed
+		{[]error{errors.New("ur registry don't work")}, true},
+		{[]error{errors.New("ur registry don't work")}, true},
+	} {
+		e = &testEtcdKeysAPI{err: tt.errs}
+		r = &EtcdRegistry{kAPI: e, keyPrefix: "/fleet"}
+		got, err = r.UnitState(fus1.UnitName)
+		if (err != nil) != tt.fail {
+			t.Errorf("case %d: unexpected error state calling UnitState(%s): got %v, want %v",
+				i, fus1.UnitName, err, tt.fail)
+		}
+	}
+}
+
 func TestMUSKeys(t *testing.T) {
 	equal := func(a MUSKeys, b []MUSKey) bool {
 		if len(a) != len(b) {
@@ -515,11 +583,11 @@ func TestMUSKeys(t *testing.T) {
 		}
 		return true
 	}
-	k1 := MUSKey{name: "abc", machID: "aaa"}
-	k2 := MUSKey{name: "abc", machID: "zzz"}
-	k3 := MUSKey{name: "def", machID: "bbb"}
-	k4 := MUSKey{name: "ppp", machID: "zzz"}
-	k5 := MUSKey{name: "xxx", machID: "aaa"}
+	k1 := MUSKey{Name: "abc", MachID: "aaa"}
+	k2 := MUSKey{Name: "abc", MachID: "zzz"}
+	k3 := MUSKey{Name: "def", MachID: "bbb"}
+	k4 := MUSKey{Name: "ppp", MachID: "zzz"}
+	k5 := MUSKey{Name: "xxx", MachID: "aaa"}
 	want := []MUSKey{k1, k2, k3, k4, k5}
 	ms := MUSKeys{k3, k4, k5, k2, k1}
 	if equal(ms, want) {

@@ -1,9 +1,13 @@
 language: go
 matrix:
   include:
-    - go: 1.5.4
+    - go: 1.5.x
       env: GO15VENDOREXPERIMENT=1
-    - go: 1.6.2
+    - go: 1.6.x
+    - go: 1.7.x
+    - go: tip
+  allow_failures:
+    - go: tip
 
 script:
  - ./test

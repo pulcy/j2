@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,14 @@ package config
 
 import (
 	"strings"
+
+	"github.com/coreos/fleet/machine"
 )
 
 type Config struct {
 	EtcdServers             []string
+	EtcdUsername            string
+	EtcdPassword            string
 	EtcdKeyPrefix           string
 	EtcdKeyFile             string
 	EtcdCertFile            string
@@ -33,8 +37,18 @@ type Config struct {
 	TokenLimit              int
 	DisableEngine           bool
 	DisableWatches          bool
+	EnableGRPC              bool
 	VerifyUnits             bool
+	UnitsDirectory          string
+	SystemdUser             bool
 	AuthorizedKeysFile      string
+}
+
+func (c *Config) Capabilities() machine.Capabilities {
+	return machine.Capabilities{
+		machine.CapDISABLE_ENGINE: c.DisableEngine,
+		machine.CapGRPC:           c.EnableGRPC,
+	}
 }
 
 func (c *Config) Metadata() map[string]string {

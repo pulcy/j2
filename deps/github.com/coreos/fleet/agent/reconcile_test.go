@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -254,6 +254,7 @@ MachineMetadata=dog=woof`),
 		reg := registry.NewFakeRegistry()
 		reg.SetJobs(tt.regJobs)
 		a := makeAgentWithMetadata(tt.metadata)
+		reg.SetMachines([]machine.MachineState{a.Machine.State()})
 		as, err := desiredAgentState(a, reg)
 		if err != nil {
 			t.Errorf("case %d: unexpected error: %v", i, err)
@@ -275,48 +276,48 @@ func TestAbleToRun(t *testing.T) {
 	tests := []struct {
 		dState *AgentState
 		job    *job.Job
-		want   bool
+		want   job.JobAction
 	}{
 		// nothing to worry about
 		{
 			dState: NewAgentState(&machine.MachineState{ID: "123"}),
 			job:    &job.Job{Name: "easy-street.service", Unit: unit.UnitFile{}},
-			want:   true,
+			want:   job.JobActionSchedule,
 		},
 
 		// match MachineID
 		{
 			dState: NewAgentState(&machine.MachineState{ID: "XYZ"}),
 			job:    newTestJobWithXFleetValues(t, "MachineID=XYZ"),
-			want:   true,
+			want:   job.JobActionSchedule,
 		},
 
 		// mismatch MachineID
 		{
 			dState: NewAgentState(&machine.MachineState{ID: "123"}),
 			job:    newTestJobWithXFleetValues(t, "MachineID=XYZ"),
-			want:   false,
+			want:   job.JobActionUnschedule,
 		},
 
 		// match MachineMetadata
 		{
 			dState: NewAgentState(&machine.MachineState{ID: "123", Metadata: map[string]string{"region": "us-west"}}),
 			job:    newTestJobWithXFleetValues(t, "MachineMetadata=region=us-west"),
-			want:   true,
+			want:   job.JobActionSchedule,
 		},
 
 		// Machine metadata ignored when no MachineMetadata in Job
 		{
 			dState: NewAgentState(&machine.MachineState{ID: "123", Metadata: map[string]string{"region": "us-west"}}),
 			job:    &job.Job{Name: "easy-street.service", Unit: unit.UnitFile{}},
-			want:   true,
+			want:   job.JobActionSchedule,
 		},
 
 		// mismatch MachineMetadata
 		{
 			dState: NewAgentState(&machine.MachineState{ID: "123", Metadata: map[string]string{"region": "us-west"}}),
 			job:    newTestJobWithXFleetValues(t, "MachineMetadata=region=us-east"),
-			want:   false,
+			want:   job.JobActionUnschedule,
 		},
 
 		// peer scheduled locally
@@ -328,7 +329,7 @@ func TestAbleToRun(t *testing.T) {
 				},
 			},
 			job:  newTestJobWithXFleetValues(t, "MachineOf=pong.service"),
-			want: true,
+			want: job.JobActionSchedule,
 		},
 
 		// multiple peers scheduled locally
@@ -341,14 +342,14 @@ func TestAbleToRun(t *testing.T) {
 				},
 			},
 			job:  newTestJobWithXFleetValues(t, "MachineOf=pong.service\nMachineOf=ping.service"),
-			want: true,
+			want: job.JobActionSchedule,
 		},
 
 		// peer not scheduled locally
 		{
 			dState: NewAgentState(&machine.MachineState{ID: "123"}),
 			job:    newTestJobWithXFleetValues(t, "MachineOf=ping.service"),
-			want:   false,
+			want:   job.JobActionUnschedule,
 		},
 
 		// one of multiple peers not scheduled locally
@@ -360,7 +361,7 @@ func TestAbleToRun(t *testing.T) {
 				},
 			},
 			job:  newTestJobWithXFleetValues(t, "MachineOf=pong.service\nMachineOf=ping.service"),
-			want: false,
+			want: job.JobActionUnschedule,
 		},
 
 		// no conflicts found
@@ -372,7 +373,7 @@ func TestAbleToRun(t *testing.T) {
 				},
 			},
 			job:  newTestJobWithXFleetValues(t, "Conflicts=pong.service"),
-			want: true,
+			want: job.JobActionSchedule,
 		},
 
 		// conflicts found
@@ -384,7 +385,31 @@ func TestAbleToRun(t *testing.T) {
 				},
 			},
 			job:  newTestJobWithXFleetValues(t, "Conflicts=ping.service"),
-			want: false,
+			want: job.JobActionUnschedule,
+		},
+
+		// conflicts found
+		{
+			dState: &AgentState{
+				MState: &machine.MachineState{ID: "123"},
+				Units: map[string]*job.Unit{
+					"ping.service": &job.Unit{Name: "ping.service"},
+				},
+			},
+			job:  newTestJobWithXFleetValues(t, "Conflicts=pong.service\nConflicts=ping.service"),
+			want: job.JobActionUnschedule,
+		},
+
+		// conflicts found
+		{
+			dState: &AgentState{
+				MState: &machine.MachineState{ID: "123"},
+				Units: map[string]*job.Unit{
+					"ping.service": &job.Unit{Name: "ping.service"},
+				},
+			},
+			job:  newTestJobWithXFleetValues(t, "Conflicts=pong.service ping.service"),
+			want: job.JobActionUnschedule,
 		},
 
 		// no replaces found
@@ -396,7 +421,7 @@ func TestAbleToRun(t *testing.T) {
 				},
 			},
 			job:  newTestJobWithXFleetValues(t, "Replaces=pong.service"),
-			want: true,
+			want: job.JobActionSchedule,
 		},
 
 		// replaces found
@@ -408,7 +433,7 @@ func TestAbleToRun(t *testing.T) {
 				},
 			},
 			job:  newTestJobWithXFleetValues(t, "Replaces=ping.service"),
-			want: false,
+			want: job.JobActionReschedule,
 		},
 	}
 

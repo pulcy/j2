@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"runtime"
 	"strings"
@@ -205,6 +204,22 @@ func ParseConsistency(s string) Consistency {
 	}
 }
 
+// ParseConsistencyWrapper wraps gocql.ParseConsistency to provide an err
+// return instead of a panic
+func ParseConsistencyWrapper(s string) (consistency Consistency, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			var ok bool
+			err, ok = r.(error)
+			if !ok {
+				err = fmt.Errorf("ParseConsistencyWrapper: %v", r)
+			}
+		}
+	}()
+	consistency = ParseConsistency(s)
+	return consistency, nil
+}
+
 type SerialConsistency uint16
 
 const (
@@ -260,6 +275,7 @@ type frameHeader struct {
 	op            frameOp
 	length        int
 	customPayload map[string][]byte
+	warnings      []string
 }
 
 func (f frameHeader) String() string {
@@ -349,7 +365,7 @@ func readHeader(r io.Reader, p []byte) (head frameHeader, err error) {
 	version := p[0] & protoVersionMask
 
 	if version < protoVersion1 || version > protoVersion4 {
-		return frameHeader{}, fmt.Errorf("gocql: unsupported response version: %d", version)
+		return frameHeader{}, fmt.Errorf("gocql: unsupported protocol response version: %d", version)
 	}
 
 	headSize := 9
@@ -453,11 +469,7 @@ func (f *framer) parseFrame() (frame frame, err error) {
 	}
 
 	if f.header.flags&flagWarning == flagWarning {
-		warnings := f.readStringList()
-		// what to do with warnings?
-		for _, v := range warnings {
-			log.Println(v)
-		}
+		f.header.warnings = f.readStringList()
 	}
 
 	if f.header.flags&flagCustomPayload == flagCustomPayload {

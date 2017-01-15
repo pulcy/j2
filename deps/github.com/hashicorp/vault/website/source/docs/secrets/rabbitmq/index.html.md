@@ -44,7 +44,7 @@ and the user's password.
 
 ```text
 $ vault write rabbitmq/config/connection \
-    uri="http://localhost:15672" \
+    connection_uri="http://localhost:15672" \
     username="admin" \
     password="password"
 ```
@@ -117,7 +117,6 @@ subpath for interactive help output.
   <dt>Description</dt>
   <dd>
     Configures the connection string used to communicate with RabbitMQ.
-    This is a root protected endpoint.
   </dd>
 
   <dt>Method</dt>

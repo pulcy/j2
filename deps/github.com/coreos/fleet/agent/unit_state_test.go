@@ -1,4 +1,4 @@
-// Copyright 2014 CoreOS, Inc.
+// Copyright 2014 The fleet Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -227,6 +227,7 @@ func TestDefaultPublisher(t *testing.T) {
 				UnitName:    "foo.service",
 				ActiveState: "active",
 				MachineID:   "xyz",
+				UnitHash:    "quickbrownfox",
 			},
 			nil,
 			[]*unit.UnitState{
@@ -234,6 +235,7 @@ func TestDefaultPublisher(t *testing.T) {
 					UnitName:    "foo.service",
 					ActiveState: "active",
 					MachineID:   "xyz",
+					UnitHash:    "quickbrownfox",
 				},
 			},
 		},
@@ -243,6 +245,7 @@ func TestDefaultPublisher(t *testing.T) {
 			&unit.UnitState{
 				UnitName:    "foo.service",
 				ActiveState: "active",
+				UnitHash:    "quickbrownfox",
 			},
 			nil,
 			[]*unit.UnitState{},
@@ -255,6 +258,7 @@ func TestDefaultPublisher(t *testing.T) {
 				unit.UnitState{
 					UnitName:    "foo.service",
 					ActiveState: "active",
+					UnitHash:    "quickbrownfox",
 				},
 			},
 			[]*unit.UnitState{},
@@ -621,13 +625,36 @@ func TestUnitStatePublisherRunWithDelays(t *testing.T) {
 		)
 	}
 
+	waitUnitToPublish := func(uName string) {
+		select {
+		case name := <-usp.toPublish:
+			if name != uName {
+				t.Errorf("unexpected name on toPublish channel: %v", name)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("did not receive on toPublish channel as expected")
+		}
+	}
+
 	// now queue some more unit states for publishing - expect them to hang
-	go usp.queueForPublish("foo.service", &unit.UnitState{UnitName: "foo.service", ActiveState: "active"})
+	go usp.queueForPublish("foo.service", &unit.UnitState{
+		UnitName:    "foo.service",
+		ActiveState: "active",
+	})
+	waitUnitToPublish("foo.service")
+
 	go usp.queueForPublish("bar.service", &unit.UnitState{})
+	waitUnitToPublish("bar.service")
+
 	go usp.queueForPublish("baz.service", &unit.UnitState{})
+	waitUnitToPublish("baz.service")
 
 	// re-queue one of the states; this should replace the above
-	go usp.queueForPublish("foo.service", &unit.UnitState{UnitName: "foo.service", ActiveState: "inactive"})
+	go usp.queueForPublish("foo.service", &unit.UnitState{
+		UnitName:    "foo.service",
+		ActiveState: "inactive",
+	})
+	waitUnitToPublish("foo.service")
 
 	// wait for all publish workers to start
 	wgs.Wait()

@@ -39,7 +39,7 @@ type taskData struct {
 	Volumes          VolumeList        `json:"volumes,omitempty"`
 	Args             []string          `json:"args,omitempty"`
 	Environment      map[string]string `json:"environment,omitempty"`
-	Ports            []string          `json:"ports,omitempty"`
+	Ports            []PortMapping     `json:"ports,omitempty"`
 	PublicFrontEnds  []PublicFrontEnd  `json:"frontends,omitempty"`
 	PrivateFrontEnds []PrivateFrontEnd `json:"private-frontends,omitempty"`
 	HttpCheckPath    string            `json:"http-check-path,omitempty" mapstructure:"http-check-path,omitempty"`
@@ -91,8 +91,8 @@ func (t *Task) optimizeFor(cluster cluster.Cluster) {
 }
 
 // replaceVariables replaces all known variables in the values of the given task.
-func (t *Task) replaceVariables() error {
-	ctx := NewVariableContext(t.group.job, t.group, t)
+func (t *Task) replaceVariables(renderer Renderer) error {
+	ctx := NewVariableContext(renderer, t.group.job, t.group, t)
 	t.Type = TaskType(ctx.replaceString(string(t.Type)))
 	t.Timer = ctx.replaceString(t.Timer)
 	t.Image = t.Image.replaceVariables(ctx)
@@ -107,7 +107,9 @@ func (t *Task) replaceVariables() error {
 	}
 	t.Args = ctx.replaceStringSlice(t.Args)
 	t.Environment = ctx.replaceStringMap(t.Environment)
-	t.Ports = ctx.replaceStringSlice(t.Ports)
+	for i, p := range t.Ports {
+		t.Ports[i] = PortMapping(ctx.replaceString(string(p)))
+	}
 	for i, x := range t.PublicFrontEnds {
 		t.PublicFrontEnds[i] = x.replaceVariables(ctx)
 	}
@@ -172,6 +174,12 @@ func (t Task) Validate() error {
 			return maskAny(err)
 		}
 	}
+	for _, p := range t.Ports {
+		if _, err := p.Parse(); err != nil {
+			return maskAny(err)
+		}
+	}
+
 	httpFrontends := 0
 	tcpFrontends := 0
 	for _, f := range t.PublicFrontEnds {
@@ -241,6 +249,11 @@ func (t *Task) JobID() string {
 // JobName returns the name of the job containing the group containing this task.
 func (t *Task) JobName() JobName {
 	return t.group.job.Name
+}
+
+// GroupName returns the name of the group containing this task.
+func (t *Task) GroupName() TaskGroupName {
+	return t.group.Name
 }
 
 // GroupGlobal returns true if the Global flag of the containing group is set.

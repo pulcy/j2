@@ -19,4 +19,5 @@ package main
 import (
 	_ "github.com/pulcy/j2/engine/docker"
 	_ "github.com/pulcy/j2/orchestrator/fleet"
+	_ "github.com/pulcy/j2/orchestrator/kubernetes"
 )
