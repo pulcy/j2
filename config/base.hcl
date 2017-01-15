@@ -124,7 +124,7 @@ job "base" {
 		}
 		args = ["run",
 			"--backend=kubernetes",
-			"--log-level=debug",
+			"--log-level=info",
 			"--etcd-endpoint", "http://${private_ipv4}:32379",
 			"--etcd-no-sync=true",
 			"--private-key-path", "/acme/private-key",
