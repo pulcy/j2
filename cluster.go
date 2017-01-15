@@ -16,6 +16,7 @@ package main
 
 import (
 	"io/ioutil"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -46,18 +47,17 @@ func init() {
 	initDeploymentFlags(clusterConfigCmd.Flags(), &clusterFlags.Flags)
 
 	fs := clusterConfigCmd.Flags()
+	defaultVaultAddress := os.Getenv("VAULT_ADDR")
+	defaultVaultCACertPath := os.Getenv("VAULT_CACERT")
 	fs.StringVar(&clusterFlags.clusterID, "cluster-id", "", "ID of the cluster")
-	fs.StringVar(&clusterFlags.vaultAddress, "vault-address", "", "URL of Vault server")
-	fs.StringVar(&clusterFlags.vaultCACertPath, "vault-cacert-path", "", "Path of file containing Vault CA certificate")
+	fs.StringVar(&clusterFlags.vaultAddress, "vault-address", defaultVaultAddress, "URL of Vault server")
+	fs.StringVar(&clusterFlags.vaultCACertPath, "vault-cacert-path", defaultVaultCACertPath, "Path of file containing Vault CA certificate")
 
 	cmdMain.AddCommand(clusterCmd)
 	clusterCmd.AddCommand(clusterConfigCmd)
 }
 
 func configureClusterRun(cmd *cobra.Command, args []string) {
-	if clusterFlags.clusterID == "" {
-		Exitf("--cluster-id missing")
-	}
 	if clusterFlags.vaultAddress == "" {
 		Exitf("--vault-address missing")
 	}

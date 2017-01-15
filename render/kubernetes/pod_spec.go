@@ -48,6 +48,16 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext, requireRes
 		spec.Containers = append(spec.Containers, containers...)
 	}
 
+	// Image pull secrets
+	if len(ctx.Cluster.KubernetesOptions.RegistrySecrets) > 0 {
+		for _, secretName := range ctx.Cluster.KubernetesOptions.RegistrySecrets {
+			spec.ImagePullSecrets = append(spec.ImagePullSecrets, k8s.LocalObjectReference{
+				Name: secretName,
+			})
+		}
+	}
+
+	// Annotations
 	annotations := make(map[string]string)
 	if len(allInitContainers) > 0 {
 		if len(spec.Containers) == 0 {

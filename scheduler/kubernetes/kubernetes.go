@@ -91,6 +91,20 @@ func (s *k8sScheduler) ValidateCluster() error {
 
 // ConfigureCluster configures the cluster for use by J2.
 func (s *k8sScheduler) ConfigureCluster(config scheduler.ClusterConfig) error {
+	// Fetch info (if needed)
+	clusterID := config.ClusterID()
+	if clusterID == "" {
+		if s.defaultNamespace != "base" {
+			// Try to fetch cluster info from base namespace
+			secret, err := s.client.GetSecret("base", pkg.SecretClusterInfo)
+			if err == nil {
+				clusterID = string(secret.Data[pkg.EnvVarClusterID])
+			}
+		}
+		if clusterID == "" {
+			return maskAny(fmt.Errorf("clusterID cannot be empty"))
+		}
+	}
 	// Ensure namespace exists
 	if err := s.ensureNamespace(s.defaultNamespace); err != nil {
 		return maskAny(err)
@@ -134,7 +148,7 @@ func (s *k8sScheduler) ConfigureCluster(config scheduler.ClusterConfig) error {
 
 	// Update cluster-info secret
 	if err := updateSecret(pkg.SecretClusterInfo, map[string]string{
-		pkg.EnvVarClusterID: config.ClusterID(),
+		pkg.EnvVarClusterID: clusterID,
 	}); err != nil {
 		return maskAny(err)
 	}
