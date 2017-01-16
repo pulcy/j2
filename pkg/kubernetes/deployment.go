@@ -125,11 +125,15 @@ func (ds *Deployment) Destroy(cs k8s.Client, events chan string) error {
 		return maskAny(err)
 	}
 
+	time.Sleep(time.Second)
+
 	// Delete created replicaSets.
 	events <- "deleting replicaSets"
 	if err := deleteReplicaSets(cs, ds.Namespace(), labelSelector); err != nil {
 		return maskAny(err)
 	}
+
+	time.Sleep(time.Second)
 
 	// Delete created pods.
 	events <- "deleting pods"

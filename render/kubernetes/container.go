@@ -89,6 +89,8 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext, hostNetwo
 	// J2 specific Environment variables
 	c.Env = append(c.Env,
 		createEnvVarFromField(pkg.EnvVarPodIP, "status.podIP"),
+		createEnvVarFromField(pkg.EnvVarPodName, "metadata.name"),
+		createEnvVarFromField(pkg.EnvVarNamespace, "metadata.namespace"),
 		createEnvVarFromField(pkg.EnvVarNodeName, "spec.nodeName"),
 	)
 

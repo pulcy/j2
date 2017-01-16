@@ -72,6 +72,12 @@ func (g *k8sRenderer) ExpandMachineID() string {
 // Expand  "${instance}":
 func (g *k8sRenderer) ExpandInstance() string { return "%i" }
 
+// Expand  "${kubernetes-namespace}":
+func (g *k8sRenderer) ExpandKubernetesNamespace() string { return "$(J2_NAMESPACE)" }
+
+// Expand  "${kubernetes-pod}":
+func (g *k8sRenderer) ExpandKubernetesPod() string { return "$(J2_POD_NAME)" }
+
 // Does the given task support a DNS name link to the given target?
 func (g *k8sRenderer) SupportsDNSLinkTo(task *jobs.Task, target jobs.LinkName) bool {
 	return !target.HasInstance()

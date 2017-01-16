@@ -25,6 +25,12 @@ type Renderer interface {
 	// Expand  "${instance}":
 	ExpandInstance() string
 
+	// Expand  "${kubernetes-namespace}":
+	ExpandKubernetesNamespace() string
+
+	// Expand  "${kubernetes-pod}":
+	ExpandKubernetesPod() string
+
 	// Does the given task support a DNS name link to the given target?
 	SupportsDNSLinkTo(task *Task, target LinkName) bool
 

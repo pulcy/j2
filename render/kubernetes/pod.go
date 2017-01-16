@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"fmt"
 	"sort"
-	"strconv"
 
 	"github.com/pulcy/j2/jobs"
 )
@@ -81,7 +80,7 @@ func groupTaskIntoPods(tg *jobs.TaskGroup) ([]pod, error) {
 		if len(tg.Tasks) == 1 {
 			p.name = resourceName(tg.Name.String(), "")
 		} else {
-			p.name = resourceName(tg.Name.String(), strconv.Itoa(p.index))
+			p.name = resourceName(tg.Name.String(), "-"+p.tasks[0].Name.String())
 		}
 	}
 
@@ -163,6 +162,18 @@ func (p *pod) hasOneShotTasks() bool {
 	for _, t := range p.tasks {
 		if t.Type.IsOneshot() {
 			return true
+		}
+	}
+	return false
+}
+
+// hasRWHostVolumes returns true if there is at least 1 task that has a volume mapped to a host folder and is read/write.
+func (p *pod) hasRWHostVolumes() bool {
+	for _, t := range p.tasks {
+		for _, v := range t.Volumes {
+			if v.IsLocal() && !v.IsReadOnly() {
+				return true
+			}
 		}
 	}
 	return false

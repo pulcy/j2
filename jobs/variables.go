@@ -164,6 +164,10 @@ func (ctx *variableContext) replaceString(input string) string {
 			return r.ExpandHostname()
 		case "machine_id":
 			return r.ExpandMachineID()
+		case "kubernetes-namespace":
+			return r.ExpandKubernetesNamespace()
+		case "kubernetes-pod":
+			return r.ExpandKubernetesPod()
 		default:
 			parts := strings.Split(key, " ")
 			assertNoArgs := func(noArgs int) bool {

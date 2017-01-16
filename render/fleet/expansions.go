@@ -40,6 +40,12 @@ func (g *fleetRenderer) ExpandMachineID() string { return "%m" }
 // Expand  "${instance}":
 func (g *fleetRenderer) ExpandInstance() string { return "%i" }
 
+// Expand  "${kubernetes-namespace}":
+func (g *fleetRenderer) ExpandKubernetesNamespace() string { return "" }
+
+// Expand  "${kubernetes-pod}":
+func (g *fleetRenderer) ExpandKubernetesPod() string { return "" }
+
 // Does the given task support a DNS name link to the given target?
 func (g *fleetRenderer) SupportsDNSLinkTo(task *jobs.Task, target jobs.LinkName) bool {
 	return task.Network.IsWeave() && !target.HasInstance()

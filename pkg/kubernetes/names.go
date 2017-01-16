@@ -4,8 +4,10 @@ import "strings"
 
 const (
 	// environment variable names
-	EnvVarPodIP    = "J2_POD_IP"
-	EnvVarNodeName = "J2_NODE_NAME"
+	EnvVarPodIP     = "J2_POD_IP"
+	EnvVarPodName   = "J2_POD_NAME"
+	EnvVarNodeName  = "J2_NODE_NAME"
+	EnvVarNamespace = "J2_NAMESPACE"
 
 	// Secret related
 	EnvVarClusterID    = "CLUSTER_ID"
