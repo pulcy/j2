@@ -16,6 +16,8 @@ package kubernetes
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/juju/errgo"
 
@@ -26,6 +28,23 @@ import (
 
 // ValidateCluster checks if the cluster is suitable to run the configured job.
 func (s *k8sScheduler) ValidateCluster() error {
+	if err := s.validateCluster(); err == nil {
+		// All good
+		return nil
+	}
+	// Try to configure based on environment variables
+	s.ConfigureCluster(&envClusterConfig{})
+
+	// And now re-validate
+	if err := s.validateCluster(); err != nil {
+		return maskAny(err)
+	}
+
+	return nil
+}
+
+// validateCluster checks if the cluster is suitable to run the configured job.
+func (s *k8sScheduler) validateCluster() error {
 	// Check vault-info secret
 	vaultInfo, err := s.client.GetSecret(s.defaultNamespace, pkg.SecretVaultInfo)
 	if err != nil {
@@ -169,4 +188,30 @@ func (s *k8sScheduler) ConfigureCluster(config scheduler.ClusterConfig) error {
 	}
 
 	return nil
+}
+
+type envClusterConfig struct{}
+
+func (c *envClusterConfig) ClusterID() string {
+	return ""
+}
+
+func (c *envClusterConfig) VaultAddress() string {
+	return os.Getenv("VAULT_ADDR")
+}
+
+func (c *envClusterConfig) VaultCACert() string {
+	caCertPath := os.Getenv("VAULT_CACERT")
+	if caCertPath == "" {
+		return ""
+	}
+	raw, err := ioutil.ReadFile(caCertPath)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
+}
+
+func (c *envClusterConfig) VaultCAPath() string {
+	return ""
 }
