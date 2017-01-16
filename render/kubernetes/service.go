@@ -14,6 +14,9 @@ import (
 func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Service, error) {
 	var services []k8s.Service
 	for _, t := range pod.tasks {
+		if t.Type.IsProxy() {
+			continue
+		}
 		if len(t.Ports) == 0 && len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
 			continue
 		}
