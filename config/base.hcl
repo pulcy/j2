@@ -80,13 +80,6 @@ job "base" {
 
 {{else if (eq .Cluster.Orchestrator "kubernetes")}}
 
-	// Do not use ETCD under Kubernetes, but use our own instances.
-	// This is recommended and much better for security.
-	task "etcd_install" {
-		image = "pulcy/kube-etcd:20170113162545"
-		type = "oneshot"
-	}
-
 	// The load-balancer exposes port 80, 443 & 7088.
 	task "lb" {
 		global = true
@@ -125,7 +118,7 @@ job "base" {
 		args = ["run",
 			"--backend=kubernetes",
 			"--log-level=info",
-			"--etcd-endpoint", "http://${private_ipv4}:32379",
+			"--etcd-endpoint", "http://127.0.0.1:4001",
 			"--etcd-no-sync=true",
 			"--private-key-path", "/acme/private-key",
 			"--registration-path", "/acme/registration",
