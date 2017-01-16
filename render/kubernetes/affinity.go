@@ -80,10 +80,10 @@ func createAffinity(constraints jobs.Constraints, tg *jobs.TaskGroup, pod pod, c
 					return nil, errgo.WithCausef(nil, ValidationError, "constraint with attribute '%s' has unsupported operator '%s'", c.Attribute, c.Operator)
 				}
 				if term.LabelSelector == nil {
-					term.LabelSelector = &k8s.LabelSelector{}
+					term.LabelSelector = newLabelSelector()
 				}
 				term.TopologyKey = "node"
-				term.LabelSelector.MatchLabels[pkg.LabelTaskGroupFullName] = group.FullName()
+				term.LabelSelector.MatchLabels[pkg.LabelTaskGroupFullName] = pkg.ResourceName(group.FullName())
 			default:
 				return nil, errgo.WithCausef(nil, ValidationError, "Unknown constraint attribute '%s'", c.Attribute)
 			}
@@ -109,4 +109,10 @@ func createAffinity(constraints jobs.Constraints, tg *jobs.TaskGroup, pod pod, c
 	}
 
 	return a, nil
+}
+
+func newLabelSelector() *k8s.LabelSelector {
+	return &k8s.LabelSelector{
+		MatchLabels: map[string]string{},
+	}
 }
