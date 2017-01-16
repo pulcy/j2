@@ -21,6 +21,7 @@ import (
 	"github.com/juju/errgo"
 
 	k8s "github.com/YakLabs/k8s-client"
+	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/jobs"
 	pkg "github.com/pulcy/j2/pkg/kubernetes"
 	"github.com/pulcy/j2/scheduler"
@@ -44,7 +45,7 @@ type Unit interface {
 }
 
 // NewScheduler creates a new kubernetes implementation of scheduler.Scheduler.
-func NewScheduler(j jobs.Job, kubeConfig, context string) (scheduler.Scheduler, error) {
+func NewScheduler(j jobs.Job, cluster cluster.Cluster, kubeConfig, context string) (scheduler.Scheduler, error) {
 	// creates the client
 	client, err := createClientFromConfig(kubeConfig, context)
 	if err != nil {
@@ -54,6 +55,7 @@ func NewScheduler(j jobs.Job, kubeConfig, context string) (scheduler.Scheduler, 
 		client:           client,
 		defaultNamespace: pkg.ResourceName(j.Name.String()),
 		job:              j,
+		cluster:          cluster,
 	}, nil
 }
 
@@ -61,113 +63,7 @@ type k8sScheduler struct {
 	client           k8s.Client
 	defaultNamespace string
 	job              jobs.Job
-}
-
-// ValidateCluster checks if the cluster is suitable to run the configured job.
-func (s *k8sScheduler) ValidateCluster() error {
-	// Check vault-info secret
-	vaultInfo, err := s.client.GetSecret(s.defaultNamespace, pkg.SecretVaultInfo)
-	if err != nil {
-		return maskAny(errgo.Notef(err, "%s secret missing: %v", pkg.SecretVaultInfo, err))
-	}
-	if _, ok := vaultInfo.Data[pkg.EnvVarVaultAddress]; !ok {
-		return maskAny(fmt.Errorf("%s secret missing data for %s", pkg.SecretVaultInfo, pkg.EnvVarVaultAddress))
-	}
-	_, caCertFound := vaultInfo.Data[pkg.EnvVarVaultCACert]
-	_, caPathFound := vaultInfo.Data[pkg.EnvVarVaultCAPath]
-	if !(caCertFound || caPathFound) {
-		return maskAny(fmt.Errorf("%s secret missing data for %s or %s", pkg.SecretVaultInfo, pkg.EnvVarVaultCACert, pkg.EnvVarVaultCAPath))
-	}
-	// Check cluster-info secret
-	clusterInfo, err := s.client.GetSecret(s.defaultNamespace, pkg.SecretClusterInfo)
-	if err != nil {
-		return maskAny(errgo.Notef(err, "%s secret missing: %v", pkg.SecretClusterInfo, err))
-	}
-	if _, ok := clusterInfo.Data[pkg.EnvVarClusterID]; !ok {
-		return maskAny(fmt.Errorf("%s secret missing data for %s", pkg.SecretClusterInfo, pkg.EnvVarClusterID))
-	}
-	return nil
-}
-
-// ConfigureCluster configures the cluster for use by J2.
-func (s *k8sScheduler) ConfigureCluster(config scheduler.ClusterConfig) error {
-	// Fetch info (if needed)
-	clusterID := config.ClusterID()
-	if clusterID == "" {
-		if s.defaultNamespace != "base" {
-			// Try to fetch cluster info from base namespace
-			secret, err := s.client.GetSecret("base", pkg.SecretClusterInfo)
-			if err == nil {
-				clusterID = string(secret.Data[pkg.EnvVarClusterID])
-			}
-		}
-		if clusterID == "" {
-			return maskAny(fmt.Errorf("clusterID cannot be empty"))
-		}
-	}
-	// Ensure namespace exists
-	if err := s.ensureNamespace(s.defaultNamespace); err != nil {
-		return maskAny(err)
-	}
-
-	updateSecret := func(secretName string, values map[string]string) error {
-		create := false
-		secret, err := s.client.GetSecret(s.defaultNamespace, secretName)
-		if err != nil {
-			create = true
-			secret = k8s.NewSecret(s.defaultNamespace, secretName)
-		}
-		for k, v := range values {
-			raw := []byte(v)
-			if len(v) == 0 {
-				raw = []byte{}
-			}
-			//encoded := base64.StdEncoding.EncodeToString([]byte(v))
-			secret.Data[k] = raw
-		}
-		if create {
-			if _, err := s.client.CreateSecret(s.defaultNamespace, secret); err != nil {
-				return maskAny(err)
-			}
-		} else {
-			if _, err := s.client.UpdateSecret(s.defaultNamespace, secret); err != nil {
-				return maskAny(err)
-			}
-		}
-		return nil
-	}
-	// Update vault-info secret
-	values := map[string]string{
-		pkg.EnvVarVaultAddress: config.VaultAddress(),
-		pkg.EnvVarVaultCACert:  config.VaultCACert(),
-		pkg.EnvVarVaultCAPath:  config.VaultCAPath(),
-	}
-	if err := updateSecret(pkg.SecretVaultInfo, values); err != nil {
-		return maskAny(err)
-	}
-
-	// Update cluster-info secret
-	if err := updateSecret(pkg.SecretClusterInfo, map[string]string{
-		pkg.EnvVarClusterID: clusterID,
-	}); err != nil {
-		return maskAny(err)
-	}
-
-	// Show cluster info
-	nodes, err := s.client.ListNodes(nil)
-	if err != nil {
-		return maskAny(err)
-	}
-	for i, n := range nodes.Items {
-		nodeInfo := n.Status.NodeInfo
-		id := nodeInfo.MachineID
-		if id == "" {
-			id = nodeInfo.SystemUUID
-		}
-		fmt.Printf("Node %d: %s\n", i, id)
-	}
-
-	return nil
+	cluster          cluster.Cluster
 }
 
 // List returns the names of all units on the cluster

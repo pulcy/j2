@@ -20,6 +20,12 @@ const (
 	SecretVaultInfo   = "j2-vault-info"
 )
 
+const (
+	// Docker registry secret field names
+	DockerRegistrySecretDataFieldDockerConfigJSON = ".dockerconfigjson"
+	DockerRegistrySecretTypeDockerConfigJSON      = "kubernetes.io/dockerconfigjson"
+)
+
 var (
 	resourceNameReplacer = strings.NewReplacer(
 		"/", "-",
