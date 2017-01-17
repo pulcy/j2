@@ -89,7 +89,7 @@ job "base" {
 			value = "true"
 		}
 		count = 1
-		image = "pulcy/robin:20170114162038"
+		image = "pulcy/robin:0.26.1"
 		ports = ["0.0.0.0:80:80", "81", "82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "8055", "8056"]
 		secret "secret/base/lb/stats-password" {
 			environment = "STATS_PASSWORD"
