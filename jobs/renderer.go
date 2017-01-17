@@ -1,6 +1,8 @@
 package jobs
 
 type Renderer interface {
+	NormalizeTask(t *Task) error
+
 	// Expand  "${private_ipv4}":
 	ExpandPrivateIPv4() string
 

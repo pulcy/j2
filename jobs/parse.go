@@ -88,7 +88,7 @@ func parseJob(input []byte, jf *jobFunctions, renderer Renderer) (*Job, error) {
 	job.setDefaults(jf.cluster)
 
 	// Replace variables
-	if err := job.replaceVariables(renderer); err != nil {
+	if err := job.replaceVariables(renderer, jf.cluster); err != nil {
 		return nil, maskAny(err)
 	}
 
@@ -97,6 +97,15 @@ func parseJob(input []byte, jf *jobFunctions, renderer Renderer) (*Job, error) {
 
 	// Optimize job for cluster
 	job.optimizeFor(jf.cluster)
+
+	// Normalize tasks
+	for _, tg := range job.Groups {
+		for _, t := range tg.Tasks {
+			if err := renderer.NormalizeTask(t); err != nil {
+				return nil, maskAny(err)
+			}
+		}
+	}
 
 	// Validate the job
 	if err := job.Validate(); err != nil {

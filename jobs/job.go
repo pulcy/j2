@@ -82,10 +82,10 @@ func (j *Job) optimizeFor(cluster cluster.Cluster) {
 }
 
 // replaceVariables replaces all known variables in the values of the given job.
-func (j *Job) replaceVariables(renderer Renderer) error {
-	ctx := NewVariableContext(renderer, j, nil, nil)
+func (j *Job) replaceVariables(renderer Renderer, cluster cluster.Cluster) error {
+	ctx := NewVariableContext(renderer, cluster, j, nil, nil)
 	for _, x := range j.Groups {
-		if err := x.replaceVariables(renderer); err != nil {
+		if err := x.replaceVariables(renderer, cluster); err != nil {
 			return maskAny(err)
 		}
 	}

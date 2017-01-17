@@ -91,8 +91,8 @@ func (t *Task) optimizeFor(cluster cluster.Cluster) {
 }
 
 // replaceVariables replaces all known variables in the values of the given task.
-func (t *Task) replaceVariables(renderer Renderer) error {
-	ctx := NewVariableContext(renderer, t.group.job, t.group, t)
+func (t *Task) replaceVariables(renderer Renderer, cluster cluster.Cluster) error {
+	ctx := NewVariableContext(renderer, cluster, t.group.job, t.group, t)
 	t.Type = TaskType(ctx.replaceString(string(t.Type)))
 	t.Timer = ctx.replaceString(t.Timer)
 	t.Image = t.Image.replaceVariables(ctx)

@@ -97,10 +97,10 @@ func (tg *TaskGroup) optimizeFor(cluster cluster.Cluster) {
 }
 
 // replaceVariables replaces all known variables in the values of the given group.
-func (tg *TaskGroup) replaceVariables(renderer Renderer) error {
-	ctx := NewVariableContext(renderer, tg.job, tg, nil)
+func (tg *TaskGroup) replaceVariables(renderer Renderer, cluster cluster.Cluster) error {
+	ctx := NewVariableContext(renderer, cluster, tg.job, tg, nil)
 	for _, x := range tg.Tasks {
-		if err := x.replaceVariables(renderer); err != nil {
+		if err := x.replaceVariables(renderer, cluster); err != nil {
 			return maskAny(err)
 		}
 	}

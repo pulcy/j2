@@ -39,6 +39,10 @@ type generatorContext struct {
 	Cluster       cluster.Cluster
 }
 
+func (g *fleetRenderer) NormalizeTask(t *jobs.Task) error {
+	return nil
+}
+
 func (g *fleetRenderer) GenerateUnits(job jobs.Job, ctx render.RenderContext, config render.RenderConfig, instanceCount int) ([]render.UnitData, error) {
 	units := []render.UnitData{}
 	maxCount := job.MaxCount()

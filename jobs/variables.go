@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/juju/errgo"
+	"github.com/pulcy/j2/cluster"
 )
 
 const (
@@ -33,6 +34,7 @@ var (
 
 type variableContext struct {
 	renderer Renderer
+	Cluster  cluster.Cluster
 	Job      *Job
 	Group    *TaskGroup
 	Task     *Task
@@ -40,9 +42,10 @@ type variableContext struct {
 	errors []string
 }
 
-func NewVariableContext(renderer Renderer, job *Job, group *TaskGroup, task *Task) *variableContext {
+func NewVariableContext(renderer Renderer, cluster cluster.Cluster, job *Job, group *TaskGroup, task *Task) *variableContext {
 	return &variableContext{
 		renderer: renderer,
+		Cluster:  cluster,
 		Job:      job,
 		Group:    group,
 		Task:     task,
@@ -102,6 +105,8 @@ func (ctx *variableContext) replaceString(input string) string {
 	return varRegexp.ReplaceAllStringFunc(input, func(arg string) string {
 		key := arg[2 : len(arg)-1]
 		switch strings.TrimSpace(key) {
+		case "cluster":
+			return ctx.Cluster.Stack
 		case "job":
 			if ctx.assertJob(key) {
 				return ctx.Job.Name.String()

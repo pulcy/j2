@@ -42,6 +42,13 @@ type generatorContext struct {
 	ImageVaultMonkey string
 }
 
+func (g *k8sRenderer) NormalizeTask(t *jobs.Task) error {
+	if t.Network.IsWeave() || t.Network.IsDefault() {
+		t.Network = jobs.NetworkTypeDefault
+	}
+	return nil
+}
+
 func (g *k8sRenderer) GenerateUnits(job jobs.Job, ctx render.RenderContext, config render.RenderConfig, instanceCount int) ([]render.UnitData, error) {
 	if config.CurrentScalingGroup != 1 {
 		// We only generate units for the first scaling group.
