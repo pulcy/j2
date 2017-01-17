@@ -342,6 +342,16 @@ func (t *Task) PrivateFrontEndPort(defaultPort int) int {
 	return defaultPort
 }
 
+// PublicFrontEndPort returns the port number of the first private frontend with a non-0 port number.
+func (t *Task) PublicFrontEndPort(defaultPort int) int {
+	for _, f := range t.PublicFrontEnds {
+		if f.Port != 0 {
+			return f.Port
+		}
+	}
+	return defaultPort
+}
+
 // MarshalJSON converts the given task to JSON.
 // It replaces default values with blanks (in the JSON)
 func (t *Task) MarshalJSON() ([]byte, error) {

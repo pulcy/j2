@@ -33,7 +33,11 @@ func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.I
 			port := frontend.Port
 			backend, ok := port2Backend[port]
 			if !ok {
-				backend = createIngressBackend(t, port)
+				var err error
+				backend, err = createIngressBackend(t, port, tg.Job())
+				if err != nil {
+					return nil, maskAny(err)
+				}
 				port2Backend[port] = backend
 			}
 			rule := k8s.IngressRule{
@@ -54,7 +58,8 @@ func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.I
 		}
 		publicOnly := true
 		serviceName := taskServiceName(t)
-		records, err := robin.CreateFrontEndRecords(t, 1, publicOnly, serviceName)
+		targetServiceName, err := createTargetServiceName(t, tg.Job())
+		records, err := robin.CreateFrontEndRecords(t, 1, publicOnly, serviceName, targetServiceName)
 		if err != nil {
 			return nil, maskAny(err)
 		}
@@ -76,9 +81,32 @@ func createIngresses(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.I
 	return ingresses, nil
 }
 
-func createIngressBackend(t *jobs.Task, port int) *k8s.IngressBackend {
-	return &k8s.IngressBackend{
-		ServiceName: taskServiceName(t),
-		ServicePort: intstr.FromInt(port),
+func createTargetServiceName(t *jobs.Task, job *jobs.Job) (string, error) {
+	if t.Type.IsProxy() {
+		target, err := t.Target.Resolve(job)
+		if err != nil {
+			return "", maskAny(err)
+		}
+		return taskServiceName(target), nil
+	} else {
+		return taskServiceName(t), nil
 	}
+}
+
+func createIngressBackend(t *jobs.Task, port int, job *jobs.Job) (*k8s.IngressBackend, error) {
+	var serviceName string
+	if t.Type.IsProxy() {
+		target, err := t.Target.Resolve(job)
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		serviceName = taskServiceName(target)
+		port = target.PublicFrontEndPort(80)
+	} else {
+		serviceName = taskServiceName(t)
+	}
+	return &k8s.IngressBackend{
+		ServiceName: serviceName,
+		ServicePort: intstr.FromInt(port),
+	}, nil
 }

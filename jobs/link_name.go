@@ -97,6 +97,34 @@ func (ln LinkName) HasInstance() bool {
 	return !in.IsEmpty()
 }
 
+// Resolve tries to find the task that this link refers to in the context of the given job.
+func (ln LinkName) Resolve(job *Job) (*Task, error) {
+	jn, err := ln.Job()
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	if job.Name != jn {
+		return nil, maskAny(errgo.WithCausef(nil, JobNotFoundError, jn.String()))
+	}
+	gn, err := ln.TaskGroup()
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	tg, err := job.TaskGroup(gn)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	tn, err := ln.Task()
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	t, err := tg.Task(tn)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	return t, nil
+}
+
 func (ln LinkName) parse() (JobName, TaskGroupName, TaskName, InstanceName, error) {
 	var instanceName InstanceName
 	parts := strings.Split(string(ln), "@")

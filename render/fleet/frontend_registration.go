@@ -30,7 +30,11 @@ import (
 func addFrontEndRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorContext) error {
 	publicOnly := false
 	serviceName := t.ServiceName()
-	records, err := robin.CreateFrontEndRecords(t, ctx.ScalingGroup, publicOnly, serviceName)
+	targetServiceName := serviceName
+	if t.Type.IsProxy() {
+		targetServiceName = t.Target.EtcdServiceName()
+	}
+	records, err := robin.CreateFrontEndRecords(t, ctx.ScalingGroup, publicOnly, serviceName, targetServiceName)
 	if err != nil {
 		return maskAny(err)
 	}

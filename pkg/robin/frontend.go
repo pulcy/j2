@@ -36,13 +36,9 @@ type FrontendRecord struct {
 }
 
 // CreateFrontEndRecords create registration code for frontends to the given units to be used by the Robin loadbalancer.
-func CreateFrontEndRecords(t *jobs.Task, scalingGroup uint, publicOnly bool, serviceName string) ([]FrontendRecord, error) {
+func CreateFrontEndRecords(t *jobs.Task, scalingGroup uint, publicOnly bool, serviceName, targetServiceName string) ([]FrontendRecord, error) {
 	if len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
 		return nil, nil
-	}
-	targetServiceName := serviceName
-	if t.Type == "proxy" {
-		targetServiceName = t.Target.EtcdServiceName()
 	}
 	httpKey := fmt.Sprintf("/pulcy/frontend/%s-%d", serviceName, scalingGroup)
 	httpRecord := api.FrontendRecord{

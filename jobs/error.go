@@ -21,6 +21,7 @@ import (
 var (
 	TaskNotFoundError       = errgo.New("task not found")
 	TaskGroupNotFoundError  = errgo.New("taskgroup not found")
+	JobNotFoundError        = errgo.New("job not found")
 	InvalidNameError        = errgo.New("invalid name")
 	ValidationError         = errgo.New("validation failed")
 	OptionNotFoundError     = errgo.New("option not found")
