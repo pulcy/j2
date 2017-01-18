@@ -139,7 +139,7 @@ job "base" {
 		ports = ["0.0.0.0:30090:9090"]
 		http-check-path = "/"
 		frontend {
-			domain = "kdb.{{opt "stack"}}.{{opt "domain"}}"
+			domain = "kdb-{{opt "stack"}}.{{opt "domain"}}"
 			port = 9090
 			user "admin" {
 				password = "foo"
