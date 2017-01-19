@@ -15,6 +15,7 @@
 package fleet
 
 import "github.com/pulcy/j2/render"
+import "github.com/pulcy/j2/cluster"
 
 type fleetProvider struct {
 }
@@ -24,6 +25,6 @@ func NewRenderProvider() render.RenderProvider {
 	return &fleetProvider{}
 }
 
-func (p *fleetProvider) CreateRenderer() render.Renderer {
+func (p *fleetProvider) CreateRenderer(cluster.Cluster) render.Renderer {
 	return newGenerator()
 }

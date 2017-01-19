@@ -35,10 +35,30 @@ type FrontendRecord struct {
 	ProjectSetting string
 }
 
+type FrontendNameBuilder interface {
+	// Create the serviceName of the given task.
+	// This name is used in the Key of the returned records.
+	CreateServiceName(t *jobs.Task) (string, error)
+	// Create the name used in the Service field of the returned records.
+	CreateTargetServiceName(t *jobs.Task) (string, error)
+	// Create the Domain field of selectors created for private-frontends.
+	CreatePrivateDomainNames(t *jobs.Task) ([]string, error)
+	// Create the Domain field of selectors created for instance specific private-frontends.
+	CreateInstanceSpecificPrivateDomainNames(t *jobs.Task, instance uint) ([]string, error)
+}
+
 // CreateFrontEndRecords create registration code for frontends to the given units to be used by the Robin loadbalancer.
-func CreateFrontEndRecords(t *jobs.Task, scalingGroup uint, publicOnly bool, serviceName, targetServiceName string) ([]FrontendRecord, error) {
+func CreateFrontEndRecords(t *jobs.Task, scalingGroup uint, publicOnly bool, nameBuilder FrontendNameBuilder) ([]FrontendRecord, error) {
 	if len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
 		return nil, nil
+	}
+	serviceName, err := nameBuilder.CreateServiceName(t)
+	if err != nil {
+		return nil, maskAny(err)
+	}
+	targetServiceName, err := nameBuilder.CreateTargetServiceName(t)
+	if err != nil {
+		return nil, maskAny(err)
 	}
 	httpKey := fmt.Sprintf("/pulcy/frontend/%s-%d", serviceName, scalingGroup)
 	httpRecord := api.FrontendRecord{
@@ -111,7 +131,6 @@ func CreateFrontEndRecords(t *jobs.Task, scalingGroup uint, publicOnly bool, ser
 				instanceRecord = &instanceTcpRecord
 			}
 			selRecord := api.FrontendSelectorRecord{
-				Domain:       t.PrivateDomainName(),
 				ServicePort:  fr.Port,
 				FrontendPort: fr.HostPort,
 				Private:      true,
@@ -120,12 +139,26 @@ func CreateFrontEndRecords(t *jobs.Task, scalingGroup uint, publicOnly bool, ser
 			if err := addUsers(t, &selRecord, fr.Users); err != nil {
 				return nil, maskAny(err)
 			}
-			record.Selectors = append(record.Selectors, selRecord)
+			privateDomainNames, err := nameBuilder.CreatePrivateDomainNames(t)
+			if err != nil {
+				return nil, maskAny(err)
+			}
+			for _, domain := range privateDomainNames {
+				domainSelRecord := selRecord
+				domainSelRecord.Domain = domain
+				record.Selectors = append(record.Selectors, domainSelRecord)
+			}
 
 			if fr.RegisterInstance {
-				instanceSelRecord := selRecord
-				instanceSelRecord.Domain = t.InstanceSpecificPrivateDomainName(scalingGroup)
-				instanceRecord.Selectors = append(instanceRecord.Selectors, instanceSelRecord)
+				instSpecPrivateDomainNames, err := nameBuilder.CreateInstanceSpecificPrivateDomainNames(t, scalingGroup)
+				if err != nil {
+					return nil, maskAny(err)
+				}
+				for _, domain := range instSpecPrivateDomainNames {
+					instanceSelRecord := selRecord
+					instanceSelRecord.Domain = domain
+					instanceRecord.Selectors = append(instanceRecord.Selectors, instanceSelRecord)
+				}
 			}
 		}
 	}

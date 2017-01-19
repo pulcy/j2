@@ -15,62 +15,21 @@ func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Se
 	var services []k8s.Service
 	for _, t := range pod.tasks {
 		if t.Type.IsProxy() {
-			continue
-		}
-		if len(t.Ports) == 0 && len(t.PublicFrontEnds) == 0 && len(t.PrivateFrontEnds) == 0 {
-			continue
-		}
-		// Normal service for the task
-		d := newService(ctx.Namespace, taskServiceName(t))
-		setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
-		d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
-
-		ports := collectPorts(t)
-		for _, p := range ports {
-			pp, err := p.Parse()
+			// If the proxy has rewriting, then the actual rewriting is done by the robin load-balancer.
+			// We create a service that selects the load-balancer pods.
+			s, err := createProxyService(tg, t, pod, ctx)
 			if err != nil {
 				return nil, maskAny(err)
 			}
-			protocol := pp.ProtocolString()
-			servicePort := k8s.ServicePort{
-				Name:       strings.ToLower(fmt.Sprintf("%d-%s", pp.ContainerPort, protocol)),
-				Port:       int32(pp.ContainerPort),
-				Protocol:   k8s.Protocol(protocol),
-				TargetPort: pkg.FromInt(int32(pp.ContainerPort)),
-			}
-			d.Spec.Ports = append(d.Spec.Ports, servicePort)
-		}
-		services = append(services, *d)
-
-		// Host mapped ports (a service with all ports mapped to all hosts using a NodePort)
-		if !t.Network.IsHost() {
-			hmPorts := getHostMappedPorts(t.Ports)
-			if len(hmPorts) > 0 {
-				d := newService(ctx.Namespace, taskServiceName(t)+"-host")
-				setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
-				d.Spec.Type = k8s.ServiceTypeNodePort
-				d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
-
-				for _, p := range hmPorts {
-					pp, err := p.Parse()
-					if err != nil {
-						return nil, maskAny(err)
-					}
-					protocol := pp.ProtocolString()
-					hostPort := pp.ContainerPort
-					if pp.HasHostPort() {
-						hostPort = pp.HostPort
-					}
-					servicePort := k8s.ServicePort{
-						Name:       strings.ToLower(fmt.Sprintf("%d-%s", pp.ContainerPort, protocol)),
-						Port:       int32(pp.ContainerPort),
-						Protocol:   k8s.Protocol(protocol),
-						TargetPort: pkg.FromInt(int32(pp.ContainerPort)),
-						NodePort:   int32(hostPort),
-					}
-					d.Spec.Ports = append(d.Spec.Ports, servicePort)
+			services = append(services, s)
+		} else if t.Type.IsService() {
+			if len(t.Ports) > 0 || len(t.PublicFrontEnds) > 0 || len(t.PrivateFrontEnds) > 0 {
+				// Normal service for the task
+				taskServices, err := createPodServices(tg, t, pod, ctx)
+				if err != nil {
+					return nil, maskAny(err)
 				}
-				services = append(services, *d)
+				services = append(services, taskServices...)
 			}
 		}
 	}
@@ -78,6 +37,93 @@ func createServices(tg *jobs.TaskGroup, pod pod, ctx generatorContext) ([]k8s.Se
 	return services, nil
 }
 
+// createPodServices creates all services needed for a specific task that runs a standard pod.
+func createPodServices(tg *jobs.TaskGroup, t *jobs.Task, pod pod, ctx generatorContext) ([]k8s.Service, error) {
+	var services []k8s.Service
+
+	// Normal service for the task
+	d := newService(ctx.Namespace, taskServiceName(t))
+	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+	d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
+
+	ports := collectPorts(t)
+	for _, p := range ports {
+		pp, err := p.Parse()
+		if err != nil {
+			return nil, maskAny(err)
+		}
+		protocol := pp.ProtocolString()
+		servicePort := k8s.ServicePort{
+			Name:       strings.ToLower(fmt.Sprintf("%d-%s", pp.ContainerPort, protocol)),
+			Port:       int32(pp.ContainerPort),
+			Protocol:   k8s.Protocol(protocol),
+			TargetPort: pkg.FromInt(int32(pp.ContainerPort)),
+		}
+		d.Spec.Ports = append(d.Spec.Ports, servicePort)
+	}
+	services = append(services, *d)
+
+	// Host mapped ports (a service with all ports mapped to all hosts using a NodePort)
+	if !t.Network.IsHost() {
+		hmPorts := getHostMappedPorts(t.Ports)
+		if len(hmPorts) > 0 {
+			d := newService(ctx.Namespace, taskServiceName(t)+"-host")
+			setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+			d.Spec.Type = k8s.ServiceTypeNodePort
+			d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
+
+			for _, p := range hmPorts {
+				pp, err := p.Parse()
+				if err != nil {
+					return nil, maskAny(err)
+				}
+				protocol := pp.ProtocolString()
+				hostPort := pp.ContainerPort
+				if pp.HasHostPort() {
+					hostPort = pp.HostPort
+				}
+				servicePort := k8s.ServicePort{
+					Name:       strings.ToLower(fmt.Sprintf("%d-%s", pp.ContainerPort, protocol)),
+					Port:       int32(pp.ContainerPort),
+					Protocol:   k8s.Protocol(protocol),
+					TargetPort: pkg.FromInt(int32(pp.ContainerPort)),
+					NodePort:   int32(hostPort),
+				}
+				d.Spec.Ports = append(d.Spec.Ports, servicePort)
+			}
+			services = append(services, *d)
+		}
+	}
+
+	return services, nil
+}
+
+// createProxyService create a service with the name of the given task.
+// The selector of the service is not the pods of the task (because there are none).
+// If the proxy has rewrite rules, the selector is the load-balancer (that does the rewriting)
+// otherwise the selector is the target service itself.
+func createProxyService(tg *jobs.TaskGroup, t *jobs.Task, pod pod, ctx generatorContext) (k8s.Service, error) {
+	d := newService(ctx.Namespace, taskServiceName(t))
+	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+	d.Spec.Type = k8s.ServiceTypeExternalName
+	if t.Rewrite != nil {
+		// Proxy traffic through load-balancer that will do the rewriting
+		d.Spec.ExternalName = fmt.Sprintf("%s.svc.%s", pkg.LoadBalancerDNS, ctx.Cluster.KubernetesOptions.Domain)
+	} else {
+		// Proxy traffic directly to target service
+		target, err := t.Target.Resolve(tg.Job())
+		if err != nil {
+			return k8s.Service{}, maskAny(err)
+		}
+		d.Spec.ExternalName = taskServiceDNSName(target, ctx.Cluster.KubernetesOptions.Domain)
+	}
+
+	return *d, nil
+}
+
+// collectPorts creates a list of port-mappings for all ports
+// created by the given task.
+// That is `ports`, `private-frontend.port` && `frontend.port`.
 func collectPorts(t *jobs.Task) []jobs.PortMapping {
 	ports := t.Ports
 	portFound := func(containerPort int) bool {

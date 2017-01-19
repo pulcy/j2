@@ -23,6 +23,11 @@ const (
 )
 
 const (
+	// Load-balancer names
+	LoadBalancerDNS = "lb-lb-srv.base"
+)
+
+const (
 	// Docker registry secret field names
 	DockerRegistrySecretDataFieldDockerConfigJSON = ".dockerconfigjson"
 	DockerRegistrySecretTypeDockerConfigJSON      = "kubernetes.io/dockerconfigjson"

@@ -29,12 +29,7 @@ import (
 // addFrontEndRegistration adds registration code for frontends to the given units
 func addFrontEndRegistration(t *jobs.Task, main *sdunits.Unit, ctx generatorContext) error {
 	publicOnly := false
-	serviceName := t.ServiceName()
-	targetServiceName := serviceName
-	if t.Type.IsProxy() {
-		targetServiceName = t.Target.EtcdServiceName()
-	}
-	records, err := robin.CreateFrontEndRecords(t, ctx.ScalingGroup, publicOnly, serviceName, targetServiceName)
+	records, err := robin.CreateFrontEndRecords(t, ctx.ScalingGroup, publicOnly, &fleetFrontendNameBuilder{})
 	if err != nil {
 		return maskAny(err)
 	}
@@ -62,4 +57,33 @@ func addFrontEndRegistrationRecord(t *jobs.Task, main *sdunits.Unit, key string,
 		main.ExecOptions.ExecStop...,
 	)
 	return nil
+}
+
+type fleetFrontendNameBuilder struct {
+}
+
+// Create the serviceName of the given task.
+// This name is used in the Key of the returned records.
+func (nb *fleetFrontendNameBuilder) CreateServiceName(t *jobs.Task) (string, error) {
+	return t.ServiceName(), nil
+}
+
+// Create the name used in the Service field of the returned records.
+func (nb *fleetFrontendNameBuilder) CreateTargetServiceName(t *jobs.Task) (string, error) {
+	serviceName := t.ServiceName()
+	targetServiceName := serviceName
+	if t.Type.IsProxy() {
+		targetServiceName = t.Target.EtcdServiceName()
+	}
+	return targetServiceName, nil
+}
+
+// Create the Domain field of selectors created for private-frontends.
+func (nb *fleetFrontendNameBuilder) CreatePrivateDomainNames(t *jobs.Task) ([]string, error) {
+	return []string{t.PrivateDomainName()}, nil
+}
+
+// Create the Domain field of selectors created for instance specific private-frontends.
+func (nb *fleetFrontendNameBuilder) CreateInstanceSpecificPrivateDomainNames(t *jobs.Task, instance uint) ([]string, error) {
+	return []string{t.InstanceSpecificPrivateDomainName(instance)}, nil
 }

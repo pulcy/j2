@@ -70,3 +70,9 @@ func (g *fleetRenderer) TaskDNSName(task *jobs.Task) string {
 func (g *fleetRenderer) DependencyDNSName(d jobs.Dependency) string {
 	return d.Name.WeaveDomainName()
 }
+
+// TaskPort returns the port number used to reach the given task's port
+func (g *fleetRenderer) TaskPort(task *jobs.Task, port int, mode string) int { return port }
+
+// DependencyPort returns the DNS name used to reach the given dependency's port
+func (g *fleetRenderer) DependencyPort(d jobs.Dependency, port int) int { return port }

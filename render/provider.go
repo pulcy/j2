@@ -26,5 +26,5 @@ type RenderConfig struct {
 }
 
 type RenderProvider interface {
-	CreateRenderer() Renderer
+	CreateRenderer(cluster cluster.Cluster) Renderer
 }

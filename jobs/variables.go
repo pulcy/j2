@@ -198,6 +198,7 @@ func (ctx *variableContext) replaceString(input string) string {
 							if r.TaskAcceptsDNSLink(targetTask) {
 								return createURL("tcp", r.TaskDNSName(targetTask), port, -1, "")
 							}
+							port = r.TaskPort(targetTask, port, "tcp")
 						}
 						ctx.Task.Links = ctx.Task.Links.Add(Link{
 							Type:   LinkTypeTCP,
@@ -221,6 +222,7 @@ func (ctx *variableContext) replaceString(input string) string {
 							}
 							if r.DependencyAcceptsDNSLink(dependency) {
 								targetPort := dependency.PrivateFrontEndPort(80)
+								targetPort = r.DependencyPort(dependency, targetPort)
 								return createURL("http", r.DependencyDNSName(dependency), targetPort, 80, "")
 							}
 						}
@@ -232,6 +234,7 @@ func (ctx *variableContext) replaceString(input string) string {
 						if r.TaskAcceptsDNSLink(targetTask) {
 							// We can use a direct weave DNS link
 							targetPort := targetTask.PrivateFrontEndPort(80)
+							targetPort = r.TaskPort(targetTask, targetPort, "http")
 							return createURL("http", r.TaskDNSName(targetTask), targetPort, 80, "")
 						}
 						if targetTask.Type.IsProxy() {
@@ -239,6 +242,7 @@ func (ctx *variableContext) replaceString(input string) string {
 							proxyTarget := ctx.Task.resolveLink(proxyTask.Target) // Target is not linked yet, so do that here.
 							if len(proxyTask.PrivateFrontEnds) == 1 {
 								proxyPort := proxyTask.PrivateFrontEndPort(80)
+								proxyPort = r.TaskPort(proxyTask, proxyPort, "http")
 								if !proxyTarget.HasInstance() {
 									var targetAcceptsDNS bool
 									var targetDomainName string

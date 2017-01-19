@@ -33,6 +33,13 @@ func taskServiceName(t *jobs.Task) string {
 	return resourceName(fmt.Sprintf("%s-%s", t.GroupName(), t.Name), kindService)
 }
 
+// taskServiceDNSName creates the DNS name of the service created for the given task.
+// This allows the service to be reached from other namespaces.
+func taskServiceDNSName(t *jobs.Task, clusterDomain string) string {
+	domain := k8s.ResourceName(t.JobName().String())
+	return fmt.Sprintf("%s.%s.svc.%s", taskServiceName(t), domain, clusterDomain)
+}
+
 // dependencyServiceName creates the name of the service created for the given task.
 func dependencyServiceName(d jobs.Dependency) string {
 	j, _ := d.Name.Job()

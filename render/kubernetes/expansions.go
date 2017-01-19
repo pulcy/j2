@@ -85,7 +85,7 @@ func (g *k8sRenderer) SupportsDNSLinkTo(task *jobs.Task, target jobs.LinkName) b
 
 // Does the given task support to be linked to itself through a DNS name?
 func (g *k8sRenderer) TaskAcceptsDNSLink(task *jobs.Task) bool {
-	return task.Type.IsService()
+	return task.Type.IsService() || task.Type.IsProxy()
 }
 
 // Does the given dependency support to be linked to itself through a DNS name?
@@ -95,10 +95,28 @@ func (g *k8sRenderer) DependencyAcceptsDNSLink(d jobs.Dependency) bool {
 
 // TaskDNSName returns the DNS name of the given task
 func (g *k8sRenderer) TaskDNSName(task *jobs.Task) string {
-	return taskServiceName(task)
+	return taskServiceDNSName(task, g.cluster.KubernetesOptions.Domain)
 }
 
 // DependencyDNSName returns the DNS name used to reach the given dependency
 func (g *k8sRenderer) DependencyDNSName(d jobs.Dependency) string {
 	return dependencyServiceName(d)
+}
+
+// TaskPort returns the port number used to reach the given task's port
+func (g *k8sRenderer) TaskPort(task *jobs.Task, port int, mode string) int {
+	if task.Type.IsProxy() && task.Rewrite != nil {
+		switch mode {
+		case "tcp":
+			return jobs.PrivateTcpLoadBalancerPort
+		default:
+			return jobs.PrivateLoadBalancerPort
+		}
+	}
+	return port
+}
+
+// DependencyPort returns the DNS name used to reach the given dependency's port
+func (g *k8sRenderer) DependencyPort(d jobs.Dependency, port int) int {
+	return port
 }

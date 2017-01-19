@@ -47,4 +47,11 @@ type Renderer interface {
 
 	// DependencyDNSName returns the DNS name used to reach the given dependency
 	DependencyDNSName(d Dependency) string
+
+	// TaskPort returns the port number used to reach the given task's port
+	// Mode can be "http" or "tcp".
+	TaskPort(task *Task, port int, mode string) int
+
+	// DependencyPort returns the DNS name used to reach the given dependency's port
+	DependencyPort(d Dependency, port int) int
 }

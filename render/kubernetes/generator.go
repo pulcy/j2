@@ -15,8 +15,6 @@
 package kubernetes
 
 import (
-	"strings"
-
 	"github.com/pulcy/j2/cluster"
 	"github.com/pulcy/j2/jobs"
 	k8s "github.com/pulcy/j2/pkg/kubernetes"
@@ -24,6 +22,7 @@ import (
 )
 
 type k8sRenderer struct {
+	cluster cluster.Cluster
 }
 
 type RenderContext interface {
@@ -32,8 +31,8 @@ type RenderContext interface {
 	ProjectBuild() string
 }
 
-func newGenerator() render.Renderer {
-	return &k8sRenderer{}
+func newGenerator(cluster cluster.Cluster) render.Renderer {
+	return &k8sRenderer{cluster: cluster}
 }
 
 type generatorContext struct {
@@ -63,7 +62,7 @@ func (g *k8sRenderer) GenerateUnits(job jobs.Job, ctx render.RenderContext, conf
 		}
 		genCtx := generatorContext{
 			Cluster:          config.Cluster,
-			Namespace:        strings.Replace(job.Name.String(), "_", "-", -1),
+			Namespace:        k8s.ResourceName(job.Name.String()),
 			ImageVaultMonkey: ctx.ImageVaultMonkey(),
 		}
 		pods, err := groupTaskIntoPods(tg)

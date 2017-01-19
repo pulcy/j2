@@ -15,6 +15,7 @@
 package kubernetes
 
 import "github.com/pulcy/j2/render"
+import "github.com/pulcy/j2/cluster"
 
 type k8sProvider struct {
 }
@@ -24,6 +25,6 @@ func NewRenderProvider() render.RenderProvider {
 	return &k8sProvider{}
 }
 
-func (p *k8sProvider) CreateRenderer() render.Renderer {
-	return newGenerator()
+func (p *k8sProvider) CreateRenderer(cluster cluster.Cluster) render.Renderer {
+	return newGenerator(cluster)
 }

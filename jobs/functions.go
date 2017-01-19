@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	privateLoadBalancerPort    = 81
-	privateTcpLoadBalancerPort = 82
+	PrivateLoadBalancerPort    = 81
+	PrivateTcpLoadBalancerPort = 82
 )
 
 type jobFunctions struct {
@@ -182,7 +182,7 @@ func linkURL(linkName string) (string, error) {
 	if err := ln.Validate(); err != nil {
 		return "", maskAny(err)
 	}
-	return fmt.Sprintf("http://%s:%d", ln.PrivateDomainName(), privateLoadBalancerPort), nil
+	return fmt.Sprintf("http://%s:%d", ln.PrivateDomainName(), PrivateLoadBalancerPort), nil
 }
 
 // linkTLS creates an URL with `tls` scheme to the domain name (in private TCP namespace) of the given link
@@ -191,7 +191,7 @@ func linkTLS(linkName string) (string, error) {
 	if err := ln.Validate(); err != nil {
 		return "", maskAny(err)
 	}
-	return fmt.Sprintf("tls://%s:%d", ln.PrivateDomainName(), privateTcpLoadBalancerPort), nil
+	return fmt.Sprintf("tls://%s:%d", ln.PrivateDomainName(), PrivateTcpLoadBalancerPort), nil
 }
 
 // linkTCP creates a tcp URL to the domain name (in private TCP namespace) of the given link

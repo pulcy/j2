@@ -106,7 +106,7 @@ func loadJob(f *fg.Flags, cluster cluster.Cluster, orchestrator extpoints.Orches
 	if err != nil {
 		return nil, maskAny(err)
 	}
-	renderer := provider.CreateRenderer()
+	renderer := provider.CreateRenderer(cluster)
 	job, err := jobs.ParseJobFromFile(path, cluster, renderer, f.Options, log, f.VaultConfig, f.GithubLoginData)
 	if err != nil {
 		return nil, maskAny(err)

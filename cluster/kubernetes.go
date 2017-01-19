@@ -24,6 +24,7 @@ type KubernetesOptions struct {
 	Context                   string   `mapstructure:"context,omitempty"`          // Name of the context (defined in KubeConfig) to use
 	RegistrySecrets           []string `mapstructure:"registry-secrets,omitempty"` // Name of secrets added to imagePullSecrets of each generated pod.
 	GlobalInstanceConstraints []string `mapstructure:"global-instance-constraints,omitempty"`
+	Domain                    string   `mapstructure:"domain,omitempty"` // CLuster local domain (defaults to 'cluster.local')
 }
 
 // validate checks the values in the given cluster
@@ -41,5 +42,8 @@ func (o *KubernetesOptions) setDefaults() {
 	if o.KubeConfig == "" {
 		path, _ := homedir.Expand("~/.kube/config")
 		o.KubeConfig = path
+	}
+	if o.Domain == "" {
+		o.Domain = "cluster.local"
 	}
 }
