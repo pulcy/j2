@@ -20,29 +20,32 @@ type pod struct {
 func groupTaskIntoPods(tg *jobs.TaskGroup) ([]pod, error) {
 	if tg.RestartPolicy.IsAll() {
 		// Put everything into 1 pod
-		return []pod{
-			pod{
-				tasks: tg.Tasks,
-			},
-		}, nil
+		p := pod{
+			name:  resourceName(tg.Name.String(), ""),
+			tasks: tg.Tasks,
+		}
+		if err := p.validate(); err != nil {
+			return nil, maskAny(err)
+		}
+		return []pod{p}, nil
 	}
 
-	name2pod := make(map[jobs.TaskName]*pod)
+	taskName2pod := make(map[jobs.TaskName]*pod)
 	// First create a pod for all tasks
 	for i, t := range tg.Tasks {
 		p := &pod{
 			index: i,
 			tasks: jobs.TaskList{t},
 		}
-		name2pod[t.Name] = p
+		taskName2pod[t.Name] = p
 	}
 
 	group := func(n1, n2 jobs.TaskName) error {
-		p1, ok := name2pod[n1]
+		p1, ok := taskName2pod[n1]
 		if !ok {
 			return maskAny(fmt.Errorf("Task '%s' not found", n1))
 		}
-		p2, ok := name2pod[n2]
+		p2, ok := taskName2pod[n2]
 		if !ok {
 			return maskAny(fmt.Errorf("Task '%s' not found", n2))
 		}
@@ -52,7 +55,7 @@ func groupTaskIntoPods(tg *jobs.TaskGroup) ([]pod, error) {
 		}
 		p1.tasks = append(p1.tasks, p2.tasks...)
 		for _, t := range p2.tasks {
-			name2pod[t.Name] = p1
+			taskName2pod[t.Name] = p1
 		}
 		return nil
 	}
@@ -73,21 +76,17 @@ func groupTaskIntoPods(tg *jobs.TaskGroup) ([]pod, error) {
 	}
 
 	// Assign names to the pods
-	for _, p := range name2pod {
+	for _, p := range taskName2pod {
 		if p.name != "" {
 			continue
 		}
-		if len(tg.Tasks) == 1 {
-			p.name = resourceName(tg.Name.String(), "")
-		} else {
-			p.name = resourceName(tg.Name.String(), "-"+p.tasks[0].Name.String())
-		}
+		p.name = createPodName(p, tg)
 	}
 
 	// Now build a list of pods
 	seenIndexes := make(map[int]struct{})
 	var result []pod
-	for _, p := range name2pod {
+	for _, p := range taskName2pod {
 		if _, ok := seenIndexes[p.index]; ok {
 			continue
 		}
@@ -105,6 +104,27 @@ func groupTaskIntoPods(tg *jobs.TaskGroup) ([]pod, error) {
 	}
 
 	return result, nil
+}
+
+// createPodName creates a name for a pod.
+// The name consists of the name of the taskgroup followed by the name of the first task (index in taskgroup)
+// that is part of this pod.
+func createPodName(p *pod, tg *jobs.TaskGroup) string {
+	lowestOriginalIndex := -1
+	taskName := ""
+	for _, t := range p.tasks {
+		index := t.OriginalIndex
+		if index >= 0 {
+			if lowestOriginalIndex < 0 || index < lowestOriginalIndex {
+				lowestOriginalIndex = index
+				taskName = t.Name.String()
+			}
+		}
+	}
+	if lowestOriginalIndex < 0 {
+		return resourceName(tg.Name.String(), "")
+	}
+	return resourceName(tg.Name.String(), "-"+taskName)
 }
 
 type podByIndex []pod
@@ -136,6 +156,10 @@ func (p *pod) sortTasks() {
 }
 
 func (p *pod) validate() error {
+	// Pod must have name
+	if p.name == "" {
+		return maskAny(fmt.Errorf("Pod with tasks %v has no name", p.tasks))
+	}
 	// All tasks must use same network
 	for i := 1; i < len(p.tasks); i++ {
 		prev := p.tasks[i-i]
@@ -143,6 +167,10 @@ func (p *pod) validate() error {
 		if prev.Network != cur.Network {
 			return maskAny(fmt.Errorf("Cannot mix different networks in a single pod. (tasks %s and %s)", prev.FullName(), cur.FullName()))
 		}
+	}
+	// Cannot have oneshot & service tasks in 1 pod
+	if p.hasOneShotTasks() && p.hasServiceTasks() {
+		return maskAny(fmt.Errorf("Cannot mix oneshot & service tasks in a single pod."))
 	}
 	return nil
 }

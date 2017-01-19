@@ -290,6 +290,7 @@ func (tg *TaskGroup) parse(obj *ast.ObjectType) error {
 
 func (tg *TaskGroup) addAll(tasks parseTaskList) error {
 	for _, t := range tasks {
+		t.OriginalIndex = len(tg.Tasks)
 		tg.Tasks = append(tg.Tasks, &t.Task)
 		var err error
 		tg.Constraints, err = tg.Constraints.Add(t.Constraints)

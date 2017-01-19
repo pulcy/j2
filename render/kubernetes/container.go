@@ -111,9 +111,13 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext, hostNetwo
 	}
 	// Create mounts
 	for _, t := range mountTasks {
-		for i, v := range t.Volumes {
+		for _, v := range t.Volumes {
+			volName, err := createVolumeName(t.GroupName(), v)
+			if err != nil {
+				return nil, nil, nil, maskAny(err)
+			}
 			mount := k8s.VolumeMount{
-				Name:      createVolumeName(t, i),
+				Name:      volName,
 				MountPath: v.Path,
 			}
 			mount.ReadOnly = v.IsReadOnly()

@@ -27,8 +27,9 @@ import (
 )
 
 type taskData struct {
-	Name  TaskName   `json:"name", maspstructure:"-"`
-	group *TaskGroup `json:"-", mapstructure:"-"`
+	Name          TaskName   `json:"name", maspstructure:"-"`
+	OriginalIndex int        `json:"-", mapstructure:"-"`
+	group         *TaskGroup `json:"-", mapstructure:"-"`
 
 	Type             TaskType          `json:"type,omitempty" mapstructure:"type,omitempty"`
 	Engine           EngineType        `json:"engine,omitempty" mapstructure:"engine,omitempty"`

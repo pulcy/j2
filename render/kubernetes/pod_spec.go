@@ -44,7 +44,7 @@ func createPodSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext, requireRes
 			return nil, nil, maskAny(err)
 		}
 		allInitContainers = append(allInitContainers, initContainers...)
-		spec.Volumes = append(spec.Volumes, extraVols...)
+		spec.Volumes = appendVolumes(spec.Volumes, extraVols...)
 		spec.Containers = append(spec.Containers, containers...)
 	}
 
