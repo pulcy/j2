@@ -172,6 +172,17 @@ func (p *pod) validate() error {
 	if p.hasOneShotTasks() && p.hasServiceTasks() {
 		return maskAny(fmt.Errorf("Cannot mix oneshot & service tasks in a single pod."))
 	}
+	// Only 1 task can have metrics
+	var taskWithMetrics *jobs.Task
+	for _, t := range p.tasks {
+		if t.Metrics != nil {
+			if taskWithMetrics != nil {
+				return maskAny(fmt.Errorf("Only 1 task in pod can specify metrics. (found tasks %s and %s)", taskWithMetrics.FullName(), t.FullName()))
+			} else {
+				taskWithMetrics = t
+			}
+		}
+	}
 	return nil
 }
 

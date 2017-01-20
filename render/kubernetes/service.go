@@ -155,6 +155,12 @@ func collectPorts(t *jobs.Task) []jobs.PortMapping {
 			}
 		}
 	}
+	if m := t.Metrics; m != nil {
+		if !portFound(m.Port) {
+			port := strconv.Itoa(m.Port)
+			ports = append(ports, jobs.PortMapping(port))
+		}
+	}
 	return ports
 }
 
