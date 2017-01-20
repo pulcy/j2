@@ -89,7 +89,7 @@ job "base" {
 			value = "true"
 		}
 		count = 1
-		image = "pulcy/robin:0.26.1"
+		image = "pulcy/robin:20170120211303"
 		ports = ["0.0.0.0:80:80", "81", "82", "0.0.0.0:443:443", "0.0.0.0:7088:7088", "8055", "8056"]
 		secret "secret/base/lb/stats-password" {
 			environment = "STATS_PASSWORD"
@@ -117,7 +117,7 @@ job "base" {
 		}
 		args = ["run",
 			"--backend=kubernetes",
-			"--log-level=info",
+			"--log-level=debug",
 			"--etcd-endpoint", "http://127.0.0.1:4001",
 			"--etcd-no-sync=true",
 			"--private-key-path", "/acme/private-key",

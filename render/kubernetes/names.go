@@ -49,6 +49,12 @@ func dependencyServiceName(d jobs.Dependency) string {
 	return resourceName(fmt.Sprintf("%s.%s", local, j), "")
 }
 
+// dependencyServiceName creates the name of the service created for the given task.
+func dependencyServiceDNSName(d jobs.Dependency, clusterDomain string) string {
+	local := dependencyServiceName(d)
+	return fmt.Sprintf("%s.svc.%s", local, clusterDomain)
+}
+
 // taskSecretName creates the name of the secret created for the given task.
 func taskSecretName(t *jobs.Task) string {
 	return resourceName(fmt.Sprintf("%s-%s", t.GroupName(), t.Name), kindSecret)

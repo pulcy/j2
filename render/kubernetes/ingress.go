@@ -154,11 +154,17 @@ func (nb *ingressFrontendNameBuilder) CreateInstanceSpecificPrivateDomainNames(t
 
 func createTargetServiceName(t *jobs.Task, job *jobs.Job) (string, error) {
 	if t.Type.IsProxy() {
-		target, err := t.Target.Resolve(job)
+		targetTask, targetDep, err := t.Target.Resolve(job)
 		if err != nil {
 			return "", maskAny(err)
 		}
-		return taskServiceName(target), nil
+		if targetTask != nil {
+			return taskServiceName(targetTask), nil
+		}
+		if targetDep != nil {
+			return dependencyServiceName(*targetDep), nil
+		}
+		return "", maskAny(fmt.Errorf("Cannot resolve '%s'", t.Target))
 	} else {
 		return taskServiceName(t), nil
 	}
@@ -166,16 +172,25 @@ func createTargetServiceName(t *jobs.Task, job *jobs.Job) (string, error) {
 
 func createIngressBackend(t *jobs.Task, port int, job *jobs.Job) (*k8s.IngressBackend, error) {
 	var serviceName string
-	if t.Type.IsProxy() {
-		target, err := t.Target.Resolve(job)
+	if t.Type.IsProxy() && t.Rewrite == nil {
+		targetTask, targetDep, err := t.Target.Resolve(job)
 		if err != nil {
 			return nil, maskAny(err)
 		}
-		serviceName = taskServiceName(target)
-		if port == 0 {
-			port = 80
+		if targetTask != nil {
+			serviceName = taskServiceName(targetTask)
+			if port == 0 {
+				port = 80
+			}
+			port = targetTask.PublicFrontEndPort(port)
+		} else if targetDep != nil {
+			serviceName = dependencyServiceName(*targetDep)
+			if port == 0 {
+				port = targetDep.PrivateFrontEndPort(port)
+			}
+		} else {
+			return nil, maskAny(fmt.Errorf("Cannot resolve '%s'", t.Target))
 		}
-		port = target.PublicFrontEndPort(port)
 	} else {
 		serviceName = taskServiceName(t)
 	}

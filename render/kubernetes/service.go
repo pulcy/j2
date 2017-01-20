@@ -115,11 +115,17 @@ func createProxyService(tg *jobs.TaskGroup, t *jobs.Task, pod pod, ctx generator
 		d.Spec.ExternalName = fmt.Sprintf("%s.svc.%s", pkg.LoadBalancerDNS, ctx.Cluster.KubernetesOptions.Domain)
 	} else {
 		// Proxy traffic directly to target service
-		target, err := t.Target.Resolve(tg.Job())
+		targetTask, targetDep, err := t.Target.Resolve(tg.Job())
 		if err != nil {
 			return k8s.Service{}, maskAny(err)
 		}
-		d.Spec.ExternalName = taskServiceDNSName(target, ctx.Cluster.KubernetesOptions.Domain)
+		if targetTask != nil {
+			d.Spec.ExternalName = taskServiceDNSName(targetTask, ctx.Cluster.KubernetesOptions.Domain)
+		} else if targetDep != nil {
+			d.Spec.ExternalName = dependencyServiceDNSName(*targetDep, ctx.Cluster.KubernetesOptions.Domain)
+		} else {
+			return k8s.Service{}, maskAny(fmt.Errorf("Cannot resolve '%s'", t.Target))
+		}
 	}
 
 	return *d, nil

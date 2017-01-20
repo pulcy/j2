@@ -98,31 +98,35 @@ func (ln LinkName) HasInstance() bool {
 }
 
 // Resolve tries to find the task that this link refers to in the context of the given job.
-func (ln LinkName) Resolve(job *Job) (*Task, error) {
+func (ln LinkName) Resolve(job *Job) (*Task, *Dependency, error) {
 	jn, err := ln.Job()
 	if err != nil {
-		return nil, maskAny(err)
+		return nil, nil, maskAny(err)
 	}
 	if job.Name != jn {
-		return nil, maskAny(errgo.WithCausef(nil, JobNotFoundError, jn.String()))
+		dep, err := job.Dependency(ln)
+		if err != nil {
+			return nil, nil, maskAny(errgo.WithCausef(nil, JobNotFoundError, jn.String()))
+		}
+		return nil, &dep, nil
 	}
 	gn, err := ln.TaskGroup()
 	if err != nil {
-		return nil, maskAny(err)
+		return nil, nil, maskAny(err)
 	}
 	tg, err := job.TaskGroup(gn)
 	if err != nil {
-		return nil, maskAny(err)
+		return nil, nil, maskAny(err)
 	}
 	tn, err := ln.Task()
 	if err != nil {
-		return nil, maskAny(err)
+		return nil, nil, maskAny(err)
 	}
 	t, err := tg.Task(tn)
 	if err != nil {
-		return nil, maskAny(err)
+		return nil, nil, maskAny(err)
 	}
-	return t, nil
+	return t, nil, nil
 }
 
 func (ln LinkName) parse() (JobName, TaskGroupName, TaskName, InstanceName, error) {
