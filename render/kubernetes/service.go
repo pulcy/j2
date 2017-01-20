@@ -44,6 +44,7 @@ func createPodServices(tg *jobs.TaskGroup, t *jobs.Task, pod pod, ctx generatorC
 	// Normal service for the task
 	d := newService(ctx.Namespace, taskServiceName(t))
 	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+	addMetricsAnnotations(&d.ObjectMeta, pod)
 	d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
 
 	ports := collectPorts(t)
@@ -69,6 +70,7 @@ func createPodServices(tg *jobs.TaskGroup, t *jobs.Task, pod pod, ctx generatorC
 		if len(hmPorts) > 0 {
 			d := newService(ctx.Namespace, taskServiceName(t)+"-host")
 			setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+			addMetricsAnnotations(&d.ObjectMeta, pod)
 			d.Spec.Type = k8s.ServiceTypeNodePort
 			d.Spec.Selector = createPodSelector(d.Spec.Selector, pod)
 
@@ -105,6 +107,8 @@ func createPodServices(tg *jobs.TaskGroup, t *jobs.Task, pod pod, ctx generatorC
 func createProxyService(tg *jobs.TaskGroup, t *jobs.Task, pod pod, ctx generatorContext) (k8s.Service, error) {
 	d := newService(ctx.Namespace, taskServiceName(t))
 	setTaskGroupLabelsAnnotations(&d.ObjectMeta, tg)
+	addMetricsAnnotations(&d.ObjectMeta, pod)
+	d.Spec.Selector = make(map[string]string)
 	d.Spec.Type = k8s.ServiceTypeExternalName
 	if t.Rewrite != nil {
 		// Proxy traffic through load-balancer that will do the rewriting

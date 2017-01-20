@@ -63,7 +63,12 @@ func isSameServiceSpec(self, other *k8s.ServiceSpec) ([]string, bool) {
 		switch path {
 		case ".ClusterIP":
 			return true
+		case ".Selector":
+			if len(self.Selector) == 0 && len(other.Selector) == 0 {
+				return true
+			}
 		}
+
 		return false
 	})
 	return diffs, eq

@@ -11,6 +11,7 @@ import (
 func createPodTemplateSpec(tg *jobs.TaskGroup, pod pod, ctx generatorContext, requireRestartPolicyAlways bool) (*k8s.PodTemplateSpec, error) {
 	tspec := k8s.NewPodTemplateSpec(ctx.Namespace, pod.name)
 	setPodLabels(&tspec.ObjectMeta, tg, pod)
+	addMetricsAnnotations(&tspec.ObjectMeta, pod)
 
 	spec, annotations, err := createPodSpec(tg, pod, ctx, requireRestartPolicyAlways)
 	if err != nil {

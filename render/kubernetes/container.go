@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"sort"
 
 	k8s "github.com/YakLabs/k8s-client"
 	"github.com/pulcy/j2/jobs"
@@ -44,6 +45,7 @@ func createTaskContainers(t *jobs.Task, pod pod, ctx generatorContext, hostNetwo
 			Value: v,
 		})
 	}
+	sort.Sort(envVarByName(c.Env))
 
 	// Secrets that will be passed as environment variables or as file
 	var initContainers []k8s.Container
@@ -143,3 +145,9 @@ func newContainer(name, image string) *k8s.Container {
 		Resources:              &k8s.ResourceRequirements{},
 	}
 }
+
+type envVarByName []k8s.EnvVar
+
+func (l envVarByName) Len() int           { return len(l) }
+func (l envVarByName) Less(i, j int) bool { return l[i].Name < l[j].Name }
+func (l envVarByName) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }

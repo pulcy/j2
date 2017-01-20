@@ -51,11 +51,17 @@ func updateMetadataFromCurrent(meta *k8s.ObjectMeta, current k8s.ObjectMeta) {
 
 func isSameObjectMeta(self, other k8s.ObjectMeta, ignoredLabels ...string) ([]string, bool) {
 	d, eq := diff(self, other, func(path string) bool {
-		if strings.HasPrefix(path, ".Annotations[") && !strings.Contains(path, "pulcy") {
-			return true
+		if strings.HasPrefix(path, ".Annotations[") {
+			if !strings.Contains(path, "pulcy") && !strings.Contains(path, "prometheus") {
+				return true
+			}
 		}
 		switch path {
-		case ".Annotations", ".CreationTimestamp", ".Generation", ".ResourceVersion", ".SelfLink", ".UID":
+		case ".Annotations":
+			if len(self.Annotations) == 0 && len(other.Annotations) == 0 {
+				return true
+			}
+		case ".CreationTimestamp", ".Generation", ".ResourceVersion", ".SelfLink", ".UID":
 			return true
 		}
 		for _, l := range ignoredLabels {
