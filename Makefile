@@ -17,7 +17,7 @@ REPOPATH := $(ORGPATH)/$(REPONAME)
 BIN := $(BINDIR)/$(PROJECT)
 
 GOPATH := $(GOBUILDDIR)
-GOVERSION := 1.7.4-alpine
+GOVERSION := 1.10.0-alpine
 GOEXTPOINTS := $(GOBUILDDIR)/bin/go-extpoints
 
 ifndef GOOS
